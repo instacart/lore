@@ -100,6 +100,7 @@ Pipelines are the unsexy, but essential component of most machine learning appli
 
 
 The superclass `lore.pipelines.TrainTestSplit` will take care of:
+
 # splitting the data into training_data/validation_data/test_data dataframes
 # fitting the encoders to training_data
 # transforming training_data/validation_data/test_data for the model
@@ -319,8 +320,8 @@ Lore Library
 **Base Models**
 
 - Abstract base classes for keras, xgboost, and scikit
-    * inheritting class to define data(), encoders(), output_encoder(), benchmark()
-    * multiple inheritance from custom base class w/ specific ABC for library
+  - inheriting class to define data(), encoders(), output_encoder(), benchmark()
+  - multiple inheritance from custom base class w/ specific ABC for library
 - provides hyper parameter optimization
 
 **Fitting**
@@ -336,22 +337,24 @@ Lore Library
 
 **Utils**
 
-- **timer** context manager writes to the log in development or librato in production*
-- **timed **is a decorator for recording function execution wall time
+- `lore.util.timer`context manager writes to the log in development or librato in production*
+- `lore.util.timed` is a decorator for recording function execution wall time
 
 Commands
 --------
 
-$ lore api  #  start an api process
-$ lore console
-$ lore fit MODEL  #  train the model
-$ lore generate [**all**, api, model, notebook, task] NAME
-$ lore init [project]  #  create file structure
-$ lore install  #  setup dependencies in virtualenv
-$ lore test  #  make sure the project is in working order
-$ lore pip  #  launch pip in your virtual env
-$ lore python  # launch python in your virtual env
-$ lore notebook  # launch jupyter notebook in your virtual env
+.. code-block:: bash
+
+  $ lore api  #  start an api process
+  $ lore console
+  $ lore fit MODEL  #  train the model
+  $ lore generate [**all**, api, model, notebook, task] NAME
+  $ lore init [project]  #  create file structure
+  $ lore install  #  setup dependencies in virtualenv
+  $ lore test  #  make sure the project is in working order
+  $ lore pip  #  launch pip in your virtual env
+  $ lore python  # launch python in your virtual env
+  $ lore notebook  # launch jupyter notebook in your virtual env
 
 
 .. |circleci_badge| image:: https://circleci.com/gh/instacart/lore.png?style=shield&circle-token=54008e55ae13a0fa354203d13e7874c5efcb19a2
