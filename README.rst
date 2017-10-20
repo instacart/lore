@@ -291,11 +291,11 @@ Lore Library
 
 **IO**
 
-- lore.io.connection.Connection.select() and Connection.dataframe() can be automatically LRU cached to disk
-- Connection supports python %(name)s variable replacement in SQL
-- Connection statements are always annotated with metadata for pgHero
-- Connection is lazy, for fast startup, and avoids bootup errors in development with low connectivity
-- Connection supports multiple concurrent database connections
+- :python:`lore.io.connection.Connection.select()` and :python:`Connection.dataframe()` can be automatically LRU cached to disk
+- :python:`Connection` supports python %(name)s variable replacement in SQL
+- :python:`Connection` statements are always annotated with metadata for pgHero
+- :python:`Connection` is lazy, for fast startup, and avoids bootup errors in development with low connectivity
+- :python:`Connection` supports multiple concurrent database connections
 
 **Serialization**
 
@@ -354,7 +354,7 @@ Commands
   $ lore api  #  start an api process
   $ lore console
   $ lore fit MODEL  #  train the model
-  $ lore generate [**all**, api, model, notebook, task] NAME
+  $ lore generate [all, api, model, notebook, task] NAME
   $ lore init [project]  #  create file structure
   $ lore install  #  setup dependencies in virtualenv
   $ lore test  #  make sure the project is in working order
