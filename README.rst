@@ -32,23 +32,29 @@ We'll naively try to predict whether users are subscribers, given their first na
 
 
 
-Update config/database.cfg to specify your database url:: ini
+Update config/database.cfg to specify your database url:
+
+.. code-block:: ini
 
   # config/database.cfg\
 
   [MAIN]
   url: $DATABASE_URL
 
-you can set environment variable for only the lore process with the .env file:: bash
+you can set environment variable for only the lore process with the .env file:
+
+.. code-block:: bash
 
   # .env
 
   DATABASE_URL=postgres://user:password@localhost:5432/main_development
 
 
-Create a sql file that specifies your data
+Create a sql file that specifies your data:
 
-# app/extracts/subscribers.sql:: sql
+.. code-block:: sql
+
+-- app/extracts/subscribers.sql
 
   SELECT
     first_name,
@@ -56,7 +62,9 @@ Create a sql file that specifies your data
   FROM users
   LIMIT = %(limit)s
 
-Pipelines are the unsexy, but essential component of most machine learning applications. They transform raw data into encoded training (and prediction) data for a model. Lore has several features to make data munging more palatable.:: python
+Pipelines are the unsexy, but essential component of most machine learning applications. They transform raw data into encoded training (and prediction) data for a model. Lore has several features to make data munging more palatable.
+
+.. code-block:: python
 
   # app/pipelines/subscribers.py
 
@@ -96,7 +104,9 @@ The superclass `lore.pipelines.TrainTestSplit` will take care of:
 2) fitting the encoders to training_data
 3) transforming training_data/validation_data/test_data for the model
 
-Define some models that will fit and predict the data. Base models are designed to be extended and overridden, but work with defaults out of the box.:: python
+Define some models that will fit and predict the data. Base models are designed to be extended and overridden, but work with defaults out of the box.
+
+..code-block:: python
 
   # app/models/subscribers.py
 
@@ -118,7 +128,9 @@ Define some models that will fit and predict the data. Base models are designed 
           )
 
 
-Test the models predictive power:: python
+Test the models predictive power:
+
+..code-block:: python
 
   # tests/unit/subscribers.py
 
@@ -137,45 +149,89 @@ Test the models predictive power:: python
           predictions = model.predict(model.pipeline.test_data.x)
           self.assertEqual(predictions, model.pipeline.test_data.y) # hah hah hah!
 
-Run tests:: bash
+Run tests:
+
+..code-block:: bash
 
   $ lore test
-
 
 Experiment and tune `notebooks/` with `$ lore notebook` using the app kernel
 
 
+Project Structure
+-----------------
+
+..code-block:
+
+  ├── .env.template            <- Template for environment variables for developers (mirrors production)
+  ├── README.md                <- The top-level README for developers using this project.
+  ├── requirements.txt         <- keeps dev and production in sync (pip)
+  ├── runtime.txt              <- keeps dev and production in sync (pyenv)
+  │
+  ├── data/                    <- query cache and other temp data
+  │
+  ├── docs/                    <- generated from src
+  │
+  ├── logs/                    <- log files per environment
+  │
+  ├── models/                  <- local model store from fittings
+  │
+  ├── notebooks/               <- explorations of data and models
+  │       └── my_exploration/
+  │            └── exploration_1.ipynb
+  │
+  ├── appname/                 <- python module for appname
+  │   ├── __init__.py          <- loads the various components (makes this a module)
+  │   │
+  │   ├── api/                 <- external entry points to runtime models
+  │   │   └── my_endpoint.py   <- hub endpoint for predictions
+  │   │
+  │   ├── extracts/            <- sql
+  │   │   └── my_sql.sql
+  │   │
+  │   ├── estimators/          <- Code that make predictions
+  │   │   └── my_estimator.py  <- Keras/XGBoost implementations
+  │   │
+  │   ├── models/              <- Combine estimator(s) w/ pipeline(s)
+  │   │   └── my_model.py
+  │   │
+  │   └── pipelines/           <- abstractions for processing data
+  │       └── my_pipeline.py   <- train/test/split data encoding
+  │
+  └── tests/
+      ├── data/                <- cached queries for fixture data
+      ├── models/              <- model store for test runs
+      └── unit/                <- unit tests
 
 
-
-Python Modules
-==============
-Lore provides python modules to simplify and standardize Machine Learning techniques across multiple libraries.
+Modules Overview
+================
+Lore provides python modules to standardize Machine Learning techniques across multiple libraries.
 
 Core Functionality
 ------------------
-* **Models** are compatibility wrappers for your favorite library (keras, xgboost, scikit). They come with reasonable defaults for rough draft training out of the box.
-* **Pipelines** fetch, encode, and split data into training/test sets for models. A single pipeline will have one Encoder per feature in the model.
-* **Encoders** operate within Pipelines to transform a single feature into an optimal representation for learning.
-* **Transformers** provide common operations, like extracting the area code from a free text phone number. They can be chained together inside encoders. They efficiently
+* **lore.models** are compatibility wrappers for your favorite library (keras, xgboost, scikit). They come with reasonable defaults for rough draft training out of the box.
+* **lore.pipelines** fetch, encode, and split data into training/test sets for models. A single pipeline will have one Encoder per feature in the model.
+* **lore.encoders** operate within Pipelines to transform a single feature into an optimal representation for learning.
+* **lore.transformers** provide common operations, like extracting the area code from a free text phone number. They can be chained together inside encoders. They efficiently
 
 Supporting functionality
 ------------------------
-* **io.Connection** allows querying data from postgresql/redshift.
-* **Serializers** persist models with their pipelines and encoders to disk, or s3.
-* **Caches** save intermediate data, sometimes for reproducibility, sometimes for performance.
+* **lore.io** allows connecting to postgres/redshift and upload/download from s3
+* **lore.serializers** persist models with their pipelines and encoders (and get them back again)
+* **lore.stores** save intermediate data, for reproducibility and efficiency.
 
 Utilities
 ---------
-* **Logger** writes per environment (development/test/production) to ./logs/ + console if present + syslog in production
-* **Timer** writes to the log in development or librato in production*
+* **lore.util** has those extra niceties we rewrite in every project, and then some
+* **lore.env** takes care of ensuring that all dependencies are correctly installed before running
 
+Features
+========
 
-On the shoulders giants
-===================================
-
-Lore is designed to be as fast and powerful as the underlying libraries.
-It seamlessly supports workflows that utilize:
+Integrated Libraries
+--------------------
+Use your favorite library in a lore project, just like you'd use them in any other python project. They'll play nicely together.
 
 * Keras/Tensorflow + Tensorboard
 * XGBoost
@@ -183,82 +239,123 @@ It seamlessly supports workflows that utilize:
 * Jupyter Notebook
 * Pandas
 * Numpy
-* Matplotlib
-* SQLAlchemy, psychopg
-* virtualenv, pyenv, python (2.7, 3.3+)
+* Matplotlib, ggplot, plotnine
+* Sqlalchemy, Psycopg2
+* Hub
 
+Dev Ops
+-------
+There are many ways to manage python dependencies in development and production, and each has it's own pitfalls. Lore codifies a solution that “just works” with lore install, which exactly replicates what will be run in production.
+
+**Python 2 & 3 **compatibility****
+
+* pip install lore works regardless of whether your base system python is 2 or 3. Lore projects will always use the version of python specified in their runtime.txt
+* Lore projects use the system service manager (upstart on ubuntu) instead of supervisord which requires python 2.
+
+**Heroku_ buildpack compatibility CircleCI_, Domino_ , isc)**
+
+* Lore supports runtime.txt to install and use a consistent version of python 2 or 3 in both development and production.
+* lore install automatically manages freezing requirements.txt, using a virtualenv, so pip dependencies are exactly the same in development and production. This includes workarounds to support correctly (not) freezing github packages in requirements.txt
+
+**Environment Specific Configuration**
+
+* Lore supports reading environment variables from .env, for easy per project configuration. We recommend .gitignore .env and checking in a .env.template for developer reference to prevent leaking secrets.
+* logging.getLogger(__name__) is setup appropriately to console, file and/or syslog depending on environment
+    * syslog is replicated with structured data to loggly_ in production
+* lore.util.timer logs info in development, and records  to librato_ in production
+* Exception handling logs stack traces in development and test, but reports to rollbar_ in production
+* lore console interactive python shell is color coded to prevent environmental confusion
+
+**Multiple concurrent project compatibility**
+
+* Lore manages a distinct python virtualenv for each project, which can be installed from scratch in development with lore install
+
+**ISC compatibility**
+
+* The commonly used virtualenvwrapper (and conda) breaks system python utilities, like isc, whenever you're working on a project. Lore works around this by bootstrapping into the appropriate virtualenv only when it is invoked by the developer.
+
+**Binary library installation for MAXIMUM SPEED**
+
+* Lore can build *tensorflow* from source when it is listed in requirements for development machines, which results in a 2-3x runtime training performance increase. Use lore install --native
+* Lore also compiles *xgboost* on OS X with gcc-5 instead of clang to enable automatic parallelization
+
+Lore Library
+
+IO
+
+* lore.io.connection.Connection.select() and Connection.dataframe() can be automatically LRU cached to disk
+* Connection supports python %(name)s variable replacement in SQL
+* Connection statements are always annotated with metadata for pgHero
+* Connection is lazy, for fast startup, and avoids bootup errors in development with low connectivity
+* Connection supports multiple concurrent database connections
+
+Serialization
+
+* Lore serializers provide environment aware S3 distribution for keras/xgboost/scikit models
+* Coming soon: heroku buildpack support for serialized models to marry the appropriate code for repeatable and deploys that can be safely rolled back
+
+Caching
+
+* Lore provides mulitple configurable cache types, RAM, Disk, coming soon: MemCached & Redis
+* Disk cache is tested with pandas to avoid pitfalls encountered serializing w/ csv, h5py, pickle
+
+Encoders
+
+* Unique
+* Discrete
+* Quantile
+* Norm
+
+Transformers
+
+* AreaCode
+* EmailDomain
+* NameAge
+* NameSex
+* NamePopulation
+* NameFamilial
+
+Base Models
+
+* Abstract base classes for keras, xgboost, and scikit
+    * inheritting class to define data(), encoders(), output_encoder(), benchmark()
+    * multiple inheritance from custom base class w/ specific ABC for library
+* provides hyper parameter optimization
+
+Fitting
+
+* Each call to Model.fit() saves the resulting model, along with the params to fit, epoch checkpoints and the resulting statistics, that can be reloaded, or uploaded with a Serializer
+
+Keras/Tensorflow
+
+* tensorboard support out of the box with tensorboard --logdir=models
+* lore cleans up tensorflow before process exit to prevent spurious exceptions
+* lore serializes Keras 2.0 models with extra care, to avoid several bugs (some that only appear at scale)
+* ReloadBest callback early stops training on val_loss increase, and reloads the best epoch
+
+UTils
+
+* **timer** context manager writes to the log in development or librato in production*
+* **timed **is a decorator for recording function execution wall time
 
 Commands
-========
 
-$ lore init
-$ lore install [--upgade]
-$ lore generate [**all**, api, model, notebook, task] NAME
-$ lore test
+$ lore api  #  start an api process
 $ lore console
-$ lore api
+$ lore fit MODEL  #  train the model
+$ lore generate [**all**, api, model, notebook, task] NAME
+$ lore init [project]  #  create file structure
+$ lore install  #  setup dependencies in virtualenv
+$ lore test  #  make sure the project is in working order
+$ lore pip  #  launch pip in your virtual env
+$ lore python  # launch python in your virtual env
+$ lore notebook  # launch jupyter notebook in your virtual env
 
-
-Project Structure
-=================
-
-::
-
-├── .env.template            <- Template for environment variables for developers (mirrors production)
-├── runtime.txt              <- keeps dev and production in sync (pyenv or buildpack)
-├── README.rst               <- The top-level README for developers using this project.
-├── requirements.txt         <- keeps dev and production in sync via pip, managed w/ lore install
-│
-├── data/                    <- caches and intermediate data from pipelines
-│
-├── docs/                    <- generated from src
-│
-├── notebooks/               <- explorations of data and models
-│       └── my_exploration/
-│            └── exploration_1.ipynb
-│
-├── logs/
-│   ├── development.log
-│   └── test.log
-│
-├── models/                  <- persisted trained models
-│
-├── my_project/
-│   ├── __init__.py          <- environment, logging, exceptions, metrics initializers
-│   │
-│   ├── api/
-│   │   ├── __init__.py
-│   │   └── my_model.py      <- external entry points to my_model
-│   │
-│   ├── extracts/
-│   │   └── my_model.sql     <- a query to fetch features for my_model's pipeline
-│   │
-│   ├── pipelines/
-│   │   ├── __init__.py
-│   │   └── my_model.py      <- define the pipeline for my_model
-│   │
-│   └── models/
-│       ├── __init__.py
-│       └── my_model.py      <- inherits and customized multiple lore base models
-│
-└── tests/
-    ├── data/                <- test caches and intermediate data from pipelines
-    ├── models/              <- persisted models for tests
-    ├── mocks/               <- mock code to stub out models/pipelines etc
-    └── unit/                <- unit tests for my_model
-
-
-
-Design Philosophies & Inspiration
-=================================
-
-* Personal Pain
-* Minimal Abstraction
-* No code is better than no code (https://blog.codinghorror.com/the-best-code-is-no-code-at-all/)
-* Convention over configuration (https://xkcd.com/927/)
-* Sharp Tools (https://www.schneems.com/2016/08/16/sharp-tools.html)
-* Rails (https://en.wikipedia.org/wiki/Ruby_on_Rails)
-* Cookie Cutter Data Science (https://drivendata.github.io/cookiecutter-data-science/)
-* Gene Roddenberry (https://www.youtube.com/watch?v=0JLgywxeaLM)
 
 .. |circleci_badge| image:: https://circleci.com/gh/instacart/lore.png?style=shield&circle-token=54008e55ae13a0fa354203d13e7874c5efcb19a2
+.. _Heroku: https://heroku.com/
+.. _CircleCI: https://circleci.com/
+.. _Domino: https://www.dominodatalab.com/
+.. _loggly: https://www.loggly.com/
+.. _librato: https://www.librato.com/
+.. _rollbar: https://rollbar.com/
