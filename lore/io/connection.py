@@ -60,12 +60,15 @@ class Connection(object):
         if batch_size is None:
             batch_size = len(dataframe)
 
+        if self._connection is None:
+            self._connection = self._engine.connect()
+
         with timer('INSERT ' + table):
             offset = 0
             while offset < len(dataframe):
                 dataframe[offset:(offset + batch_size)].to_sql(
                     table,
-                    self._engine,
+                    self._connection,
                     if_exists='append',
                     index=False
                 )
