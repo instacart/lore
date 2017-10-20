@@ -1,3 +1,9 @@
+.. role:: python(code)
+   :language: python
+
+.. role:: bash(code)
+   :language: bash
+
 ======
  Lore
 ======
@@ -99,7 +105,7 @@ Pipelines are the unsexy, but essential component of most machine learning appli
           return Boolean('has_subscription')
 
 
-The superclass `lore.pipelines.TrainTestSplit` will take care of:
+The superclass :python:`lore.pipelines.TrainTestSplit` will take care of:
 
 # splitting the data into training_data/validation_data/test_data dataframes
 # fitting the encoders to training_data
@@ -156,7 +162,7 @@ Run tests:
 
   $ lore test
 
-Experiment and tune `notebooks/` with `$ lore notebook` using the app kernel
+Experiment and tune :bash:`notebooks/` with :bash:`$ lore notebook` using the app kernel
 
 
 Project Structure
@@ -261,7 +267,7 @@ There are many ways to manage python dependencies in development and production,
 **Environment Specific Configuration**
 
 - Lore supports reading environment variables from .env, for easy per project configuration. We recommend .gitignore .env and checking in a .env.template for developer reference to prevent leaking secrets.
-- `logging.getLogger(__name__)` is setup appropriately to console, file and/or syslog depending on environment
+- :python:`logging.getLogger(__name__)` is setup appropriately to console, file and/or syslog depending on environment
 - syslog is replicated with structured data to loggly_ in production
 - lore.util.timer logs info in development, and records  to librato_ in production
 - Exception handling logs stack traces in development and test, but reports to rollbar_ in production
@@ -337,8 +343,8 @@ Lore Library
 
 **Utils**
 
-- `lore.util.timer`context manager writes to the log in development or librato in production*
-- `lore.util.timed` is a decorator for recording function execution wall time
+- :python:`lore.util.timer` context manager writes to the log in development or librato in production*
+- :python:`lore.util.timed` is a decorator for recording function execution wall time
 
 Commands
 --------
