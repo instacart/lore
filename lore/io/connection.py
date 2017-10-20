@@ -63,7 +63,7 @@ class Connection(object):
         with timer('INSERT ' + table):
             offset = 0
             while offset < len(dataframe):
-                dataframe[dataframe[offset:offset + batch_size]].to_sql(
+                dataframe[offset:(offset + batch_size)].to_sql(
                     table,
                     self._engine,
                     if_exists='append',
