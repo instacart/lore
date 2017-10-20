@@ -1,0 +1,27 @@
+machine:
+  environment:
+    DATABASE_URL: 'postgres://localhost:5432/test'
+  python:
+    version: 3.6.2
+  post:
+    - pyenv global 3.6.2
+
+dependencies:
+  pre:
+    - createdb test
+
+notify:
+  webhooks:
+    - url: CHECK EXAMPLES
+  branches:
+    only:
+      - /.*/
+
+general:
+  branches:
+    ignore:
+      - /.*\/ci_skip.*/ # end your branch name in /ci_skip and it won't be built by CircleCI
+
+test:
+  override:
+    - lore test

@@ -1,0 +1,2 @@
+# Add packages, edit individual version numbers, or `lore install --upgrade`.
+# This file is automatically maintained by `lore install`.

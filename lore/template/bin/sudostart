@@ -1,0 +1,31 @@
+#!/bin/bash
+set -o errexit -o nounset -o pipefail
+
+# A locale that works consistently
+export LC_ALL=en_US.UTF-8
+
+
+function -h {
+  cat <<-HELP
+    USAGE: start
+
+    Starts the service for this [HOSTNAME], just out the other ./bin
+    scripts to run individual services.
+HELP
+};
+function --help { -h ;}
+
+function main {
+  if [[ $HOSTNAME == *endpoint* ]]; then
+    start endpoints_0
+    start endpoints_1
+  elif [[ $HOSTNAME == *clock* ]]; then
+    start clocks
+  fi
+
+  while sleep infinity
+    do : # Nothing
+  done
+}
+
+main
