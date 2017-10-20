@@ -36,7 +36,7 @@ Update config/database.cfg to specify your database url:
 
 .. code-block:: ini
 
-  # config/database.cfg\
+  # config/database.cfg
 
   [MAIN]
   url: $DATABASE_URL
@@ -54,7 +54,7 @@ Create a sql file that specifies your data:
 
 .. code-block:: sql
 
--- app/extracts/subscribers.sql
+  -- app/extracts/subscribers.sql
 
   SELECT
     first_name,
@@ -100,13 +100,13 @@ Pipelines are the unsexy, but essential component of most machine learning appli
 
 
 The superclass `lore.pipelines.TrainTestSplit` will take care of:
-1) splitting the data into training_data/validation_data/test_data dataframes
-2) fitting the encoders to training_data
-3) transforming training_data/validation_data/test_data for the model
+# splitting the data into training_data/validation_data/test_data dataframes
+# fitting the encoders to training_data
+# transforming training_data/validation_data/test_data for the model
 
 Define some models that will fit and predict the data. Base models are designed to be extended and overridden, but work with defaults out of the box.
 
-..code-block:: python
+.. code-block:: python
 
   # app/models/subscribers.py
 
@@ -130,7 +130,7 @@ Define some models that will fit and predict the data. Base models are designed 
 
 Test the models predictive power:
 
-..code-block:: python
+.. code-block:: python
 
   # tests/unit/subscribers.py
 
@@ -151,7 +151,7 @@ Test the models predictive power:
 
 Run tests:
 
-..code-block:: bash
+.. code-block:: bash
 
   $ lore test
 
@@ -161,7 +161,7 @@ Experiment and tune `notebooks/` with `$ lore notebook` using the app kernel
 Project Structure
 -----------------
 
-..code-block:
+.. code-block::
 
   ├── .env.template            <- Template for environment variables for developers (mirrors production)
   ├── README.md                <- The top-level README for developers using this project.
@@ -210,21 +210,21 @@ Lore provides python modules to standardize Machine Learning techniques across m
 
 Core Functionality
 ------------------
-* **lore.models** are compatibility wrappers for your favorite library (keras, xgboost, scikit). They come with reasonable defaults for rough draft training out of the box.
-* **lore.pipelines** fetch, encode, and split data into training/test sets for models. A single pipeline will have one Encoder per feature in the model.
-* **lore.encoders** operate within Pipelines to transform a single feature into an optimal representation for learning.
-* **lore.transformers** provide common operations, like extracting the area code from a free text phone number. They can be chained together inside encoders. They efficiently
+- **lore.models** are compatibility wrappers for your favorite library (keras, xgboost, scikit). They come with reasonable defaults for rough draft training out of the box.
+- **lore.pipelines** fetch, encode, and split data into training/test sets for models. A single pipeline will have one Encoder per feature in the model.
+- **lore.encoders** operate within Pipelines to transform a single feature into an optimal representation for learning.
+- **lore.transformers** provide common operations, like extracting the area code from a free text phone number. They can be chained together inside encoders. They efficiently
 
 Supporting functionality
 ------------------------
-* **lore.io** allows connecting to postgres/redshift and upload/download from s3
-* **lore.serializers** persist models with their pipelines and encoders (and get them back again)
-* **lore.stores** save intermediate data, for reproducibility and efficiency.
+- **lore.io** allows connecting to postgres/redshift and upload/download from s3
+- **lore.serializers** persist models with their pipelines and encoders (and get them back again)
+- **lore.stores** save intermediate data, for reproducibility and efficiency.
 
 Utilities
 ---------
-* **lore.util** has those extra niceties we rewrite in every project, and then some
-* **lore.env** takes care of ensuring that all dependencies are correctly installed before running
+- **lore.util** has those extra niceties we rewrite in every project, and then some
+- **lore.env** takes care of ensuring that all dependencies are correctly installed before running
 
 Features
 ========
@@ -233,112 +233,114 @@ Integrated Libraries
 --------------------
 Use your favorite library in a lore project, just like you'd use them in any other python project. They'll play nicely together.
 
-* Keras/Tensorflow + Tensorboard
-* XGBoost
-* Scikit-Learn
-* Jupyter Notebook
-* Pandas
-* Numpy
-* Matplotlib, ggplot, plotnine
-* Sqlalchemy, Psycopg2
-* Hub
+- Keras/Tensorflow + Tensorboard
+- XGBoost
+- Scikit-Learn
+- Jupyter Notebook
+- Pandas
+- Numpy
+- Matplotlib, ggplot, plotnine
+- Sqlalchemy, Psycopg2
+- Hub
 
 Dev Ops
 -------
 There are many ways to manage python dependencies in development and production, and each has it's own pitfalls. Lore codifies a solution that “just works” with lore install, which exactly replicates what will be run in production.
 
-**Python 2 & 3 **compatibility****
+**Python 2 & 3 compatibility**
 
-* pip install lore works regardless of whether your base system python is 2 or 3. Lore projects will always use the version of python specified in their runtime.txt
-* Lore projects use the system service manager (upstart on ubuntu) instead of supervisord which requires python 2.
+- pip install lore works regardless of whether your base system python is 2 or 3. Lore projects will always use the version of python specified in their runtime.txt
+- Lore projects use the system service manager (upstart on ubuntu) instead of supervisord which requires python 2.
 
 **Heroku_ buildpack compatibility CircleCI_, Domino_ , isc)**
 
-* Lore supports runtime.txt to install and use a consistent version of python 2 or 3 in both development and production.
-* lore install automatically manages freezing requirements.txt, using a virtualenv, so pip dependencies are exactly the same in development and production. This includes workarounds to support correctly (not) freezing github packages in requirements.txt
+- Lore supports runtime.txt to install and use a consistent version of python 2 or 3 in both development and production.
+- lore install automatically manages freezing requirements.txt, using a virtualenv, so pip dependencies are exactly the same in development and production. This includes workarounds to support correctly (not) freezing github packages in requirements.txt
 
 **Environment Specific Configuration**
 
-* Lore supports reading environment variables from .env, for easy per project configuration. We recommend .gitignore .env and checking in a .env.template for developer reference to prevent leaking secrets.
-* logging.getLogger(__name__) is setup appropriately to console, file and/or syslog depending on environment
-    * syslog is replicated with structured data to loggly_ in production
-* lore.util.timer logs info in development, and records  to librato_ in production
-* Exception handling logs stack traces in development and test, but reports to rollbar_ in production
-* lore console interactive python shell is color coded to prevent environmental confusion
+- Lore supports reading environment variables from .env, for easy per project configuration. We recommend .gitignore .env and checking in a .env.template for developer reference to prevent leaking secrets.
+- `logging.getLogger(__name__)` is setup appropriately to console, file and/or syslog depending on environment
+- syslog is replicated with structured data to loggly_ in production
+- lore.util.timer logs info in development, and records  to librato_ in production
+- Exception handling logs stack traces in development and test, but reports to rollbar_ in production
+- lore console interactive python shell is color coded to prevent environmental confusion
 
 **Multiple concurrent project compatibility**
 
-* Lore manages a distinct python virtualenv for each project, which can be installed from scratch in development with lore install
+- Lore manages a distinct python virtualenv for each project, which can be installed from scratch in development with lore install
 
 **ISC compatibility**
 
-* The commonly used virtualenvwrapper (and conda) breaks system python utilities, like isc, whenever you're working on a project. Lore works around this by bootstrapping into the appropriate virtualenv only when it is invoked by the developer.
+- The commonly used virtualenvwrapper (and conda) breaks system python utilities, like isc, whenever you're working on a project. Lore works around this by bootstrapping into the appropriate virtualenv only when it is invoked by the developer.
 
 **Binary library installation for MAXIMUM SPEED**
 
-* Lore can build *tensorflow* from source when it is listed in requirements for development machines, which results in a 2-3x runtime training performance increase. Use lore install --native
-* Lore also compiles *xgboost* on OS X with gcc-5 instead of clang to enable automatic parallelization
+- Lore can build *tensorflow* from source when it is listed in requirements for development machines, which results in a 2-3x runtime training performance increase. Use lore install --native
+- Lore also compiles *xgboost* on OS X with gcc-5 instead of clang to enable automatic parallelization
 
 Lore Library
+------------
 
-IO
+**IO**
 
-* lore.io.connection.Connection.select() and Connection.dataframe() can be automatically LRU cached to disk
-* Connection supports python %(name)s variable replacement in SQL
-* Connection statements are always annotated with metadata for pgHero
-* Connection is lazy, for fast startup, and avoids bootup errors in development with low connectivity
-* Connection supports multiple concurrent database connections
+- lore.io.connection.Connection.select() and Connection.dataframe() can be automatically LRU cached to disk
+- Connection supports python %(name)s variable replacement in SQL
+- Connection statements are always annotated with metadata for pgHero
+- Connection is lazy, for fast startup, and avoids bootup errors in development with low connectivity
+- Connection supports multiple concurrent database connections
 
-Serialization
+**Serialization**
 
-* Lore serializers provide environment aware S3 distribution for keras/xgboost/scikit models
-* Coming soon: heroku buildpack support for serialized models to marry the appropriate code for repeatable and deploys that can be safely rolled back
+- Lore serializers provide environment aware S3 distribution for keras/xgboost/scikit models
+- Coming soon: heroku buildpack support for serialized models to marry the appropriate code for repeatable and deploys that can be safely rolled back
 
-Caching
+**Caching**
 
-* Lore provides mulitple configurable cache types, RAM, Disk, coming soon: MemCached & Redis
-* Disk cache is tested with pandas to avoid pitfalls encountered serializing w/ csv, h5py, pickle
+- Lore provides mulitple configurable cache types, RAM, Disk, coming soon: MemCached & Redis
+- Disk cache is tested with pandas to avoid pitfalls encountered serializing w/ csv, h5py, pickle
 
-Encoders
+**Encoders**
 
-* Unique
-* Discrete
-* Quantile
-* Norm
+- Unique
+- Discrete
+- Quantile
+- Norm
 
-Transformers
+**Transformers**
 
-* AreaCode
-* EmailDomain
-* NameAge
-* NameSex
-* NamePopulation
-* NameFamilial
+- AreaCode
+- EmailDomain
+- NameAge
+- NameSex
+- NamePopulation
+- NameFamilial
 
-Base Models
+**Base Models**
 
-* Abstract base classes for keras, xgboost, and scikit
+- Abstract base classes for keras, xgboost, and scikit
     * inheritting class to define data(), encoders(), output_encoder(), benchmark()
     * multiple inheritance from custom base class w/ specific ABC for library
-* provides hyper parameter optimization
+- provides hyper parameter optimization
 
-Fitting
+**Fitting**
 
-* Each call to Model.fit() saves the resulting model, along with the params to fit, epoch checkpoints and the resulting statistics, that can be reloaded, or uploaded with a Serializer
+- Each call to Model.fit() saves the resulting model, along with the params to fit, epoch checkpoints and the resulting statistics, that can be reloaded, or uploaded with a Serializer
 
-Keras/Tensorflow
+**Keras/Tensorflow**
 
-* tensorboard support out of the box with tensorboard --logdir=models
-* lore cleans up tensorflow before process exit to prevent spurious exceptions
-* lore serializes Keras 2.0 models with extra care, to avoid several bugs (some that only appear at scale)
-* ReloadBest callback early stops training on val_loss increase, and reloads the best epoch
+- tensorboard support out of the box with tensorboard --logdir=models
+- lore cleans up tensorflow before process exit to prevent spurious exceptions
+- lore serializes Keras 2.0 models with extra care, to avoid several bugs (some that only appear at scale)
+- ReloadBest callback early stops training on val_loss increase, and reloads the best epoch
 
-UTils
+**Utils**
 
-* **timer** context manager writes to the log in development or librato in production*
-* **timed **is a decorator for recording function execution wall time
+- **timer** context manager writes to the log in development or librato in production*
+- **timed **is a decorator for recording function execution wall time
 
 Commands
+--------
 
 $ lore api  #  start an api process
 $ lore console
