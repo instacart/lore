@@ -67,16 +67,18 @@ if boto3:
 def download(local_path, remote_path=None, cache=True):
     if not remote_path:
         remote_path = local_path
+        remote_path = re.sub(
+            r'^%s' % re.escape(lore.env.work_dir),
+            lore.env.name,
+            remote_path
+        )
 
-    remote_path = re.sub(
-        r'^%s' % re.escape(lore.env.work_dir),
-        lore.env.name,
-        remote_path
-    )
-    
+    if not remote_path.startswith(lore.env.name):
+        remote_path = os.path.join(lore.env.name, remote_path)
+
     if cache and os.path.exists(local_path):
         return
-    
+
     dir = os.path.dirname(local_path)
     if not os.path.exists(dir):
         os.makedirs(dir)
@@ -93,6 +95,7 @@ def download(local_path, remote_path=None, cache=True):
 
 
 def upload(local_path, remote_path=None):
+
     if remote_path:
         if remote_path.startswith('/'):
             logger.warning('remotepath should be relative (to bucket root)')

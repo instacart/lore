@@ -25,7 +25,7 @@ class UserWarehouseSearchesFeature(S3):
         return "{}/{}/metadata.json".format(self.version, self.name())
 
     def serialization(self):
-        return 'pickle'
+        return 'csv'
 
     def get_data(self):
         return pd.DataFrame({'user_id': [1, 1, 2], 'warehouse_id': [1, 2, 1], 'searches': [10, 20, 30], 'conversions': [1, 2, 3]})
