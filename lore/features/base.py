@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-__author__ = 'Shrikar Archak'
-
 import datetime
 from abc import ABCMeta, abstractmethod, abstractproperty
 import pandas as pd

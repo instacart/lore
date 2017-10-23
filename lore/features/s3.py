@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-__author__ = 'Shrikar Archak'
 
 from lore.features.base import Base
 from abc import ABCMeta, abstractmethod
