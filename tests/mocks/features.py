@@ -34,19 +34,15 @@ class UserWarehouseSearchesFeature(S3):
         # lore.io.s3[mymetadatakey] = self (upload, pickle/json/csv)
 
 
-    # def distribute(self):
-    #     for row in self._data.items():
-    #         key = ...
-    #         lore.io.redis[key] = row
 
+### Ideas
 
-
-feature = UserWarehouseSearchesFeature()
-print(feature.get_data())
-print(feature)
-feature.publish()
-print(feature.features_as_kv())
-feature.distribute(Redis(lore.io.redis_conn))
+# feature = UserWarehouseSearchesFeature()
+# print(feature.get_data())
+# print(feature)
+# feature.publish()
+# print(feature.features_as_kv())
+# feature.distribute(Redis(lore.io.redis_conn))
 # building.publish()
 #
 # downloaded = UserWarehouseSearchesFeature(version=1)

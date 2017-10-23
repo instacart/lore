@@ -9,7 +9,7 @@ class TestFeatures(unittest.TestCase):
     def test_s3_features(self):
         conn = boto3.resource('s3')
         # We need to create the bucket since this is all in Moto's 'virtual' AWS account
-        conn.create_bucket(Bucket='catalog-ds.instacart.com')
+        conn.create_bucket(Bucket='lore-test')
 
         user_warehouse_feature = UserWarehouseSearchesFeature()
         print(user_warehouse_feature)
