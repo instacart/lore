@@ -39,7 +39,17 @@ class Disk(Base):
     
     def __len__(self):
         return len(self.keys())
-    
+
+    def batch_get(self, keys):
+        result = {}
+        for key in keys:
+            result[key] = self.__getitem__(key)
+        return result
+
+    def batch_set(self, data_dict):
+        for key, value in data_dict.items():
+            self.__setitem__(key, value)
+
     def size(self):
         return sum(os.path.getsize(f) for f in self.values())
     

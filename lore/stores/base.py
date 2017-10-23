@@ -35,6 +35,14 @@ class Base(object):
     def values(self):
         pass
 
+    @abstractmethod
+    def batch_set(self):
+        pass
+
+    @abstractmethod
+    def batch_get(self, data_dict):
+        pass
+
     def key(self, *args, **kwargs):
         stack = inspect.stack()
         caller = kwargs.pop('caller', stack[-2])

@@ -265,3 +265,4 @@ def get_config(path):
 
 aws_config = get_config('aws.cfg')
 database_config = get_config('database.cfg')
+redis_config = get_config('redis.cfg')
