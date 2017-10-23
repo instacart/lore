@@ -2,11 +2,11 @@
 __author__ = 'Shrikar Archak'
 
 import datetime
-from abc import ABCMeta, ABC, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod, abstractproperty
 import pandas as pd
 import inflection
 
-class Base(ABC):
+class Base(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):

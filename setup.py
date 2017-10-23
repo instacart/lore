@@ -59,8 +59,14 @@ setup(
         'sqlalchemy',
         'six',
         'redis',
-        'psycopg2'
+        'psycopg2',
+        'cookies',
+        'cryptography',
+        'wrapt',
+        'jsonpickle',
+        'xmltodict'
     ],
+    dependency_links=['https://github.com/spulec/moto/tarball/master'],
     zip_safe=True,
     test_suite='tests',
     tests_require=[],
