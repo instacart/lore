@@ -1,10 +1,7 @@
 import logging
-from lore.features.base import Base
 from lore.features.s3 import S3
 import pandas as pd
 import inflection
-import lore.io
-from lore.stores.redis import Redis
 logger = logging.getLogger(__name__)
 
 class UserWarehouseSearchesFeature(S3):
