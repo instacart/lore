@@ -52,9 +52,9 @@ class Base(object):
 
     def features_as_kv(self):
         """
-        Return features as kv pairs so that they can be stored in memcache or redis and
+        Return features row as kv pairs so that they can be stored in memcache or redis and
         used at serving layer
-        :return: a nested hash for each feature
+        :return: a nested hash for each column
         """
         self._data = self.get_data()
         key_list = self.key()

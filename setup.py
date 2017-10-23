@@ -64,9 +64,9 @@ setup(
         'cryptography',
         'wrapt',
         'jsonpickle',
-        'xmltodict'
+        'xmltodict',
+        'moto'
     ],
-    dependency_links=['https://github.com/spulec/moto/tarball/master'],
     zip_safe=True,
     test_suite='tests',
     tests_require=[],
