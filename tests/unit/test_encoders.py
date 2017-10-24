@@ -61,7 +61,7 @@ class TestUniform(unittest.TestCase):
 
 class TestNorm(unittest.TestCase):
     def setUp(self):
-        self.encoder = lore.encoders.Norm('test')
+        self.encoder = lore.encoders.Norm('test', dtype=numpy.float64)
         self.x = [3, 1, 2, 1, 4]
         self.mean = numpy.mean(self.x)
         self.std = numpy.std(self.x)

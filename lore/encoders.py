@@ -36,6 +36,8 @@ class Base(object):
         super(Base, self).__init__()
         self.infinite_warning = True
         self.column = column
+        self.dtype = numpy.uint32
+
         if name:
             self.name = name
         else:
@@ -91,7 +93,7 @@ class Base(object):
         self.fit(data)
         return self.transform(data)
 
-    def fillna(self, data, addition=0):
+    def fillna(self, series, addition=0):
         """
         Fills with encoder specific default values.
 
@@ -99,10 +101,10 @@ class Base(object):
         :param addition: uniquely identify this set of fillnas if necessary
         :return: filled data
         """
-        if self.series(data).dtype == numpy.object:
-            return self.series(data)
+        if series.dtype == numpy.object:
+            return series
         
-        return self.series(data).fillna(self.missing_value + addition)
+        return series.fillna(self.missing_value + addition).astype(self.dtype)
     
     def source_column(self):
         column = self.column
@@ -130,11 +132,11 @@ class Boolean(Base):
     
     def transform(self, data):
         with timer('transform %s:' % (self.name), logging.DEBUG):
-            series = self.series(data).astype(float)
+            series = self.series(data).astype(numpy.float16)
             null = series.isnull()
             series[series != 0] = 1
             series[null] = 2
-            return series
+            return series.astype(numpy.uint8)
     
     def reverse_transform(self, series):
         return series.round().astype(bool)
@@ -164,7 +166,7 @@ class Equals(Base):
 
     def transform(self, data):
         with timer('transform %s:' % self.name, logging.DEBUG):
-            return numpy.equal(self.series(data), self.other_series(data)).astype(float)
+            return numpy.equal(self.series(data), self.other_series(data)).astype(numpy.uint8)
     
     def reverse_transform(self, data):
         return numpy.full((len(data),), 'LOSSY')
@@ -182,8 +184,9 @@ class Equals(Base):
 class Continuous(Base):
     """Abstract Base Class for encoders that return continuous values"""
     
-    def __init__(self, column, name=None):
+    def __init__(self, column, name=None, dtype=numpy.float16):
         super(Continuous, self).__init__(column, name)
+        self.dtype = dtype
 
     def cardinality(self):
         raise ValueError('Continous values have infinite cardinality')
@@ -212,8 +215,8 @@ class Uniform(Continuous):
     range will be capped from 0 to 1.
     """
 
-    def __init__(self, column, name=None):
-        super(Uniform, self).__init__(column, name)
+    def __init__(self, column, name=None, dtype=numpy.float16):
+        super(Uniform, self).__init__(column, name, dtype)
         self.__min = float('nan')
         self.__range = float('nan')
         self.missing_value = 0
@@ -233,7 +236,7 @@ class Uniform(Continuous):
                 result[series.isnull()] = self.missing_value
             else:
                 result = numpy.zeros(len(data))
-            return pandas.Series(result)
+            return pandas.Series(result, dtype=self.dtype)
 
     def reverse_transform(self, series):
         with timer('reverse_transform %s:' % self.name, logging.DEBUG):
@@ -247,8 +250,8 @@ class Norm(Continuous):
     exceeds the fit range will be capped at the fit range.
     """
 
-    def __init__(self, column, name=None):
-        super(Norm, self).__init__(column, name)
+    def __init__(self, column, name=None, dtype=numpy.float16):
+        super(Norm, self).__init__(column, name, dtype)
         self.__min = float('nan')
         self.__max = float('nan')
         self.__mean = float('nan')
@@ -273,7 +276,7 @@ class Norm(Continuous):
                 result[series.isnull()] = self.missing_value
             else:
                 result = numpy.zeros(len(data))
-            return pandas.Series(result)
+            return pandas.Series(result, dtype=self.dtype)
 
     def reverse_transform(self, series):
         with timer('reverse_transform %s:' % self.name, logging.DEBUG):
@@ -294,8 +297,18 @@ class Discrete(Base):
         self.__min = float('nan')
         self.__range = float('nan')
         self.missing_value = self.__norm + 1
-        self.zero = 0.0
-    
+        self.zero = 0
+        if self.cardinality() < 2**8:
+            self.dtype = numpy.uint8
+        elif self.cardinality() < 2**16:
+            self.dtype = numpy.uint16
+        elif self.cardinality() < 2**32:
+            self.dtype = numpy.uint32
+        elif self.cardinality() < 2**64:
+            self.dtype = numpy.uint64
+        else:
+            raise OverflowError("Woah, partner. That's a lot of bins!")
+
     def fit(self, data):
         with timer(('fit %s:' % self.name), logging.DEBUG):
             series = self.series(data)
@@ -318,8 +331,8 @@ class Discrete(Base):
                 result = difference * self.__norm // self.__range
                 result[result.isnull()] = self.missing_value
             else:
-                result = pandas.Series(numpy.zeros(len(data)), copy=False)
-            return result
+                result = pandas.Series(numpy.zeros(len(data)), copy=False, dtype=self.dtype)
+            return result.astype(self.dtype)
         
     def reverse_transform(self, series):
         with timer('reverse_transform %s:' % self.name, logging.DEBUG):
@@ -341,12 +354,23 @@ class Enum(Base):
         self.__max = None
         self.unfit_value = None
         self.missing_value = None
+        self.dtype = numpy.uint8
 
     def fit(self, data):
         with timer(('fit %s:' % self.name), logging.DEBUG):
             self.__max = self.series(data).max()
             self.unfit_value = self.__max + 1
             self.missing_value = self.__max + 2
+        if self.cardinality() < 2**8:
+            self.dtype = numpy.uint8
+        elif self.cardinality() < 2**16:
+            self.dtype = numpy.uint16
+        elif self.cardinality() < 2**32:
+            self.dtype = numpy.uint32
+        elif self.cardinality() < 2**64:
+            self.dtype = numpy.uint64
+        else:
+            raise OverflowError("Woah, partner. That's a pretty big number for an Enum")
 
     def transform(self, data):
         with timer('transform %s:' % self.name, logging.DEBUG):
@@ -354,8 +378,7 @@ class Enum(Base):
             result = pandas.Series(series, copy=True)
             result[(series > self.__max) | (series < 0)] = self.unfit_value
             result[series.isnull()] = self.missing_value
-            result.astype(int, copy=False)
-            return result
+            return result.astype(self.dtype)
             
     def reverse_transform(self, series):
         with timer('reverse_transform %s:' % self.name, logging.DEBUG):
@@ -393,7 +416,18 @@ class Quantile(Base):
             self.missing_value = self.quantiles + 2
             self.lower_bound = series.min()
             self.upper_bound = series.max()
-    
+
+            if self.cardinality() < 2**8:
+                self.dtype = numpy.uint8
+            elif self.cardinality() < 2**16:
+                self.dtype = numpy.uint16
+            elif self.cardinality() < 2**32:
+                self.dtype = numpy.uint32
+            elif self.cardinality() < 2**64:
+                self.dtype = numpy.uint64
+            else:
+                raise OverflowError("Woah, partner. That's a pretty big number of quantiles")
+
     def transform(self, data):
         with timer('transform %s:' % (self.name), logging.DEBUG):
             series = self.series(data)
@@ -401,7 +435,7 @@ class Quantile(Base):
             cut[series < self.lower_bound] = self.quantiles
             cut[series > self.upper_bound] = self.quantiles + 1
             cut[series.isnull()] = self.missing_value
-            return cut
+            return cut.astype(self.dtype)
     
     def reverse_transform(self, series):
         result = series.apply(lambda i: self.bins[int(i)] if i < self.quantiles else None)
@@ -440,6 +474,7 @@ class Unique(Base):
         self.tail_value = 1
         self.missing_value = 2
         self.stratify = stratify
+        self.dtype = numpy.uint32
     
     def fit(self, data):
         with timer(('fit unique %s:' % self.name), logging.DEBUG):
@@ -459,12 +494,23 @@ class Unique(Base):
             self.inverse[self.tail_value] = 'LONG_TAIL'
             self.missing_value = len(self.map) + 2
 
+            if self.cardinality() < 2**8:
+                self.dtype = numpy.uint8
+            elif self.cardinality() < 2**16:
+                self.dtype = numpy.uint16
+            elif self.cardinality() < 2**32:
+                self.dtype = numpy.uint32
+            elif self.cardinality() < 2**64:
+                self.dtype = numpy.uint64
+            else:
+                raise OverflowError("Woah, partner. That's a lot of Unique values!")
+
     def transform(self, data):
         with timer('transform uniqe %s:' % self.name, logging.DEBUG):
             result = self.series(data).map(self.map, na_action='ignore')
             result[result == 0] = self.tail_value
             result[result.isnull()] = self.missing_value
-            return result.astype(int)
+            return result.astype(self.dtype)
     
     def reverse_transform(self, series):
         with timer('reverse_transform unique %s:' % self.name, logging.DEBUG):
@@ -594,22 +640,32 @@ class MiddleOut(Base):
     def __init__(self, column, name=None, depth=None):
         super(MiddleOut, self).__init__(column, name)
         self.depth = depth
-    
+        if self.cardinality() < 2**8:
+            self.dtype = numpy.uint8
+        elif self.cardinality() < 2**16:
+            self.dtype = numpy.uint16
+        elif self.cardinality() < 2**32:
+            self.dtype = numpy.uint32
+        elif self.cardinality() < 2**64:
+            self.dtype = numpy.uint64
+        else:
+            raise OverflowError("Woah, your Weissman score must be over 6")
+        
     def transform(self, data):
         with timer('transform %s:' % self.name, logging.DEBUG):
             series = self.series(data)
             max_seq = len(series)
             depth = min(self.depth, max_seq // 2)
 
-            res = numpy.full(max_seq, self.depth, dtype=int)
+            res = numpy.full(max_seq, self.depth, dtype=self.dtype)
             res[:depth] = numpy.arange(depth)
             res[max_seq - depth:max_seq] = self.depth * 2 - numpy.arange(depth)[::-1]
             
             return res
 
     def reverse_transform(self, data):
+        # left as an exercise for the reader
         pass
-        # left as an excercise for the reader
     
     def cardinality(self):
         return self.depth * 2 + 1
