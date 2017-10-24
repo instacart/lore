@@ -28,7 +28,7 @@ class Base(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, column, name=None):
+    def __init__(self, column, name=None, dtype=numpy.uint32, embed_scale=1):
         """
         :param column: the index name of a column in a dataframe, or a Transformer
         :param name: an optional debugging hint, otherwise a default will be supplied
@@ -36,7 +36,8 @@ class Base(object):
         super(Base, self).__init__()
         self.infinite_warning = True
         self.column = column
-        self.dtype = numpy.uint32
+        self.dtype = dtype
+        self.embed_scale = embed_scale
 
         if name:
             self.name = name
@@ -151,7 +152,7 @@ class Equals(Base):
     
     see also: numpy.equal
     """
-    def __init__(self, column, other, name=None):
+    def __init__(self, column, other, name=None, embed_scale=1):
         """
         :param column: the index name of a column in a DataFrame, or a Transformer
         :param other: the index name of a column in a DataFrame, or a Transformer
@@ -161,7 +162,7 @@ class Equals(Base):
             column_name = column.name if isinstance(column, lore.transformers.Base) else column
             other_name = other.name if isinstance(other, lore.transformers.Base) else other
             name = 'match_' + column_name + '_and_' + other_name
-        super(Equals, self).__init__(column=column, name=name)
+        super(Equals, self).__init__(column=column, name=name, embed_scale=embed_scale)
         self.other = other
 
     def transform(self, data):
@@ -184,9 +185,8 @@ class Equals(Base):
 class Continuous(Base):
     """Abstract Base Class for encoders that return continuous values"""
     
-    def __init__(self, column, name=None, dtype=numpy.float16):
-        super(Continuous, self).__init__(column, name)
-        self.dtype = dtype
+    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1):
+        super(Continuous, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale)
 
     def cardinality(self):
         raise ValueError('Continous values have infinite cardinality')
@@ -215,8 +215,8 @@ class Uniform(Continuous):
     range will be capped from 0 to 1.
     """
 
-    def __init__(self, column, name=None, dtype=numpy.float16):
-        super(Uniform, self).__init__(column, name, dtype)
+    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1):
+        super(Uniform, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale)
         self.__min = float('nan')
         self.__range = float('nan')
         self.missing_value = 0
@@ -250,8 +250,8 @@ class Norm(Continuous):
     exceeds the fit range will be capped at the fit range.
     """
 
-    def __init__(self, column, name=None, dtype=numpy.float16):
-        super(Norm, self).__init__(column, name, dtype)
+    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1):
+        super(Norm, self).__init__(column, name, dtype, embed_scale)
         self.__min = float('nan')
         self.__max = float('nan')
         self.__mean = float('nan')
@@ -291,8 +291,8 @@ class Discrete(Base):
     bins + 1.
     """
     
-    def __init__(self, column, name=None, bins=10):
-        super(Discrete, self).__init__(column, name)
+    def __init__(self, column, name=None, bins=10, embed_scale=1):
+        super(Discrete, self).__init__(column, name, embed_scale=embed_scale)
         self.__norm = bins - 1
         self.__min = float('nan')
         self.__range = float('nan')
@@ -349,8 +349,8 @@ class Enum(Base):
     exceed previously fit max are given a unique value. Missing values are
     also distinctly encoded.
     """
-    def __init__(self, column, name=None):
-        super(Enum, self).__init__(column, name)
+    def __init__(self, column, name=None, embed_scale=1):
+        super(Enum, self).__init__(column, name, embed_scale=embed_scale)
         self.__max = None
         self.unfit_value = None
         self.missing_value = None
@@ -397,11 +397,11 @@ class Quantile(Base):
     Values the excede the upper and lower bound fit, will be placed into
     distinct bins, as well nans.
     """
-    def __init__(self, column, name=None, quantiles=10):
+    def __init__(self, column, name=None, quantiles=10, embed_scale=1):
         """
         :param quantiles: the number of bins
         """
-        super(Quantile, self).__init__(column, name)
+        super(Quantile, self).__init__(column, name, embed_scale=embed_scale)
         self.quantiles = quantiles
         self.missing_value = self.quantiles + 2
         self.upper_bound = None
@@ -462,12 +462,12 @@ class Unique(Base):
     the stratify column the encoded value appears with.
     """
     
-    def __init__(self, column, name=None, minimum_occurrences=1, stratify=None):
+    def __init__(self, column, name=None, minimum_occurrences=1, stratify=None, embed_scale=1):
         """
         :param minimum_occurrences: ignore ids with less than this many occurrences
         :param stratify: compute minimum occurrences over data column with this name
         """
-        super(Unique, self).__init__(column, name)
+        super(Unique, self).__init__(column, name, embed_scale=embed_scale)
         self.minimum_occurrences = minimum_occurrences
         self.map = None
         self.inverse = None
@@ -530,12 +530,17 @@ class Token(Unique):
     """
     PUNCTUATION_FILTER = re.compile(r'\W+\s\W+|\W+(\s|$)|(\s|^)\W+', re.UNICODE)
     
-    def __init__(self, column, name=None, sequence_length=10, minimum_occurrences=1):
+    def __init__(self, column, name=None, sequence_length=10, minimum_occurrences=1, embed_scale=1):
         """
         :param sequence_length: truncates tokens after sequence_length
         :param minimum_occurrences: ignore tokens with less than this many occurrences
         """
-        super(Token, self).__init__(column, name, minimum_occurrences)
+        super(Token, self).__init__(
+            column,
+            name=name,
+            minimum_occurrences=minimum_occurrences,
+            embed_scale=embed_scale
+        )
         self.sequence_length = sequence_length
     
     def fit(self, data):
@@ -597,7 +602,7 @@ class Glove(Token):
 
     def fit(self, data):
         with timer('fit %s:' % self.name, logging.DEBUG):
-            self.missing_value = numpy.asarray([0.0] * self.dimensions, dtype='float32')
+            self.missing_value = numpy.asarray([0.0] * self.dimensions, dtype=numpy.float32)
 
             if not Glove.map:
                 Glove.map = {}
@@ -608,7 +613,7 @@ class Glove(Token):
                 for line in smart_open(local):
                     values = line.split()
                     word = values[0]
-                    parameters = numpy.asarray(values[1:], dtype='float32')
+                    parameters = numpy.asarray(values[1:], dtype=numpy.float32)
                     Glove.map[word] = parameters
                     Glove.inverse[tuple(parameters.tolist())] = word
 
