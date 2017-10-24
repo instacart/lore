@@ -39,17 +39,18 @@ if config:
 
 if boto3:
     config = lore.env.aws_config
-    if config:
-        if config.get('ACCESS_KEY', 'id') and config.get('ACCESS_KEY', 'secret'):
-            s3 = boto3.resource(
-                's3',
-                aws_access_key_id=config.get('ACCESS_KEY', 'id'),
-                aws_secret_access_key=config.get('ACCESS_KEY', 'secret')
-            )
-        if config.get('BUCKET', 'name'):
-            bucket = s3.Bucket(config.get('BUCKET', 'name'))
+    s3 = None
+    if config and 'ACCESS_KEY' in config.sections():
+        s3 = boto3.resource(
+            's3',
+            aws_access_key_id=config.get('ACCESS_KEY', 'id'),
+            aws_secret_access_key=config.get('ACCESS_KEY', 'secret')
+        )
     else:
         s3 = boto3.resource('s3')
+
+    if s3 and config and 'BUCKET' in config.sections():
+        bucket = s3.Bucket(config.get('BUCKET', 'name'))
     
 
 def download(local_path, remote_path=None, cache=True):
