@@ -9,8 +9,9 @@ import tempfile
 class S3(Base):
     __metaclass__ = ABCMeta
 
-    def canonical_store(self):
-        return 's3'
+    @abstractmethod
+    def serialization(self):
+        pass
 
     def publish(self):
         temp_file, temp_path = tempfile.mkstemp()
@@ -18,22 +19,18 @@ class S3(Base):
 
         if self.serialization() == 'csv':
             data.to_csv(temp_path, index=False)
-        else:
+        elif self.serialization() == 'pickle':
             data.to_pickle(temp_path)
+        else:
+            raise "Invalid serialization"
         upload(temp_path, self.data_path())
 
         with open(temp_path, 'w') as f:
-            f.write(json.dumps(self.json_meta_data()))
+            f.write(json.dumps(self.metadata()))
         upload(temp_path, self.metadata_path())
 
-    @abstractmethod
     def data_path(self):
-        pass
+        return "{}/{}/data.{}".format(self.version, self.name(), self.serialization())
 
-    @abstractmethod
     def metadata_path(self):
-        pass
-
-    @abstractmethod
-    def serialization(self):
-        pass
+        return "{}/{}/metadata.json".format(self.version, self.name())

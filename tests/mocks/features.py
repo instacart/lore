@@ -7,20 +7,13 @@ logger = logging.getLogger(__name__)
 
 class UserWarehouseSearchesFeature(S3):
     def __init__(self):
-        Base.__init__(self)
-        S3.__init__(self)
+        super(UserWarehouseSearchesFeature, self).__init__()
 
     def name(self):
         return inflection.underscore(UserWarehouseSearchesFeature.__name__)
 
     def key(self):
         return ['user_id', 'warehouse_id']
-
-    def data_path(self):
-        return "{}/{}/data.{}".format(self.version, self.name(), self.serialization())
-
-    def metadata_path(self):
-        return "{}/{}/metadata.json".format(self.version, self.name())
 
     def serialization(self):
         return 'csv'

@@ -17,10 +17,6 @@ class Base(object):
         """
         pass
 
-    @abstractproperty
-    def canonical_store(self):
-        pass
-
     @abstractmethod
     def get_data(self):
         pass
@@ -50,7 +46,7 @@ class Base(object):
     def values(self):
         return self._data.columns.values.tolist()
 
-    def features_as_kv(self):
+    def _features_as_kv(self):
         """
         Return features row as kv pairs so that they can be stored in memcache or redis and
         used at serving layer
@@ -105,7 +101,7 @@ class Base(object):
             # """.format(self.version, self.name, self.key, self.values, len([1]))
         )
 
-    def json_meta_data(self):
+    def metadata(self):
         return {
             "version": self.version,
             "name": self.name(),
@@ -121,7 +117,7 @@ class Base(object):
         :param cache:
         :return: None
         """
-        data = self.features_as_kv()
+        data = self._features_as_kv()
         for key in data.keys():
             cache.batch_set(data[key])
 
