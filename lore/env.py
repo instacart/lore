@@ -249,10 +249,11 @@ def check_requirements():
         )
 
 def get_config(path):
-    if name == PRODUCTION:
-        path = os.path.join(root, 'config', path)
+    # Check for env specific configs first
+    if os.path.exists(os.path.join(root, 'config', name, path)):
+        path = os.path.join(root, 'config', name, path)
     else:
-        path = os.path.join(root, 'tests', 'config', path)
+        path = os.path.join(root, 'config', path)
 
     if not os.path.isfile(path):
         return None
