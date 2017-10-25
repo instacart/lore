@@ -39,6 +39,7 @@ setup(
         'lore.stores',
         'lore.estimators',
         'lore.estimators.holt_winters',
+        'lore.features'
     ],
     install_requires=[
         'future',
@@ -57,6 +58,14 @@ setup(
         'tabulate',
         'sqlalchemy',
         'six',
+        'redis',
+        'psycopg2',
+        'cookies',
+        'cryptography',
+        'wrapt',
+        'jsonpickle',
+        'xmltodict',
+        'moto'
     ],
     zip_safe=True,
     test_suite='tests',

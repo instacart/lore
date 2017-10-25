@@ -4,6 +4,7 @@ import re
 import configparser
 import sys
 import logging
+import redis
 
 import lore
 from lore.util import timer
@@ -36,6 +37,17 @@ if config:
         options = config._sections[section]
         vars()[section.lower()] = Connection(**options)
 
+redis_config = lore.env.redis_config
+
+if redis_config:
+    try:
+        for section in config.sections():
+            vars()[section.lower()] = redis.StrictRedis(host=redis_config.get(section, 'url'),
+                                                        port=redis_config.get(section, 'port'))
+    except:
+        pass
+else:
+    redis_conn = redis.StrictRedis(host='localhost', port=6379)
 
 if boto3:
     config = lore.env.aws_config
@@ -51,21 +63,22 @@ if boto3:
 
     if s3 and config and 'BUCKET' in config.sections():
         bucket = s3.Bucket(config.get('BUCKET', 'name'))
-    
 
 def download(local_path, remote_path=None, cache=True):
     if not remote_path:
         remote_path = local_path
+        remote_path = re.sub(
+            r'^%s' % re.escape(lore.env.work_dir),
+            lore.env.name,
+            remote_path
+        )
 
-    remote_path = re.sub(
-        r'^%s' % re.escape(lore.env.work_dir),
-        lore.env.name,
-        remote_path
-    )
-    
+    if not remote_path.startswith(lore.env.name):
+        remote_path = os.path.join(lore.env.name, remote_path)
+
     if cache and os.path.exists(local_path):
         return
-    
+
     dir = os.path.dirname(local_path)
     if not os.path.exists(dir):
         os.makedirs(dir)

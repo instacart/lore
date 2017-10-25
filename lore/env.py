@@ -249,7 +249,12 @@ def check_requirements():
         )
 
 def get_config(path):
-    path = os.path.join(root, 'config', path)
+    # Check for env specific configs first
+    if os.path.exists(os.path.join(root, 'config', name, path)):
+        path = os.path.join(root, 'config', name, path)
+    else:
+        path = os.path.join(root, 'config', path)
+
     if not os.path.isfile(path):
         return None
     
@@ -265,3 +270,4 @@ def get_config(path):
 
 aws_config = get_config('aws.cfg')
 database_config = get_config('database.cfg')
+redis_config = get_config('redis.cfg')
