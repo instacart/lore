@@ -30,6 +30,8 @@ class Connection(object):
                 kwargs[int_value] = int(kwargs[int_value])
         if 'poolclass' in kwargs:
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
+        if '__name__' in kwargs:
+            del kwargs['__name__']
         self._engine = sqlalchemy.create_engine(url, **kwargs)
         self._connection = None
         self._transactions = []
