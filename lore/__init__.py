@@ -19,7 +19,7 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2017, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay']
 __license__ = 'MIT'
-__version__ = '0.4.19'
+__version__ = '0.4.20'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
 __status__ = 'Prototype'
@@ -94,10 +94,10 @@ if env.launched():
                 import traceback
                 logger.critical('Exception: %s' % ''.join(
                     traceback.format_exception(exc_type, value, tb)))
-                if not hasattr(sys, 'ps1'):
-                    rollbar.report_exc_info((exc_type, value, tb))
+                if hasattr(sys, 'ps1'):
+                    print(''.join(traceback.format_exception(exc_type, value, tb)))
                 else:
-                    raise value
+                    rollbar.report_exc_info((exc_type, value, tb))
             sys.excepthook = report_error
 
     except ModuleNotFoundError as e:
@@ -105,6 +105,6 @@ if env.launched():
             import traceback
             logger.critical('Exception: %s' % ''.join(
                 traceback.format_exception(exc_type, value, tb)))
-    
+            
         sys.excepthook = report_error
         pass

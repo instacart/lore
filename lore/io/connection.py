@@ -7,7 +7,11 @@ import sys
 import tempfile
 import csv
 import gzip
+from datetime import datetime
+from time import time
 from io import StringIO
+from sqlalchemy.engine import Engine
+from sqlalchemy import event
 
 import pandas
 import sqlalchemy
@@ -32,6 +36,7 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         self._engine = sqlalchemy.create_engine(url, **kwargs)
         self._connection = None
+        self._metadata = None
         self._transactions = []
     
     def __enter__(self):
@@ -63,23 +68,53 @@ class Connection(object):
         if self._connection is None:
             self._connection = self._engine.connect()
 
-        with timer('INSERT ' + table):
-            offset = 0
-            while offset < len(dataframe):
-                dataframe[offset:(offset + batch_size)].to_sql(
-                    table,
-                    self._connection,
-                    if_exists='append',
-                    index=False
-                )
-                offset += batch_size
+        dataframe.to_sql(
+            table,
+            self._connection,
+            if_exists='append',
+            index=False,
+            chunksize=batch_size
+        )
 
     def replace(self, table, dataframe, batch_size=None):
+        import migrate.changeset
         with timer('REPLACE ' + table):
+            suffix = datetime.now().strftime('_%Y%m%d%H%M%S')
+            self.metadata
+            source = sqlalchemy.Table(table, self.metadata, autoload=True, autoload_with=self._engine)
+            destination = sqlalchemy.Table('tmp_' + table + suffix, self.metadata, autoload=False)
+            for column in source.columns:
+                destination.append_column(column.copy())
+            destination.create()
+
+            for index in source.indexes:
+                name = 'tmp_' + index.name + suffix
+                columns = []
+                for column in index.columns:
+                    columns.append(next(x for x in destination.columns if x.name == column.name))
+                new = sqlalchemy.Index(name, *columns)
+                new.unique = index.unique
+                new.table = destination
+                new.create(bind=self._connection)
+            self.insert(destination.name, dataframe, batch_size=batch_size)
+            self.execute('ANALYZE ' + table)
+
             with self as transaction:
-                transaction.execute("TRUNCATE " + table)
-                self.insert(table, dataframe, batch_size)
-                transaction.execute("ANALYZE " + table)
+                backup = sqlalchemy.Table('backup_' + table, self.metadata)
+                backup.drop(bind=self._connection, checkfirst=True)
+                source.rename(name='backup_' + source.name, connection=self._connection)
+                destination.rename(name=table, connection=self._connection)
+                for index in source.indexes:
+                    index.rename('backup_' + index.name, connection=self._connection)
+                for index in destination.indexes:
+                    index.rename(index.name[4:-15], connection=self._connection)
+
+    @property
+    def metadata(self):
+        if not self._metadata:
+            self._metadata = sqlalchemy.MetaData(bind=self._engine)
+
+        return self._metadata
 
     def select(self, sql=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
@@ -88,7 +123,7 @@ class Connection(object):
 
     @query_cached
     def _select(self, sql, bindings):
-        return self.__execute(sql, bindings)
+        return self.__execute(sql, bindings).fetchall()
 
     def unload(self, sql=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
@@ -185,8 +220,6 @@ class Connection(object):
         
     @query_cached
     def _dataframe(self, sql, bindings):
-        sql = self.__caller_annotation(stack_depth=2) + sql
-        logger.debug(str(bindings) + '\n' + sql)
         with timer("dataframe:"):
             if self._connection is None:
                 self._connection = self._engine.connect()
@@ -204,15 +237,29 @@ class Connection(object):
         return sql
 
     def __execute(self, sql, bindings):
-        sql = self.__caller_annotation() + sql
-        logger.debug(str(bindings) + '\n' + sql)
-        with timer("sql:"):
-            if self._connection is None:
-                self._connection = self._engine.connect()
-            self._connection.execute(sql, bindings)
+        if self._connection is None:
+            self._connection = self._engine.connect()
+        return self._connection.execute(sql, bindings)
 
-    def __caller_annotation(self, stack_depth=3):
-        caller = inspect.stack()[stack_depth]
-        if sys.version_info.major == 3:
-            caller = (caller.function, caller.filename, caller.lineno)
-        return "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[1], caller[2], caller[0])
+@event.listens_for(Engine, "before_cursor_execute", retval=True)
+def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
+    conn.info.setdefault('query_start_time', []).append(datetime.now())
+
+    stack = inspect.stack()[1:-1]
+    if sys.version_info.major == 3:
+        stack = [(x.filename, x.lineno, x.function) for x in stack]
+    else:
+        stack = [(x[1], x[2], x[3]) for x in stack]
+
+    paths = [x[0] for x in stack]
+    origin = next(x for x in paths if lore.env.project in x)
+    caller = next(x for x in stack if x[0] == origin)
+
+    statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
+    logger.debug(statement)
+    return statement, parameters
+
+@event.listens_for(Engine, "after_cursor_execute")
+def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
+    total = datetime.now() - conn.info['query_start_time'].pop(-1)
+    logger.info("SQL: %s" % total)

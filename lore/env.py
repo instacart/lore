@@ -248,6 +248,7 @@ def check_requirements():
             '\nPlease run:\n $ lore install\n'
         )
 
+
 def get_config(path):
     # Check for env specific configs first
     if os.path.exists(os.path.join(root, 'config', name, path)):
