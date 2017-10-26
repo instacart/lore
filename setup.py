@@ -57,6 +57,7 @@ setup(
         'xgboost',
         'tabulate',
         'sqlalchemy',
+        'sqlalchemy-migrate',
         'six',
         'redis',
         'psycopg2',
