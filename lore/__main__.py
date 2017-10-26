@@ -528,6 +528,7 @@ def create_virtual_env():
         env.python_version,
         env.project
     ))
+    subprocess.check_call([env.bin_python, '-m', 'pip', 'install', 'six'])
 
 
 
