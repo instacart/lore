@@ -271,3 +271,10 @@ def get_config(path):
 aws_config = get_config('aws.cfg')
 database_config = get_config('database.cfg')
 redis_config = get_config('redis.cfg')
+
+if os.path.isfile(os.path.join(root, 'config', 'jardin_conf.py')):
+    os.environ['JARDIN_CONF'] = str(
+        os.path.join(root, 'config', 'jardin_conf.py'))
+    jardin_conf = True
+else:
+    jardin_conf = None

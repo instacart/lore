@@ -6,9 +6,10 @@ import json
 import re
 
 import lore
+import lore.env
 from lore import io
 from lore.util import timer
-
+from lore.serializers.db_serializer import DbSerializer
 
 class Base(object):
     def __init__(self, klass=None, model=None):
@@ -72,6 +73,9 @@ class Base(object):
         if stats:
             with open(join(self.fitting_path, 'stats.json'), 'w') as f:
                 json.dump(stats, f, indent=2, sort_keys=True)
+
+        if self.model.db_serialization_params.get('serialize', False) and lore.env.jardin_conf:
+            DbSerializer(self).save(params, stats)
         
     def load(self, fitting=None):
         if fitting:

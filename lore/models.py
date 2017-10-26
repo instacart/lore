@@ -1,6 +1,7 @@
 import logging
 
 from tabulate import tabulate
+from datetime import datetime
 import lore.estimators
 import lore.serializers
 
@@ -10,12 +11,14 @@ logger = logging.getLogger(__name__)
 
 
 class Base(object):
-    def __init__(self, pipeline, estimator):
+    def __init__(self, pipeline, estimator, **kwargs):
         self.name = self.__module__ + '.' + self.__class__.__name__
         self._estimator = None
         self.serializer = None
         self.pipeline = pipeline
         self.estimator = estimator
+        self.db_serialization_params = kwargs.get('db_serialization_params', {})
+        self.fit_started_at, self.fin_completed_at = None, None
     
     def __getstate__(self):
         return dict(self.__dict__)
@@ -40,12 +43,15 @@ class Base(object):
             
     def fit(self, **estimator_kwargs):
         self.serializer.fitting += 1
-        
+        self.fit_started_at = datetime.utcnow()
+
         stats = self.estimator.fit(
             x=self.pipeline.encoded_training_data.x,
             y=self.pipeline.encoded_training_data.y,
             **estimator_kwargs
         )
+
+        self.fit_completed_at = datetime.utcnow()
         self.serializer.save(stats=stats)
         logger.info('\n\n' + tabulate([stats.keys(), stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
 
