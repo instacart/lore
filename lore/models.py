@@ -18,7 +18,7 @@ class Base(object):
         self.pipeline = pipeline
         self.estimator = estimator
         self.db_serialization_params = kwargs.get('db_serialization_params', {})
-        self.fit_started_at, self.fin_completed_at = None, None
+        self.fit_started_at, self.fit_completed_at = None, None
     
     def __getstate__(self):
         return dict(self.__dict__)

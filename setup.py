@@ -65,7 +65,8 @@ setup(
         'wrapt',
         'jsonpickle',
         'xmltodict',
-        'moto'
+        'moto',
+        'jardin'
     ],
     zip_safe=True,
     test_suite='tests',
