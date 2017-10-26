@@ -1,8 +1,8 @@
 from io import open
 from setuptools import setup
 
-import builtins
-builtins.lore_no_env = True
+import sys
+sys.lore_no_env = True
 
 import lore
 

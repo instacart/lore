@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 import atexit
-import builtins
 
 from lore import env, util, ansi
 from lore.ansi import underline
@@ -19,7 +18,7 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2017, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay']
 __license__ = 'MIT'
-__version__ = '0.4.21'
+__version__ = '0.4.22'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
 __status__ = 'Prototype'
@@ -38,8 +37,8 @@ def banner():
 
 
 lore_no_env = False
-if hasattr(builtins, 'lore_no_env'):
-    lore_no_env = builtins.lore_no_env
+if hasattr(sys, 'lore_no_env'):
+    lore_no_env = sys.lore_no_env
 
 if len(sys.argv) > 1 and sys.argv[0][-4:] == 'lore' and sys.argv[1] in ['install', 'init']:
     lore_no_env = True

@@ -5,7 +5,11 @@ Key attributes and paths for this project
 """
 from __future__ import absolute_import
 
-import configparser
+try:
+    import configparser
+except ImportError:
+    configparser = None
+    
 import glob
 import os
 import re
@@ -250,6 +254,9 @@ def check_requirements():
 
 
 def get_config(path):
+    if configparser is None:
+        return None
+    
     # Check for env specific configs first
     if os.path.exists(os.path.join(root, 'config', name, path)):
         path = os.path.join(root, 'config', name, path)
@@ -261,6 +268,7 @@ def get_config(path):
     
     conf = open(path, 'rt').read()
     conf = os.path.expandvars(conf)
+    
     config = configparser.SafeConfigParser()
     if sys.version_info[0] == 2:
         from io import StringIO
