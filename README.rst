@@ -11,7 +11,7 @@
 |circleci_badge|
 
 
-Lore is a python data science framework to design, fit, and exploit data science models from development to production. It codifies best practices to simplify collaborating and deploying models developed on a laptop with Jupyter notebook, into high availability distributed production data centers.
+Lore is a python data science framework to design, fit, and exploit machine learning models from development to production. It codifies best practices to simplify collaborating and deploying models developed on a laptop with Jupyter notebook, into high availability distributed production data centers.
 
 
 Why?
