@@ -178,7 +178,6 @@ def init(parsed, unknown):
         
     shutil.copytree(template, parsed.NAME, symlinks=False, ignore=None)
     os.chdir(parsed.NAME)
-    shutil.copy('.env.template', '.env')
     shutil.move('app', parsed.NAME)
 
     with open('requirements.txt', 'wt') as file:
@@ -515,8 +514,7 @@ def create_virtual_env():
         try:
             os.unlink(os.path.join(env.pyenv, 'versions', env.project))
         except OSError as e:
-            if e.errno != os.errno.ENOENT:
-                raise
+            pass
     
     if os.path.exists(env.bin_python):
         return
