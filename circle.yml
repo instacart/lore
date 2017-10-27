@@ -10,6 +10,9 @@ machine:
     - pyenv global 2.7.14 3.5.2 3.6.3
 
 dependencies:
+  cache_directories:
+    - '~/repo/.tox'
+    - '~/repo/.eggs'
   pre:
     - createdb lore_test
   override:
