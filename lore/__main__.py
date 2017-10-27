@@ -138,8 +138,8 @@ def api(parsed, unknown):
 
 
 def console(parsed, unknown):
-    sys.ps1 = ansi.foreground(env.color, '>>>', readline=True)
-    sys.ps2 = ansi.foreground(env.color, '...', readline=True)
+    sys.ps1 = ansi.foreground(env.color, '>>> ', readline=True)
+    sys.ps2 = ansi.foreground(env.color, '... ', readline=True)
 
     import readline
     history = os.path.join(env.prefix, 'history')

@@ -41,13 +41,13 @@ class Base(object):
     def fit(self, **estimator_kwargs):
         self.serializer.fitting += 1
         
-        stats = self.estimator.fit(
+        self.stats = self.estimator.fit(
             x=self.pipeline.encoded_training_data.x,
             y=self.pipeline.encoded_training_data.y,
             **estimator_kwargs
         )
-        self.serializer.save(stats=stats)
-        logger.info('\n\n' + tabulate([stats.keys(), stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
+        self.serializer.save(stats=self.stats)
+        logger.info('\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
 
     def predict(self, dataframe):
         return self.estimator.predict(self.pipeline.encode_x(dataframe))
