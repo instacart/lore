@@ -13,6 +13,7 @@ dependencies:
   cache_directories:
     - '~/repo/.tox'
     - '~/repo/.eggs'
+    - '~/.pyenv'
   pre:
     - createdb lore_test
   override:
