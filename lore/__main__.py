@@ -577,22 +577,23 @@ def freeze_requirements():
     added_index = present.index('## The following requirements were added by pip freeze:')
     if added_index:
         added = present[added_index + 1:-1]
-        present = present[0:added_index]
-        safe = []
-        unsafe = []
+        present = set(present[0:added_index])
+        safe = set()
+        unsafe = set()
         for package in added:
             name = package.split('==')[0]
 
             for bad in vcs:
                 if name in bad:
-                    unsafe.append(package)
+                    unsafe.add(package)
                     continue
             
             if name.lower() in needed:
                 needed.remove(name.lower())
-                
-            safe.append(package)
-        present += safe
+            
+            safe.add(package)
+        present |= safe
+        present -= unsafe
     
     if needed:
         args = [env.bin_python, '-m', 'pip', 'install'] + needed
@@ -621,7 +622,7 @@ def freeze_requirements():
         )
 
     with open(source, 'w', encoding='utf-8') as f:
-        f.write(os.linesep.join(present).strip() + os.linesep)
+        f.write(os.linesep.join(sorted(present, key=lambda s: s.lower())).strip() + os.linesep)
         if vcs:
             f.write(os.linesep.join(vcs) + os.linesep)
 
