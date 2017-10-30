@@ -64,17 +64,10 @@ if boto3:
     if s3 and config and 'BUCKET' in config.sections():
         bucket = s3.Bucket(config.get('BUCKET', 'name'))
 
-def download(local_path, remote_path=None, cache=True):
-    if not remote_path:
-        remote_path = local_path
-        remote_path = re.sub(
-            r'^%s' % re.escape(lore.env.work_dir),
-            lore.env.name,
-            remote_path
-        )
 
-    if not remote_path.startswith(lore.env.name):
-        remote_path = os.path.join(lore.env.name, remote_path)
+def download(local_path, remote_path=None, cache=True):
+    if remote_path is None:
+        remote_path = remote_from_local(local_path)
 
     if cache and os.path.exists(local_path):
         return
@@ -95,23 +88,28 @@ def download(local_path, remote_path=None, cache=True):
 
 
 def upload(local_path, remote_path=None):
-    if remote_path:
-        if remote_path.startswith('/'):
-            logger.warning('remotepath should be relative (to bucket root)')
-            remote_path = remote_path[1:-1]
-        if not remote_path.startswith(lore.env.name):
-            remote_path = os.path.join(lore.env.name, remote_path)
-    else:
-        remote_path = local_path
-        remote_path = re.sub(
-            r'^%s' % re.escape(lore.env.work_dir),
-            lore.env.name,
-            remote_path
-        )
-
+    if remote_path is None:
+        remote_path = remote_from_local(local_path)
+        
     with timer('UPLOAD: %s -> %s' % (local_path, remote_path)):
         try:
             bucket.upload_file(local_path, remote_path, ExtraArgs={'ServerSideEncryption': 'AES256'})
         except ClientError as e:
             logger.error("Error uploading file: %s" % e)
             raise
+
+
+def remote_from_local(local_path):
+    remote_path = re.sub(
+        r'^%s' % re.escape(lore.env.work_dir),
+        '',
+        local_path
+    )
+
+    if remote_path.startswith('/'):
+        remote_path = remote_path[1:]
+
+    if not remote_path.startswith(lore.env.name):
+        remote_path = os.path.join(lore.env.name, remote_path)
+
+    return remote_path
