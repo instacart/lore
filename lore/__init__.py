@@ -21,7 +21,7 @@ __license__ = 'MIT'
 __version__ = '0.4.29'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
-__status__ = 'Prototype'
+__status__ = 'Development Status :: 3 - Alpha'
 
 
 def banner():
@@ -55,7 +55,8 @@ if env.launched():
 
     if not lore_no_env:
         with timer('check requirements', logging.DEBUG):
-            env.check_requirements()
+            install_missing = env.name in [env.DEVELOPMENT, env.TEST]
+            env.check_requirements(install_missing)
         
     try:
         with timer('numpy init', logging.DEBUG):

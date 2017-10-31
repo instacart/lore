@@ -11,13 +11,24 @@ def readme():
     with open('README.rst', 'r', encoding='utf-8') as f:
         return f.read()
 
+postgres = ['psycopg2', 'sqlalchemy', 'sqlalchemy-migrate']
+redis = ['redis']
+s3 = ['boto3']
+
+keras = ['keras', 'tensorflow', 'dill']
+xgboost = ['xgboost']
+scikit = ['scikit-learn']
+
+all = keras + xgboost + scikit + postgres + redis
+devel = all + ['moto']
+
 setup(
     name='lore',
     version=lore.__version__,
     description='a framework for building and using data science',
     long_description=readme(),
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        lore.__status__,
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
@@ -26,12 +37,13 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
+        'Environment :: Console',
     ],
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
     keywords='machine learning framework tensorflow airflow',
     url='http://github.com/instacart/lore',
-    author='Montana Low',
-    author_email='montana@instacart.com',
+    author=lore.__author__,
+    author_email=lore.__email__,
     license='MIT',
     packages=[
         'lore',
@@ -44,30 +56,28 @@ setup(
     install_requires=[
         'future',
         'smart-open',
-        'keras',
-        'tensorflow',
-        'scikit-learn',
-        'h5py',
         'numpy',
         'pandas',
         'python-dotenv',
         'jupyter',
-        'dill',
         'inflection',
-        'xgboost',
-        'tabulate',
-        'sqlalchemy',
-        'sqlalchemy-migrate',
         'six',
-        'redis',
-        'psycopg2',
         'cookies',
         'cryptography',
         'wrapt',
         'jsonpickle',
         'xmltodict',
-        'moto'
     ],
+    extras_require={
+        'all': all,
+        'devel': devel,
+        'keras': keras,
+        'postgres': postgres,
+        'redis': redis,
+        's3': s3,
+        'scikit': scikit,
+        'xgboost': xgboost,
+    },
     zip_safe=True,
     test_suite='tests',
     tests_require=[],

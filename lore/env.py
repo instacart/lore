@@ -224,7 +224,7 @@ def check_version():
     )
 
 
-def check_requirements():
+def check_requirements(install_missing=False):
     if not os.path.exists(requirements):
         sys.exit(
             ansi.error() + ' %s is missing. Please run:\n '
@@ -247,10 +247,14 @@ def check_requirements():
         pass
     
     if missing:
-        sys.exit(
-            ansi.error() + ' missing requirement:\n  ' + os.linesep.join(missing) +
-            '\nPlease run:\n $ lore install\n'
-        )
+        missing = ' missing requirement:\n  ' + os.linesep.join(missing)
+        if install_missing:
+            import lore.__main__
+            lore.__main__.install_requirements(None)
+            print(ansi.warning() + missing)
+            return check_requirements(False)
+        else:
+            sys.exit(ansi.error() + missing + '\nPlease run:\n $ lore install\n')
 
 
 def get_config(path):

@@ -273,7 +273,7 @@ def install_darwin():
 
 
 def install_linux():
-    pass
+    install_pyenv()
 
 
 def install_homebrew():
@@ -674,9 +674,7 @@ def pip_install(path, args):
         sys.exit(
             ansi.error() + ' could not:\n $ lore pip install -r %s\nPlease try '
                            'installing failed packages manually, or upgrade failed '
-                           'packages by removing ' % path +
-            ansi.underline('requirements.txt') +
-            '\n $ rm requirements.txt'
+                           'packages with:\n $ lore install --upgrade ' % path
         )
 
 
