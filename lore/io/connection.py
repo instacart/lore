@@ -84,13 +84,17 @@ class Connection(object):
             suffix = datetime.now().strftime('_%Y%m%d%H%M%S')
             self.metadata
             source = sqlalchemy.Table(table, self.metadata, autoload=True, autoload_with=self._engine)
-            destination = sqlalchemy.Table('tmp_' + table + suffix, self.metadata, autoload=False)
+            destination_name = hashlib.sha256('tmp_' + table + suffix).hexdigest()[0:60]
+            destination = sqlalchemy.Table(destination_name, self.metadata, autoload=False)
             for column in source.columns:
                 destination.append_column(column.copy())
             destination.create()
 
+            original_names = {}
             for index in source.indexes:
-                name = 'tmp_' + index.name + suffix
+                # make sure the name is < 63 chars with the suffix
+                name = hashlib.sha256('tmp_' + index.name + suffix).hexdigest()[0:60]
+                original_names[name] = index.name
                 columns = []
                 for column in index.columns:
                     columns.append(next(x for x in destination.columns if x.name == column.name))
@@ -102,14 +106,14 @@ class Connection(object):
             self.execute('ANALYZE ' + table)
 
             with self as transaction:
-                backup = sqlalchemy.Table('backup_' + table, self.metadata)
+                backup = sqlalchemy.Table(table + '_b', self.metadata)
                 backup.drop(bind=self._connection, checkfirst=True)
-                source.rename(name='backup_' + source.name, connection=self._connection)
+                source.rename(name=source.name + '_b', connection=self._connection)
                 destination.rename(name=table, connection=self._connection)
                 for index in source.indexes:
-                    index.rename('backup_' + index.name, connection=self._connection)
+                    index.rename(index.name[0:-2] + '_b', connection=self._connection)
                 for index in destination.indexes:
-                    index.rename(index.name[4:-15], connection=self._connection)
+                    index.rename(original_names[index.name], connection=self._connection)
 
     @property
     def metadata(self):
