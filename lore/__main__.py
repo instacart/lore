@@ -503,7 +503,8 @@ def install_python_version():
     ).decode('utf-8').split(os.linesep)
     if env.python_version not in versions:
         print(ansi.success('INSTALL') + ' python %s' % env.python_version)
-        install_xcode()
+        if platform.system() == 'Darwin':
+            install_xcode()
         subprocess.check_call(('git', '-C', env.pyenv, 'pull'))
         subprocess.check_call((env.bin_pyenv, 'install', env.python_version))
         subprocess.check_call((env.bin_pyenv, 'rehash'))
