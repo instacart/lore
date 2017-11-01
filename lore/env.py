@@ -174,6 +174,9 @@ def launched():
 
 
 def validate():
+    if not os.path.exists(os.path.join(root, project, '__init__.py')):
+        sys.exit(ansi.error() + ' Python module not found. Do you need to change $LORE_PROJECT from "%s"?' % project)
+
     if exists():
         return
 
@@ -190,16 +193,21 @@ def validate():
     )
 
 
-def launch():
+def launch(install_missing=False):
     if launched():
         check_version()
         os.chdir(root)
         return
     
     if not os.path.exists(bin_lore):
-        sys.exit(ansi.error() + ' %s virtualenv is missing. Please run:\n '
-            '$ lore install\n' % (project)
-        )
+        missing = ' %s virtualenv is missing.' % project
+        if install_missing:
+            print(ansi.warning() + missing)
+            import lore.__main__
+            lore.__main__.install(None)
+            return launch(False)
+        else:
+            sys.exit(ansi.error() + missing + ' Please run:\n $ lore install\n')
 
     if sys.argv[0] == 'python' or not sys.argv[0]:
         sys.argv[0] = bin_python
@@ -227,8 +235,7 @@ def check_version():
 def check_requirements(install_missing=False):
     if not os.path.exists(requirements):
         sys.exit(
-            ansi.error() + ' %s is missing. Please run:\n '
-                           '$ lore install\n' % ansi.underline(requirements)
+            ansi.error() + ' %s is missing. Please check it in.' % ansi.underline(requirements)
         )
     
     with open(requirements, 'r', encoding='utf-8') as f:
@@ -249,9 +256,9 @@ def check_requirements(install_missing=False):
     if missing:
         missing = ' missing requirement:\n  ' + os.linesep.join(missing)
         if install_missing:
+            print(ansi.warning() + missing)
             import lore.__main__
             lore.__main__.install_requirements(None)
-            print(ansi.warning() + missing)
             return check_requirements(False)
         else:
             sys.exit(ansi.error() + missing + '\nPlease run:\n $ lore install\n')
