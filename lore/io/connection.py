@@ -10,8 +10,10 @@ import gzip
 from datetime import datetime
 from time import time
 from io import StringIO
-from sqlalchemy.engine import Engine
 from sqlalchemy import event
+from sqlalchemy.engine import Engine
+from sqlalchemy.schema import DropTable
+from sqlalchemy.ext.compiler import compiles
 
 import pandas
 import sqlalchemy
@@ -22,6 +24,11 @@ from lore.stores import query_cached
 
 
 logger = logging.getLogger(__name__)
+
+
+@compiles(DropTable, 'postgresql')
+def _compile_drop_table(element, compiler, **kwargs):
+    return compiler.visit_drop_table(element) + ' CASCADE'
 
 
 class Connection(object):
@@ -248,6 +255,7 @@ class Connection(object):
             self._connection = self._engine.connect()
         return self._connection.execute(sql, bindings)
 
+
 @event.listens_for(Engine, "before_cursor_execute", retval=True)
 def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
     conn.info.setdefault('query_start_time', []).append(datetime.now())
@@ -269,6 +277,7 @@ def comment_sql_calls(conn, cursor, statement, parameters, context, executemany)
     statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
     logger.debug(statement)
     return statement, parameters
+
 
 @event.listens_for(Engine, "after_cursor_execute")
 def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
