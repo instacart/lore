@@ -273,7 +273,7 @@ def install_darwin():
 
 
 def install_linux():
-    pass
+    install_pyenv()
 
 
 def install_homebrew():
@@ -503,7 +503,8 @@ def install_python_version():
     ).decode('utf-8').split(os.linesep)
     if env.python_version not in versions:
         print(ansi.success('INSTALL') + ' python %s' % env.python_version)
-        install_xcode()
+        if platform.system() == 'Darwin':
+            install_xcode()
         subprocess.check_call(('git', '-C', env.pyenv, 'pull'))
         subprocess.check_call((env.bin_pyenv, 'install', env.python_version))
         subprocess.check_call((env.bin_pyenv, 'rehash'))
@@ -674,9 +675,7 @@ def pip_install(path, args):
         sys.exit(
             ansi.error() + ' could not:\n $ lore pip install -r %s\nPlease try '
                            'installing failed packages manually, or upgrade failed '
-                           'packages by removing ' % path +
-            ansi.underline('requirements.txt') +
-            '\n $ rm requirements.txt'
+                           'packages with:\n $ lore install --upgrade ' % path
         )
 
 
