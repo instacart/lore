@@ -27,7 +27,8 @@ class TestConnection(unittest.TestCase):
             sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
             sqlalchemy.Column('first_name', sqlalchemy.String(50)),
             sqlalchemy.Column('last_name', sqlalchemy.String(50)),
-            sqlalchemy.Index('index_tests_users_first_name_last_name', 'first_name', 'last_name', unique=True)
+            sqlalchemy.Index('index_tests_users_first_name_last_name', 'first_name', 'last_name', unique=True),
+            sqlalchemy.Index('long_name_long_name_long_name_long_name_long_name_long_name_63_', 'first_name', unique=True),
         )
         lore.io.main.metadata.create_all()
 
