@@ -11,7 +11,7 @@ def readme():
     with open('README.rst', 'r', encoding='utf-8') as f:
         return f.read()
 
-postgres = ['psycopg2', 'sqlalchemy', 'sqlalchemy-migrate']
+postgres = ['psycopg2', 'sqlalchemy==1.2.0b3', 'sqlalchemy-migrate']
 redis = ['redis']
 s3 = ['boto3']
 
