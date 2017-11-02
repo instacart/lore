@@ -11,16 +11,16 @@ def readme():
     with open('README.rst', 'r', encoding='utf-8') as f:
         return f.read()
 
-postgres = ['psycopg2>=2.7, <2.8', 'sqlalchemy>=1.2.0b3, <1.3', 'sqlalchemy-migrate>=0.11, <0.12']
-redis = ['redis>=2.10, <2.11']
-s3 = ['boto3>=1.4, <1.5']
+postgres = ['psycopg2>=2.7, <2.7.99', 'sqlalchemy>=1.2.0b3, <1.2.99', 'sqlalchemy-migrate>=0.11, <0.11.99']
+redis = ['redis>=2.10, <2.10.99']
+s3 = ['boto3>=1.4, <1.4.99']
 
-keras = ['Keras==2.0.9', 'tensorflow>=1.4, <1.5', 'dill>=0.2, <0.3', 'h5py>=2.7, <2.8']
-xgboost = ['xgboost>=0.6a2, <0.7']
-scikit = ['scikit-learn>=0.19, <0.20']
+keras = ['Keras==2.0.9', 'tensorflow>=1.4, <1.4.99', 'dill>=0.2, <0.2.99', 'h5py>=2.7, <2.7.99']
+xgboost = ['xgboost>=0.6a2, <0.6.99']
+scikit = ['scikit-learn>=0.19, <0.19.99']
 
 all = keras + xgboost + scikit + postgres + redis
-devel = all + ['moto>=1.1,<1.2']
+devel = all + ['moto>=1.1, <1.1.99']
 
 setup(
     name='lore',
@@ -54,15 +54,15 @@ setup(
         'lore.features'
     ],
     install_requires=[
-        'future>=0.16, <0.17',
-        'inflection>=0.3, <0.4',
-        'jupyter>=1.0, <1.1',
-        'numpy>=1.13, <1.14',
-        'pandas>=0.21, <0.22',
-        'python-dotenv>=0.6, <0.7',
-        'six>=1.11, <1.12',
-        'smart-open>=1.5, <1.6',
-        'tabulate>=0.8, <0.9',
+        'future>=0.15, <0.16.99',
+        'inflection>=0.3, <0.3.99',
+        'jupyter>=1.0, <1.0.99',
+        'numpy>=1.13, <1.13.99',
+        'pandas>=0.20, <0.21.99',
+        'python-dotenv>=0.6, <0.7.99',
+        'six>=1.10, <1.11.99',
+        'smart-open>=1.5, <1.5.99',
+        'tabulate>=0.7.5, <0.8.99',
     ],
     extras_require={
         'all': all,
