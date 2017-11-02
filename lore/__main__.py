@@ -138,25 +138,10 @@ def api(parsed, unknown):
 
 
 def console(parsed, unknown):
-    sys.ps1 = ansi.foreground(env.color, '>>> ', readline=True)
-    sys.ps2 = ansi.foreground(env.color, '... ', readline=True)
-
-    import readline
-    history = os.path.join(env.prefix, 'history')
-    readline.parse_and_bind('tab: complete')
-    if os.path.exists(history):
-        readline.read_history_file(history)
-    
-    import atexit
-    atexit.register(lambda: readline.write_history_file(history))
-    
-    vars = globals().copy()
-    vars.update(locals())
-    
-    import code
-    shell = code.InteractiveConsole(vars)
-    
-    shell.interact('Tip: `help()` or `quit()` to exit')
+    sys.argv[0] = env.bin_jupyter
+    args = [env.bin_jupyter, 'console', '--kernel', env.project]
+    print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
+    os.execv(env.bin_jupyter, args)
 
 
 def execute(parsed, unknown):
