@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import atexit
 import logging
 
 import pandas
@@ -15,6 +16,12 @@ from lore.pipelines import Observations
 from lore.util import timed
 
 logger = logging.getLogger(__name__)
+
+
+def cleanup_tensorflow():
+    # prevents random gc exception at exit
+    keras.backend.clear_session()
+atexit.register(cleanup_tensorflow)
 
 
 class Keras(BaseEstimator):

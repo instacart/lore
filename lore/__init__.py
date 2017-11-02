@@ -68,18 +68,6 @@ if env.launched():
         pass
 
     try:
-        with timer('keras init', logging.DEBUG):
-            import keras
-    
-            def cleanup_tensorflow():
-                # prevents random gc exception at exit
-                keras.backend.clear_session()
-            
-            atexit.register(cleanup_tensorflow)
-    except ModuleNotFoundError as e:
-        pass
-
-    try:
         with timer('rollbar init', logging.DEBUG):
             import rollbar
             rollbar.init(
