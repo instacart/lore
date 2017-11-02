@@ -18,7 +18,7 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2017, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay']
 __license__ = 'MIT'
-__version__ = '0.4.34'
+__version__ = '0.4.35'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
 __status__ = 'Development Status :: 3 - Alpha'
@@ -64,18 +64,6 @@ if env.launched():
         
             numpy.random.seed(1)
             logger.debug('numpy.random.seed(1)')
-    except ModuleNotFoundError as e:
-        pass
-
-    try:
-        with timer('keras init', logging.DEBUG):
-            import keras
-    
-            def cleanup_tensorflow():
-                # prevents random gc exception at exit
-                keras.backend.clear_session()
-            
-            atexit.register(cleanup_tensorflow)
     except ModuleNotFoundError as e:
         pass
 
