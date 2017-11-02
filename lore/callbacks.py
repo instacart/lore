@@ -54,7 +54,7 @@ class ReloadBest(keras.callbacks.ModelCheckpoint):
         train_loss = logs.get('loss')
         validate_loss = logs.get('val_loss')
         if self.validate_loss is None or self.validate_loss > validate_loss:
-            self.best_epoch = epoch
+            self.best_epoch = epoch + 1
             self.train_loss = train_loss
             self.validate_loss = validate_loss
         logger.info('| %8i | %8s | %8.5f | %8.5f |' % (
