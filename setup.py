@@ -15,7 +15,7 @@ postgres = ['psycopg2>=2.7, <2.7.99', 'sqlalchemy>=1.2.0b3, <1.2.99', 'sqlalchem
 redis = ['redis>=2.10, <2.10.99']
 s3 = ['boto3>=1.4, <1.4.99']
 
-keras = ['Keras==2.0.9', 'tensorflow>=1.4, <1.4.99', 'dill>=0.2, <0.2.99', 'h5py>=2.7, <2.7.99']
+keras = ['Keras==2.0.9', 'tensorflow>=1.3, <1.4.99', 'dill>=0.2, <0.2.99', 'h5py>=2.7, <2.7.99']
 xgboost = ['xgboost>=0.6a2, <0.6.99']
 scikit = ['scikit-learn>=0.19, <0.19.99']
 
