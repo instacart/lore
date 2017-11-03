@@ -425,6 +425,8 @@ def build_tensorflow(version):
         'TF_ENABLE_XLA': '0',
         'TF_NEED_VERBS': '0',
         'TF_NEED_OPENCL': '0',
+        'TF_NEED_S3': '0',
+        'TF_NEED_GDR': '0',
         'TF_NEED_CUDA': '0',  # TODO enable CUDA when appropriate
         'TF_CUDA_CLANG': '1',
         'TF_CUDA_VERSION': '8.0.61',
