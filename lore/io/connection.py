@@ -87,6 +87,8 @@ class Connection(object):
 
     def replace(self, table, dataframe, batch_size=None):
         import migrate.changeset
+        global _after_replace_callbacks
+        
         with timer('REPLACE ' + table):
             suffix = datetime.now().strftime('_%Y%m%d%H%M%S').encode('utf-8')
             self.metadata
@@ -122,7 +124,10 @@ class Connection(object):
                     index.rename(index.name[0:-2] + '_b', connection=self._connection)
                 for index in destination.indexes:
                     index.rename(original_names[index.name], connection=self._connection)
-
+        
+        for func in _after_replace_callbacks:
+            func(destination, source)
+        
     @property
     def metadata(self):
         if not self._metadata:
@@ -240,6 +245,10 @@ class Connection(object):
             dataframe = pandas.read_sql(sql=sql, con=self._connection, params=bindings)
             return dataframe
 
+    def quote_identifier(self, identifier):
+        return self._engine.dialect.identifier_preparer.quote(identifier)
+        
+
     def __prepare(self, sql, filename):
         if sql is None and filename is not None:
             filename = Connection.path(filename, '.sql')
@@ -283,3 +292,9 @@ def comment_sql_calls(conn, cursor, statement, parameters, context, executemany)
 def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
     total = datetime.now() - conn.info['query_start_time'].pop(-1)
     logger.info("SQL: %s" % total)
+
+
+_after_replace_callbacks = []
+def after_replace(func):
+    global _after_replace_callbacks
+    _after_replace_callbacks.append(func)
