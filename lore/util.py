@@ -18,7 +18,7 @@ if sys.version_info.major == 3:
 
 class SecretFilter(logging.Filter):
     PASSWORD_MATCH = re.compile(
-        r'((secret|key|access|pass|pw).*?[=:][^\w]*)\w+',
+        r'((secret|key|access|pass|pw)[^\s]*\s*[=:]\s*)[^\s]+',
         flags=re.IGNORECASE
     )
     URL_MATCH = re.compile(
@@ -52,7 +52,10 @@ class ConsoleFormatter(logging.Formatter):
         location = ansi.foreground(ansi.CYAN, record.name) + ':' + \
                    ansi.foreground(ansi.CYAN, str(record.lineno))
 
-        return '%s  %s %s => %s' % (timestamp, level, location, record.msg)
+        msg = record.msg
+        if record.args:
+            msg = msg % record.args
+        return '%s  %s %s => %s' % (timestamp, level, location, msg)
 
 
 logger = logging.getLogger()
@@ -100,18 +103,6 @@ class PrintInterceptor(object):
     def flush(self):
         self.stream.flush()
 
-try:
-    if env.name == env.DEVELOPMENT and os.getpgrp() == os.tcgetpgrp(sys.stdout.fileno()):
-        # running in a terminal foreground
-        # add_log_stream_handler()
-        pass
-    else:
-        # running in a terminal background
-        pass
-except OSError:
-    # not running in a terminal, maybe a jupiter notebook
-    if env.name == env.PRODUCTION:
-        sys.stdout = PrintInterceptor(sys.stdout, logging.INFO)
 
 sys.stderr = PrintInterceptor(sys.stderr, logging.WARNING)
 
