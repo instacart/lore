@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import atexit
 import logging
+import sys
 
 import pandas
 import keras
@@ -9,6 +10,9 @@ from keras.callbacks import EarlyStopping, TensorBoard, TerminateOnNaN
 from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout
 from keras.optimizers import Adam
 from sklearn.base import BaseEstimator
+import tensorflow
+from tensorflow.python.client.timeline import Timeline
+
 import lore.io
 from lore.callbacks import ReloadBest
 from lore.encoders import Continuous
@@ -100,9 +104,10 @@ class Keras(BaseEstimator):
         return []
     
     @timed(logging.INFO)
-    def build(self):
+    def build(self, log_device_placement=False):
         keras.backend.clear_session()
-        self.session = keras.backend.get_session()
+        self.session = tensorflow.Session(config=tensorflow.ConfigProto(log_device_placement=log_device_placement))
+        keras.backend.set_session(self.session)
         with self.session.as_default():
             inputs = self.build_inputs()
             embedding_layer = self.build_embedding_layer(inputs)
@@ -172,7 +177,7 @@ class Keras(BaseEstimator):
         return Dense(1, activation='sigmoid')(hidden_layers)
     
     @timed(logging.INFO)
-    def fit(self, x, y, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False):
+    def fit(self, x, y, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=True):
 
         if isinstance(x, pandas.DataFrame):
             x = x.to_dict(orient='series')
@@ -187,8 +192,18 @@ class Keras(BaseEstimator):
             
         if not self.keras or not self.optimizer:
             self.build()
+            
         with self.session.as_default():
-            self.keras.compile(loss=self.loss, optimizer=self.optimizer)
+            if timeline:
+                run_metadata = tensorflow.RunMetadata()
+            else:
+                run_metadata = None
+            self.keras.compile(
+                loss=self.loss,
+                optimizer=self.optimizer,
+                options=tensorflow.RunOptions(trace_level=tensorflow.RunOptions.FULL_TRACE),
+                run_metadata=run_metadata
+            )
         if verbose is None:
             verbose = 1 if lore.env.name == lore.env.DEVELOPMENT else 0
         
@@ -249,10 +264,15 @@ class Keras(BaseEstimator):
                 callbacks=callbacks
             ).history
 
+        if timeline:
+            with open(self.model.serializer.timeline_path, 'w') as f:
+                f.write(Timeline(step_stats=run_metadata.step_stats).generate_chrome_trace_format())
+
         return {
             'epochs': len(self.history),
             'train': reload_best.train_loss,
             'validate': reload_best.validate_loss,
+            'timeline': timeline,
         }
 
     @timed(logging.INFO)

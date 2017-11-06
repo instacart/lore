@@ -97,6 +97,7 @@ class Keras(Base):
         self.remote_weights_path = None
         self.checkpoint_path = None
         self.tensorboard_path = None
+        self.timeline_path = None
         super(Keras, self).__init__(klass=klass, model=model)
 
     @Base.fitting.setter
@@ -111,6 +112,9 @@ class Keras(Base):
         self.tensorboard_path = join(self.fitting_path, 'tensorboard')
         if not os.path.exists(os.path.dirname(self.tensorboard_path)):
             os.makedirs(os.path.dirname(self.tensorboard_path))
+        self.timeline_path = join(self.fitting_path, 'timeline.json')
+        if not os.path.exists(os.path.dirname(self.timeline_path)):
+            os.makedirs(os.path.dirname(self.timeline_path))
 
     def save(self, stats=None):
         super(Keras, self).save(stats)
