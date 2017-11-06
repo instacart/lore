@@ -11,7 +11,9 @@ def readme():
     with open('README.rst', 'r', encoding='utf-8') as f:
         return f.read()
 
-postgres = ['psycopg2>=2.7, <2.7.99', 'sqlalchemy>=1.2.0b3, <1.2.99', 'sqlalchemy-migrate>=0.11, <0.11.99']
+sql = ['sqlalchemy>=1.2.0b3, <1.2.99', 'sqlalchemy-migrate>=0.11, <0.11.99']
+postgres = ['psycopg2>=2.7, <2.7.99'] + sql
+redshift = ['sqlalchemy-redshift>=0.7, <0.7.99'] + sql
 redis = ['redis>=2.10, <2.10.99']
 s3 = ['boto3>=1.4, <1.4.99']
 
@@ -19,7 +21,7 @@ keras = ['Keras==2.0.9', 'tensorflow>=1.3, <1.4.99', 'dill>=0.2, <0.2.99', 'h5py
 xgboost = ['xgboost>=0.6a2, <0.6.99']
 scikit = ['scikit-learn>=0.19, <0.19.99']
 
-all = keras + xgboost + scikit + postgres + redis
+all = list(set(keras + xgboost + scikit + postgres + redshift + redis + s3))
 devel = all + ['moto>=1.1, <1.1.99']
 
 setup(
@@ -70,6 +72,7 @@ setup(
         'keras': keras,
         'postgres': postgres,
         'redis': redis,
+        'redshift': redshift,
         's3': s3,
         'scikit': scikit,
         'xgboost': xgboost,
