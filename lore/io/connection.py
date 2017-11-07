@@ -94,7 +94,7 @@ class Connection(object):
             self.metadata
             temp = 'tmp_'.encode('utf-8')
             source = sqlalchemy.Table(table, self.metadata, autoload=True, autoload_with=self._engine)
-            destination_name = hashlib.sha256(temp + table.encode('utf-8') + suffix).hexdigest()[0:60]
+            destination_name = 'tmp_' + hashlib.sha256(temp + table.encode('utf-8') + suffix).hexdigest()[0:56]
             destination = sqlalchemy.Table(destination_name, self.metadata, autoload=False)
             for column in source.columns:
                 destination.append_column(column.copy())
