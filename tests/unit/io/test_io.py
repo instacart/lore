@@ -9,16 +9,41 @@ import os
 
 
 class TestRemoteFromLocalPaths(unittest.TestCase):
-    def test_absolute_is_works_dir_relative(self):
-        local = '/README.rst'
-        self.assertEqual(lore.io.remote_from_local(local), 'test/README.rst')
-
-    def test_relative_is_environment_specific(self):
-        local = 'README.rst'
-        self.assertEqual(lore.io.remote_from_local(local), 'test/README.rst')
-
-    def test_work_dir_is_relative_base(self):
+    def test_works_dir_is_removed(self):
         local = os.path.join(lore.env.work_dir, 'README.rst')
         self.assertIsNotNone(lore.env.work_dir)
-        self.assertEqual(lore.io.remote_from_local(local), 'test/README.rst')
+        self.assertEqual(lore.io.remote_from_local(local), '/README.rst')
 
+    def test_relative_is_ok(self):
+        local = 'README.rst'
+        self.assertEqual(lore.io.remote_from_local(local), 'README.rst')
+
+    def test_absolute_is_ok(self):
+        local = '/README.rst'
+        self.assertEqual(lore.io.remote_from_local(local), '/README.rst')
+
+
+class TestPrefixRemoteRoot(unittest.TestCase):
+    def test_absolute(self):
+        path = '/README.rst'
+        self.assertEqual(lore.io.prefix_remote_root(path), 'test/README.rst')
+
+    def test_relative(self):
+        path = 'README.rst'
+        self.assertEqual(lore.io.prefix_remote_root(path), 'test/README.rst')
+
+    def test_is_absolute_pre_prefixed_safe(self):
+        path = '/test/README.rst'
+        self.assertEqual(lore.io.prefix_remote_root(path), 'test/README.rst')
+
+    def test_is_relative_pre_prefixed_safe(self):
+        path = 'test/README.rst'
+        self.assertEqual(lore.io.prefix_remote_root(path), 'test/README.rst')
+
+    def test_is_not_short_sighted(self):
+        path = 'test_not_env/README.rst'
+        self.assertEqual(lore.io.prefix_remote_root(path), 'test/test_not_env/README.rst')
+
+    def test_does_not_double_slash(self):
+        path = '/test_not_env/README.rst'
+        self.assertEqual(lore.io.prefix_remote_root(path), 'test/test_not_env/README.rst')

@@ -68,6 +68,7 @@ if boto3:
 def download(local_path, remote_path=None, cache=True):
     if remote_path is None:
         remote_path = remote_from_local(local_path)
+    remote_path = prefix_remote_root(remote_path)
 
     if cache and os.path.exists(local_path):
         return
@@ -90,7 +91,8 @@ def download(local_path, remote_path=None, cache=True):
 def upload(local_path, remote_path=None):
     if remote_path is None:
         remote_path = remote_from_local(local_path)
-        
+    remote_path = prefix_remote_root(remote_path)
+    
     with timer('UPLOAD: %s -> %s' % (local_path, remote_path)):
         try:
             bucket.upload_file(local_path, remote_path, ExtraArgs={'ServerSideEncryption': 'AES256'})
@@ -100,16 +102,18 @@ def upload(local_path, remote_path=None):
 
 
 def remote_from_local(local_path):
-    remote_path = re.sub(
+    return re.sub(
         r'^%s' % re.escape(lore.env.work_dir),
         '',
         local_path
     )
 
-    if remote_path.startswith('/'):
-        remote_path = remote_path[1:]
 
-    if not remote_path.startswith(lore.env.name):
-        remote_path = os.path.join(lore.env.name, remote_path)
+def prefix_remote_root(path):
+    if path.startswith('/'):
+        path = path[1:]
 
-    return remote_path
+    if not path.startswith(lore.env.name + '/'):
+        path = os.path.join(lore.env.name, path)
+
+    return path
