@@ -113,7 +113,7 @@ class Connection(object):
                 new.table = destination
                 new.create(bind=self._connection)
             self.insert(destination.name, dataframe, batch_size=batch_size)
-            self.execute("BEGIN; SET LOCAL statement_timeout = '1min'; ANALYZE %s; COMMIT;" % table)
+            self.execute("BEGIN; SET LOCAL statement_timeout = '1min'; ANALYZE %s; COMMIT;" % self.quote_identifier(table))
 
             with self as transaction:
                 backup = sqlalchemy.Table(table + '_b', self.metadata)
