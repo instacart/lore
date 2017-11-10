@@ -133,7 +133,7 @@ def api(parsed, unknown):
     EndpointListener(
         env.project,
         host_index=os.environ.get("RABBIT_HOST_INDEX"),
-        concurrency=4
+        concurrency=os.environ.get("HUB_CONCURRENCY", 4)
     ).start()
 
 
