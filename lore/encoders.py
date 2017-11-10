@@ -124,6 +124,18 @@ class Base(object):
 
         return series
     
+    def _type_from_cardinality(self):
+        if self.cardinality() < 2**8:
+            return numpy.uint8
+        elif self.cardinality() < 2**16:
+            return numpy.uint16
+        elif self.cardinality() < 2**32:
+            return numpy.uint32
+        elif self.cardinality() < 2**64:
+            return numpy.uint64
+        else:
+            raise OverflowError("Woah, partner. That's a pretty diverse set of data! %s %s" % (self.name, self.cardinality()))
+
 
 class Boolean(Base):
     """
@@ -298,6 +310,7 @@ class Discrete(Base):
         self.__range = float('nan')
         self.missing_value = self.__norm + 1
         self.zero = 0
+        self.dtype = self._
         if self.cardinality() < 2**8:
             self.dtype = numpy.uint8
         elif self.cardinality() < 2**16:
@@ -358,19 +371,10 @@ class Enum(Base):
 
     def fit(self, data):
         with timer(('fit %s:' % self.name), logging.DEBUG):
-            self.__max = self.series(data).max()
+            self.__max = int(self.series(data).max())
             self.unfit_value = self.__max + 1
             self.missing_value = self.__max + 2
-        if self.cardinality() < 2**8:
-            self.dtype = numpy.uint8
-        elif self.cardinality() < 2**16:
-            self.dtype = numpy.uint16
-        elif self.cardinality() < 2**32:
-            self.dtype = numpy.uint32
-        elif self.cardinality() < 2**64:
-            self.dtype = numpy.uint64
-        else:
-            raise OverflowError("Woah, partner. That's a pretty big number for an Enum")
+            self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
         with timer('transform %s:' % self.name, logging.DEBUG):
@@ -416,17 +420,7 @@ class Quantile(Base):
             self.missing_value = self.quantiles + 2
             self.lower_bound = series.min()
             self.upper_bound = series.max()
-
-            if self.cardinality() < 2**8:
-                self.dtype = numpy.uint8
-            elif self.cardinality() < 2**16:
-                self.dtype = numpy.uint16
-            elif self.cardinality() < 2**32:
-                self.dtype = numpy.uint32
-            elif self.cardinality() < 2**64:
-                self.dtype = numpy.uint64
-            else:
-                raise OverflowError("Woah, partner. That's a pretty big number of quantiles")
+            self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
         with timer('transform %s:' % (self.name), logging.DEBUG):
@@ -494,16 +488,7 @@ class Unique(Base):
             self.inverse[self.tail_value] = 'LONG_TAIL'
             self.missing_value = len(self.map) + 2
 
-            if self.cardinality() < 2**8:
-                self.dtype = numpy.uint8
-            elif self.cardinality() < 2**16:
-                self.dtype = numpy.uint16
-            elif self.cardinality() < 2**32:
-                self.dtype = numpy.uint32
-            elif self.cardinality() < 2**64:
-                self.dtype = numpy.uint64
-            else:
-                raise OverflowError("Woah, partner. That's a lot of Unique values!")
+            self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
         with timer('transform uniqe %s:' % self.name, logging.DEBUG):
@@ -645,16 +630,7 @@ class MiddleOut(Base):
     def __init__(self, column, name=None, depth=None):
         super(MiddleOut, self).__init__(column, name)
         self.depth = depth
-        if self.cardinality() < 2**8:
-            self.dtype = numpy.uint8
-        elif self.cardinality() < 2**16:
-            self.dtype = numpy.uint16
-        elif self.cardinality() < 2**32:
-            self.dtype = numpy.uint32
-        elif self.cardinality() < 2**64:
-            self.dtype = numpy.uint64
-        else:
-            raise OverflowError("Woah, your Weissman score must be over 6")
+        self.dtype = self._type_from_cardinality()
         
     def transform(self, data):
         with timer('transform %s:' % self.name, logging.DEBUG):
