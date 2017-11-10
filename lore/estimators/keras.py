@@ -137,8 +137,8 @@ class Keras(BaseEstimator):
         reshape = Reshape(target_shape=(self.embed_size,))
         for encoder in self.model.pipeline.encoders:
             if isinstance(encoder, Continuous):
-                embedding = Dense(self.embed_size, activation='relu')
-                embeddings[encoder.name] = embedding(inputs[encoder.name], name='embed_' + encoder.name)
+                embedding = Dense(self.embed_size, activation='relu', name='embed_' + encoder.name)
+                embeddings[encoder.name] = embedding(inputs[encoder.name])
             elif hasattr(encoder, 'sequence_length'):
                 for i in range(encoder.sequence_length):
                     name = encoder.name + '_' + str(i)
