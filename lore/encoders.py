@@ -310,17 +310,7 @@ class Discrete(Base):
         self.__range = float('nan')
         self.missing_value = self.__norm + 1
         self.zero = 0
-        self.dtype = self._
-        if self.cardinality() < 2**8:
-            self.dtype = numpy.uint8
-        elif self.cardinality() < 2**16:
-            self.dtype = numpy.uint16
-        elif self.cardinality() < 2**32:
-            self.dtype = numpy.uint32
-        elif self.cardinality() < 2**64:
-            self.dtype = numpy.uint64
-        else:
-            raise OverflowError("Woah, partner. That's a lot of bins!")
+        self.dtype = self._type_from_cardinality()
 
     def fit(self, data):
         with timer(('fit %s:' % self.name), logging.DEBUG):
