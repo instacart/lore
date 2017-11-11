@@ -7,7 +7,7 @@ import pandas
 import keras
 import keras.backend
 from keras.callbacks import EarlyStopping, TensorBoard, TerminateOnNaN
-from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout
+from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, LSTM
 from keras.optimizers import Adam
 from sklearn.base import BaseEstimator
 import tensorflow
@@ -145,6 +145,7 @@ class Keras(BaseEstimator):
                     embedding = Embedding(encoder.cardinality(), self.embed_size, name='embed_' + name)
                     embeddings[name] = reshape(embedding(inputs[name]))
             else:
+                logger.debug("%s: %s %s" % (encoder.name, encoder.dtype, encoder.cardinality()))
                 embedding = Embedding(encoder.cardinality(), self.embed_size, name='embed_' + encoder.name)
                 embeddings[encoder.name] = reshape(embedding(inputs[encoder.name]))
         
@@ -289,3 +290,29 @@ class Keras(BaseEstimator):
         with self.session.as_default():
             return 1 / self.keras.evaluate(x, y, batch_size=self.batch_size)
 
+
+class LSTMEmbeddings(Keras):
+    @timed(logging.INFO)
+    def build_embedding_layer(self, inputs):
+        embeddings = {}
+        reshape = Reshape(target_shape=(self.embed_size,))
+        for encoder in self.model.pipeline.encoders:
+            if isinstance(encoder, Continuous):
+                embedding = Dense(self.embed_size, activation='relu', name='embed_' + encoder.name)
+                embeddings[encoder.name] = embedding(inputs[encoder.name])
+            elif hasattr(encoder, 'sequence_length'):
+                adapter = Embedding(encoder.cardinality(), self.embed_size, name='embed_' + encoder.name)
+                embedding = LSTM(self.embed_size, name=encoder.name)
+                tokens = []
+                for i in range(encoder.sequence_length):
+                    name = encoder.name + '_' + str(i)
+                    tokens.append(adapter(inputs[name]))
+                embeddings[encoder.name] = embedding(
+                    Reshape((encoder.sequence_length, self.embed_size))(Concatenate()(tokens))
+                )
+            else:
+                logger.debug("%s: %s %s" % (encoder.name, encoder.dtype, encoder.cardinality()))
+                embedding = Embedding(encoder.cardinality(), self.embed_size, name='embed_' + encoder.name)
+                embeddings[encoder.name] = reshape(embedding(inputs[encoder.name]))
+        
+        return Concatenate()(list(embeddings.values()))

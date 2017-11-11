@@ -204,7 +204,7 @@ class Continuous(Base):
         raise ValueError('Continous values have infinite cardinality')
 
 
-class Pass(Base):
+class Pass(Continuous):
     """This encoder performs a noop on the input series. It's only useful
     to efficiently pass a pre-encoded value directly as an input to the
     model.
@@ -215,10 +215,7 @@ class Pass(Base):
     
     def reverse_transform(self, series):
         return series
-    
-    def cardinality(self):
-        return float('nan')
-    
+        
 
 class Uniform(Continuous):
     """
