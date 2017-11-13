@@ -18,6 +18,8 @@ Observations = namedtuple('Observations', 'x y')
 class TrainTestSplit(object):
     __metaclass__ = ABCMeta
     
+    test_size = 0.1
+
     def __init__(self):
         self.name = self.__module__ + '.' + self.__class__.__name__
         self.stratify = None
@@ -174,16 +176,15 @@ class TrainTestSplit(object):
     
         if self.stratify:
             ids = self._data[self.stratify].drop_duplicates()
-            test_size = len(ids) // 10
 
             train_ids, validate_ids = train_test_split(
                 ids,
-                test_size=test_size,
+                test_size=self.test_size,
                 random_state=1
             )
             train_ids, test_ids = train_test_split(
                 train_ids,
-                test_size=test_size,
+                test_size=self.test_size,
                 random_state=1
             )
         
@@ -192,15 +193,14 @@ class TrainTestSplit(object):
             self._validation_data = self._data.iloc[np.in1d(rows, validate_ids.values)]
             self._test_data = self._data.iloc[np.in1d(rows, test_ids.values)]
         else:
-            test_size = len(self._data) // 10
             self._training_data, self._validation_data = train_test_split(
                 self._data,
-                test_size=test_size,
+                test_size=self.test_size,
                 random_state=1
             )
             self._training_data, self._test_data = train_test_split(
                 self._training_data,
-                test_size=test_size,
+                test_size=self.test_size,
                 random_state=1
             )
         # It's import to reset these indexes after split so in case
