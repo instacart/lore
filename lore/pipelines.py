@@ -137,7 +137,7 @@ class TrainTestSplit(object):
             if hasattr(encoder, 'sequence_length'):
                 for i in range(encoder.sequence_length):
                     name = encoder.name + '_' + str(i)
-                    result[name] = encoded.apply(encoder.get_token, i=i)
+                    result[name] = encoder.get_column(encoded, i)
             else:
                 result[encoder.name] = encoded
         return pd.DataFrame(result)
