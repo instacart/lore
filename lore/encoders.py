@@ -481,7 +481,7 @@ class Unique(Base):
             self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
-        with timer('transform uniqe %s:' % self.name, logging.DEBUG):
+        with timer('transform unique %s:' % self.name, logging.DEBUG):
             result = self.series(data).map(self.map, na_action='ignore')
             result[result == 0] = self.tail_value
             result[result.isnull()] = self.missing_value
@@ -541,6 +541,9 @@ class Token(Unique):
                 data[column] = super(Token, self).reverse_transform(data[column])
             return data.T.apply(' '.join)
         
+    def get_column(self, encoded, i):
+        return encoded.apply(self.get_token, i=i)
+
     def get_token(self, tokens, i):
         if isinstance(tokens, float) or i >= len(tokens):
             return self.missing_value
