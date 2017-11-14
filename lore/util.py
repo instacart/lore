@@ -257,7 +257,7 @@ if env.launched():
                     print(stacktrace)
                 else:
                     try:
-                        rollbar.report_exc_info(extra_data={"app": project})
+                        rollbar.report_exc_info(extra_data={"app": env.project})
                     except Exception as e:
                         logger.exception('reporting to rollbar: %s' % e)
     
@@ -284,22 +284,22 @@ if env.launched():
         LIBRATO_MIN_AGGREGATION_PERIOD = 5
         LIBRATO_MAX_AGGREGATION_PERIOD = 60
 
+        _librato = None
         if os.getenv('LIBRATO_USER'):
             try:
                 _librato = librato.connect(os.getenv('LIBRATO_USER'), os.getenv('LIBRATO_TOKEN'))
-                _librato_aggregator = librato.aggregator.Aggregator(_librato, source=env.host)
+                _librato_aggregator = None
                 _librato_timer = None
-                _librato_start = time.time()
+                _librato_start = None
+                _librato_lock = threading.RLock()
                 logger.info('connected to librato with user: %s' % os.getenv('LIBRATO_USER'))
             except:
                 logger.exception('unable to start librato')
                 report_exception()
                 _librato = None
-                _librato_start = time.time()
         else:
             logger.warning('librato variables not found')
-    
-        _librato_lock = threading.RLock()
+            
 
     except ModuleNotFoundError as e:
         pass
@@ -313,11 +313,12 @@ if env.launched():
         try:
             name = '.'.join([env.project, env.name, name])
             with _librato_lock:
-                _librato_aggregator.add(name, value)
+                _librato_cancel_timer()
+                if _librato_aggregator is None:
+                    _librato_aggregator = librato.aggregator.Aggregator(_librato, source=env.host)
+                    _librato_start = time.time()
 
-                if _librato_timer:
-                    _librato_timer.cancel()
-                    _librato_timer = None
+                _librato_aggregator.add(name, value)
 
                 if time.time() - _librato_start > LIBRATO_MAX_AGGREGATION_PERIOD:
                     librato_submit()
@@ -334,16 +335,22 @@ if env.launched():
             return
 
         with _librato_lock:
-            if _librato_timer:
-                _librato_timer.cancel()
-                _librato_timer = None
+            _librato_cancel_timer()
             submission_aggregator = _librato_aggregator
-            _librato_aggregator = librato.aggregator.Aggregator(_librato, source=env.host)
-            _librato_start = time.time()
+            _librato_aggregator = None
+            _librato_start = None
 
         if background:
             threading.Thread(target=submission_aggregator.submit).start()
         else:
-            submission_aggregator.submit()
-
+            try:
+                submission_aggregator.submit()
+            except:
+                report_exception()
     atexit.register(librato_submit, False)
+
+    def _librato_cancel_timer():
+        global _librato_timer
+        if _librato_timer:
+            _librato_timer.cancel()
+            _librato_timer = None
