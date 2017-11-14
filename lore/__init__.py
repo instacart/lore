@@ -20,7 +20,7 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2017, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay']
 __license__ = 'MIT'
-__version__ = '0.4.48'
+__version__ = '0.4.49'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
 __status__ = 'Development Status :: 3 - Alpha'
@@ -59,42 +59,3 @@ if env.launched():
         with timer('check requirements', logging.DEBUG):
             install_missing = env.name in [env.DEVELOPMENT, env.TEST]
             env.check_requirements(install_missing)
-        
-    try:
-        with timer('numpy init', logging.DEBUG):
-            import numpy
-        
-            numpy.random.seed(1)
-            logger.debug('numpy.random.seed(1)')
-    except ModuleNotFoundError as e:
-        pass
-
-    try:
-        with timer('rollbar init', logging.DEBUG):
-            import rollbar
-            rollbar.init(
-                os.environ.get("ROLLBAR_ACCESS_TOKEN", None),
-                allow_logging_basic_config=False,
-                environment=env.name,
-                enabled=(env.name != env.DEVELOPMENT),
-                handler='blocking',
-                locals={"enabled": True})
-    
-            def report_error(exc_type, value, tb):
-                import traceback
-                logger.critical('Exception: %s' % ''.join(
-                    traceback.format_exception(exc_type, value, tb)))
-                if hasattr(sys, 'ps1'):
-                    print(''.join(traceback.format_exception(exc_type, value, tb)))
-                else:
-                    rollbar.report_exc_info((exc_type, value, tb))
-            sys.excepthook = report_error
-
-    except ModuleNotFoundError as e:
-        def report_error(exc_type, value, tb):
-            import traceback
-            logger.critical('Exception: %s' % ''.join(
-                traceback.format_exception(exc_type, value, tb)))
-            
-        sys.excepthook = report_error
-        pass
