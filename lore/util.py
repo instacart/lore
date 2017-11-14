@@ -333,7 +333,6 @@ if env.launched():
         if _librato is None:
             return
 
-            submission_aggregator = None
         with _librato_lock:
             if _librato_timer:
                 _librato_timer.cancel()
