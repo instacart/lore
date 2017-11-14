@@ -17,6 +17,7 @@ import sys
 from io import open
 import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
+import socket
 
 from lore import ansi
 
@@ -77,6 +78,7 @@ if len(sys.argv) > 1 and sys.argv[1] == 'test':
 else:
     default_name = DEVELOPMENT
 
+host = socket.gethostname()
 home = os.environ.get('HOME', root)
 name = os.environ.get('LORE_ENV', default_name)
 project = os.environ.get('LORE_PROJECT', root.split(os.sep)[-1])

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
+import atexit
 import inspect
 import logging
 import logging.handlers
@@ -8,6 +9,9 @@ import os
 import re
 import sys
 import six
+import time
+import threading
+import traceback
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -15,6 +19,9 @@ from lore import ansi, env
 
 if sys.version_info.major == 3:
     import shutil
+
+if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
+    ModuleNotFoundError = ImportError
 
 
 class SecretFilter(logging.Filter):
@@ -137,12 +144,20 @@ strip_one_off_handlers()
 
 
 @contextmanager
-def timer(message="elapsed time:", level=logging.INFO, caller_level=3):
+def timer(message="elapsed time:", level=logging.INFO, caller_level=3, librato=True):
+    global _librato
+    
     start = datetime.now()
     try:
         yield
     finally:
-        calling_logger(caller_level).log(level, '%s %s' % (message, datetime.now() - start))
+        time = datetime.now() - start
+        if librato and _librato and level >= logging.INFO:
+            librato_name = 'timer.' + message.replace(' ', '.').lower()
+            if librato_name.endswith(':'):
+                librato_name = librato_name[0:-1]
+            librato_record(librato_name, time.total_seconds())
+        calling_logger(caller_level).log(level, '%s %s' % (message, time))
 
 
 def parametrized(decorator):
@@ -206,3 +221,130 @@ def calling_logger(height=1):
     if path == '__main__':
         path = scope['__package__'] or os.path.basename(sys.argv[0])
     return logging.getLogger(path)
+
+_librato = None
+
+if env.launched():
+    # Numpy
+    try:
+        with timer('numpy init', logging.DEBUG):
+            import numpy
+            
+            numpy.random.seed(1)
+            logger.debug('numpy.random.seed(1)')
+    except ModuleNotFoundError as e:
+        pass
+    
+    # Rollbar
+    try:
+        with timer('rollbar init', logging.DEBUG):
+            import rollbar
+            rollbar.init(
+                os.environ.get("ROLLBAR_ACCESS_TOKEN", None),
+                allow_logging_basic_config=False,
+                environment=env.name,
+                enabled=(env.name != env.DEVELOPMENT),
+                handler='blocking',
+                locals={"enabled": True})
+        
+            def report_exception(exc_type=None, value=None, tb=None):
+                global project
+                if exc_type is None:
+                    exc_type, value, tb = sys.exc_info()
+                stacktrace = ''.join(traceback.format_exception(exc_type, value, tb))
+                logger.exception('Exception: %s' % stacktrace)
+                if hasattr(sys, 'ps1'):
+                    print(stacktrace)
+                else:
+                    try:
+                        rollbar.report_exc_info(extra_data={"app": project})
+                    except Exception as e:
+                        logger.exception('reporting to rollbar: %s' % e)
+    
+            sys.excepthook = report_exception
+    
+    except ModuleNotFoundError as e:
+        def report_exception(exc_type=None, value=None, tb=None):
+            global project
+            if exc_type is None:
+                exc_type, value, tb = sys.exc_info()
+            stacktrace = ''.join(traceback.format_exception(exc_type, value, tb))
+            logger.exception('Exception: %s' % stacktrace)
+            if hasattr(sys, 'ps1'):
+                print(stacktrace)
+        
+        sys.excepthook = report_exception
+    
+    # Librato
+    try:
+        import librato
+        from librato.aggregator import Aggregator
+
+        # client side aggregation
+        LIBRATO_MIN_AGGREGATION_PERIOD = 5
+        LIBRATO_MAX_AGGREGATION_PERIOD = 60
+
+        if os.getenv('LIBRATO_USER'):
+            try:
+                _librato = librato.connect(os.getenv('LIBRATO_USER'), os.getenv('LIBRATO_TOKEN'))
+                _librato_aggregator = librato.aggregator.Aggregator(_librato, source=env.host)
+                _librato_timer = None
+                _librato_start = time.time()
+                logger.info('connected to librato with user: %s' % os.getenv('LIBRATO_USER'))
+            except:
+                logger.exception('unable to start librato')
+                report_exception()
+                _librato = None
+                _librato_start = time.time()
+        else:
+            logger.warning('librato variables not found')
+    
+        _librato_lock = threading.RLock()
+
+    except ModuleNotFoundError as e:
+        pass
+    
+
+    def librato_record(name, value):
+        global _librato, _librato_lock, _librato_aggregator, _librato_timer, _librato_start
+        
+        if _librato is None:
+            return
+        try:
+            name = '.'.join([env.project, env.name, name])
+            with _librato_lock:
+                _librato_aggregator.add(name, value)
+
+                if _librato_timer:
+                    _librato_timer.cancel()
+                    _librato_timer = None
+
+                if time.time() - _librato_start > LIBRATO_MAX_AGGREGATION_PERIOD:
+                    librato_submit()
+                else:
+                    _librato_timer = threading.Timer(LIBRATO_MIN_AGGREGATION_PERIOD, librato_submit)
+                    _librato_timer.start()
+        except:
+            report_exception()
+    
+    def librato_submit(background=True):
+        global _librato, _librato_lock, _librato_aggregator, _librato_timer, _librato_start
+
+        if _librato is None:
+            return
+
+            submission_aggregator = None
+        with _librato_lock:
+            if _librato_timer:
+                _librato_timer.cancel()
+                _librato_timer = None
+            submission_aggregator = _librato_aggregator
+            _librato_aggregator = librato.aggregator.Aggregator(_librato, source=env.host)
+            _librato_start = time.time()
+
+        if background:
+            threading.Thread(target=submission_aggregator.submit).start()
+        else:
+            submission_aggregator.submit()
+
+    atexit.register(librato_submit, False)
