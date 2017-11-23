@@ -1,6 +1,7 @@
 import datetime
 import unittest
 import os
+import time
 
 import lore
 from lore.stores import query_cached
@@ -30,6 +31,8 @@ class TestDisk(unittest.TestCase):
         self.assertEqual(cache['a'], 1)
         self.assertEqual(cache.keys(), ['a'])
 
+        time.sleep(1)  # disk cache LRU has 1 second precision
+        
         cache['b'] = 2
         self.assertEqual(len(cache), 2)
         self.assertEqual(cache.lru(), 'a')
@@ -49,7 +52,9 @@ class TestDisk(unittest.TestCase):
         self.assertEqual(cache.keys(), ['a'])
 
         cache.limit = 0
-        cache['a'] = 1
+        self.assertRaises(MemoryError, cache.__setitem__, 'a', 1)
+        del cache['a']
+
         self.assertEqual(len(cache), 0)
         self.assertEqual(cache.lru(), None)
         self.assertFalse('a' in cache)

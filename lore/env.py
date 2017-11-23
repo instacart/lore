@@ -195,7 +195,7 @@ def validate():
     )
 
 
-def launch(install_missing=False):
+def launch():
     if launched():
         check_version()
         os.chdir(root)
@@ -203,20 +203,23 @@ def launch(install_missing=False):
     
     if not os.path.exists(bin_lore):
         missing = ' %s virtualenv is missing.' % project
-        if install_missing:
+        if '--launched' in sys.argv:
+            sys.exit(ansi.error() + missing + ' Please check for errors during:\n $ lore install\n')
+        else:
             print(ansi.warning() + missing)
             import lore.__main__
-            lore.__main__.install(None)
-            return launch(False)
-        else:
-            sys.exit(ansi.error() + missing + ' Please run:\n $ lore install\n')
+            lore.__main__.install(None, None)
+        
+    reboot('--env-launched')
+    
 
-    if sys.argv[0] == 'python' or not sys.argv[0]:
-        sys.argv[0] = bin_python
-    elif sys.argv[0][-4:] == 'lore':
-        sys.argv[0] = bin_lore
-
-    os.execv(sys.argv[0], sys.argv)
+def reboot(*args):
+    args = list(sys.argv) + list(args)
+    if args[0] == 'python' or not args[0]:
+        args[0] = bin_python
+    elif args[0][-4:] == 'lore':
+        args[0] = bin_lore
+    os.execv(args[0], args)
 
 
 def check_version():
@@ -234,7 +237,7 @@ def check_version():
     )
 
 
-def check_requirements(install_missing=False):
+def check_requirements():
     if not os.path.exists(requirements):
         sys.exit(
             ansi.error() + ' %s is missing. Please check it in.' % ansi.underline(requirements)
@@ -257,13 +260,15 @@ def check_requirements(install_missing=False):
     
     if missing:
         missing = ' missing requirement:\n  ' + os.linesep.join(missing)
-        if install_missing:
+        if '--env-checked' in sys.argv:
+            sys.exit(ansi.error() + missing + '\nRequirement installation failure, please check for errors in:\n $ lore install\n')
+        else:
             print(ansi.warning() + missing)
             import lore.__main__
             lore.__main__.install_requirements(None)
-            return check_requirements(False)
-        else:
-            sys.exit(ansi.error() + missing + '\nPlease run:\n $ lore install\n')
+            reboot('--env-checked')
+    else:
+        return True
 
 
 def get_config(path):

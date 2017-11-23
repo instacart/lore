@@ -20,7 +20,7 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2017, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay']
 __license__ = 'MIT'
-__version__ = '0.4.49'
+__version__ = '0.4.51'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
 __status__ = 'Development Status :: 3 - Alpha'
@@ -57,5 +57,4 @@ if env.launched():
 
     if not lore_no_env:
         with timer('check requirements', logging.DEBUG):
-            install_missing = env.name in [env.DEVELOPMENT, env.TEST]
-            env.check_requirements(install_missing)
+            env.check_requirements()
