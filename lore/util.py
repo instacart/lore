@@ -315,7 +315,7 @@ if env.launched():
             with _librato_lock:
                 _librato_cancel_timer()
                 if _librato_aggregator is None:
-                    _librato_aggregator = librato.aggregator.Aggregator(_librato, source=env.host)
+                    _librato_aggregator = Aggregator(_librato, source=env.host)
                     _librato_start = time.time()
 
                 _librato_aggregator.add(name, value)
@@ -334,19 +334,21 @@ if env.launched():
         if _librato is None:
             return
 
+        submission_aggregator = None
         with _librato_lock:
             _librato_cancel_timer()
             submission_aggregator = _librato_aggregator
             _librato_aggregator = None
             _librato_start = None
 
-        if background:
-            threading.Thread(target=submission_aggregator.submit).start()
-        else:
-            try:
-                submission_aggregator.submit()
-            except:
-                report_exception()
+        if submission_aggregator:
+            if background:
+                threading.Thread(target=submission_aggregator.submit).start()
+            else:
+                try:
+                    submission_aggregator.submit()
+                except:
+                    report_exception()
     atexit.register(librato_submit, False)
 
     def _librato_cancel_timer():

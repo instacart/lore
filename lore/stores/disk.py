@@ -25,6 +25,9 @@ class Disk(Base):
         with timer('write %s:' % key):
             with open(self._path(key), 'wb') as f:
                 pickle.dump(value, f)
+
+        if os.path.getsize(key) > self.limit:
+            raise MemoryError('disk cache limit exceeded by single key: %s' % key)
         
         if self.limit is not None:
             with timer('evict: %s' % key):

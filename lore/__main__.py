@@ -19,7 +19,6 @@ import lore
 from lore import ansi, env, util
 from lore.util import timer, which
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -112,6 +111,10 @@ def main(args=None):
     test_parser.set_defaults(func=test)
 
     (known, unknown) = parser.parse_known_args(args)
+    if '--env-launched' in unknown:
+        unknown.remove('--env-launched')
+    if '--env-checked' in unknown:
+        unknown.remove('--env-checked')
     known.func(known, unknown)
     
 
@@ -138,6 +141,7 @@ def api(parsed, unknown):
 
 
 def console(parsed, unknown):
+    install_jupyter_kernel()
     sys.argv[0] = env.bin_jupyter
     args = [env.bin_jupyter, 'console', '--kernel', env.project]
     print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
@@ -247,9 +251,10 @@ def test(parsed, unknown):
     
 
 def notebook(parsed, unknown):
-    sys.argv[0] = env.bin_jupyter
+    install_jupyter_kernel()
+    args = [env.bin_jupyter, 'notebook'] + unknown
     print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
-    os.execv(env.bin_jupyter, sys.argv)
+    os.execv(env.bin_jupyter, args)
 
 
 def install_darwin():
@@ -517,8 +522,6 @@ def create_virtual_env():
     subprocess.check_call([env.bin_python, '-m', 'pip', 'install', 'six'])
 
 
-
-
 def install_requirements(args):
     source = env.requirements
     if not os.path.exists(source):
@@ -529,7 +532,14 @@ def install_requirements(args):
     
     pip_install(source, args)
     freeze_requirements()
+    install_jupyter_kernel()
     
+    
+def install_jupyter_kernel():
+    import jupyter_core.paths
+    if os.path.exists(os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', env.project)):
+        return
+
     print(ansi.success('INSTALL') + ' jupyter kernel')
     subprocess.check_call((
         env.bin_python,

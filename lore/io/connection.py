@@ -242,8 +242,7 @@ class Connection(object):
         with timer("dataframe:"):
             if self._connection is None:
                 self._connection = self._engine.connect()
-            dataframe = pandas.read_sql(sql=sql, con=self._connection, params=bindings)
-            return dataframe
+            return pandas.read_sql(sql=sql, con=self._connection, params=bindings)
 
     def quote_identifier(self, identifier):
         return self._engine.dialect.identifier_preparer.quote(identifier)
