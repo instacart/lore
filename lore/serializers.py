@@ -133,17 +133,23 @@ class Keras(Base):
     def load(self, fitting=None):
         super(Keras, self).load(fitting)
 
-        # HACK to set estimator model, and model serializer
-        self.model.estimator = self.model.estimator
+        if hasattr(self.model, 'estimator'):
+            # HACK to set estimator model, and model serializer
+            self.model.estimator = self.model.estimator
+    
+            # Rely on build + load_weights rather than loading the named layers
+            # w/ Keras for efficiency (and also because it causes a
+            # deserialization issue) as of Keras 2.0.4:
+            # https://github.com/fchollet/keras/issues/5442
+            self.model.estimator.build()
+            
+            with timer('load weights:'):
+                self.model.estimator.keras.load_weights(self.weights_path)
+        else:
+            self.model.build()
+            with timer('load weights:'):
+                self.model.keras.load_weights(self.weights_path)
 
-        # Rely on build + load_weights rather than loading the named layers
-        # w/ Keras for efficiency (and also because it causes a
-        # deserialization issue) as of Keras 2.0.4:
-        # https://github.com/fchollet/keras/issues/5442
-        self.model.estimator.build()
-        
-        with timer('load weights:'):
-            self.model.estimator.keras.load_weights(self.weights_path)
         return self.model
 
     def upload(self):

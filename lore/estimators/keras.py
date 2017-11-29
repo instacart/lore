@@ -178,15 +178,18 @@ class Keras(BaseEstimator):
         return Dense(1, activation='sigmoid')(hidden_layers)
     
     @timed(logging.INFO)
-    def fit(self, x, y, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=True):
+    def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=True):
+
+        if validation_data is None:
+            validation_data = self.model.pipeline.encoded_validation_data
 
         if isinstance(x, pandas.DataFrame):
             x = x.to_dict(orient='series')
         
         if isinstance(self.model.pipeline.encoded_validation_data.x, pandas.DataFrame):
             validation_data = Observations(
-                x=self.model.pipeline.encoded_validation_data.x.to_dict(orient='series'),
-                y=self.model.pipeline.encoded_validation_data.y
+                x=validation_data.x.to_dict(orient='series'),
+                y=validation_data.y
             )
         else:
             validation_data = self.model.pipeline.encoded_validation_data
@@ -276,7 +279,7 @@ class Keras(BaseEstimator):
             'timeline': timeline,
         }
 
-    @timed(logging.INFO)
+    @timed(logging.DEBUG)
     def predict(self, dataframe):
         if isinstance(dataframe, pandas.DataFrame):
             dataframe = dataframe.to_dict(orient='series')
