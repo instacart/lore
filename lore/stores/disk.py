@@ -24,7 +24,7 @@ class Disk(Base):
     def __setitem__(self, key, value):
         with timer('write %s:' % key):
             with open(self._path(key), 'wb') as f:
-                pickle.dump(value, f)
+                pickle.dump(value, f, pickle.HIGHEST_PROTOCOL)
 
         if self.limit is not None:
             if os.path.getsize(self._path(key)) > self.limit:
