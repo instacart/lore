@@ -252,14 +252,12 @@ if env.launched():
                 if exc_type is None:
                     exc_type, value, tb = sys.exc_info()
                 stacktrace = ''.join(traceback.format_exception(exc_type, value, tb))
+                print(stacktrace)
                 logger.exception('Exception: %s' % stacktrace)
-                if hasattr(sys, 'ps1'):
-                    print(stacktrace)
-                else:
-                    try:
-                        rollbar.report_exc_info(extra_data={"app": env.project})
-                    except Exception as e:
-                        logger.exception('reporting to rollbar: %s' % e)
+                try:
+                    rollbar.report_exc_info(extra_data={"app": env.project})
+                except Exception as e:
+                    logger.exception('reporting to rollbar: %s' % e)
     
             sys.excepthook = report_exception
     
@@ -269,9 +267,8 @@ if env.launched():
             if exc_type is None:
                 exc_type, value, tb = sys.exc_info()
             stacktrace = ''.join(traceback.format_exception(exc_type, value, tb))
+            print(stacktrace)
             logger.exception('Exception: %s' % stacktrace)
-            if hasattr(sys, 'ps1'):
-                print(stacktrace)
         
         sys.excepthook = report_exception
     
