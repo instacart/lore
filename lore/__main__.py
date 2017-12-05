@@ -119,9 +119,24 @@ def main(args=None):
     
 
 def api(parsed, unknown):
-    from hub.listeners.endpoint import EndpointListener
-    
-    for path in glob.glob(os.path.join(env.root, env.project, 'api', '*_endpoint.py')):
+    api_path = os.path.join(env.root, env.project, 'api')
+    endpoint_paths = []
+    consumer_paths = []
+    if 'HUB_LISTENERS' in os.environ:
+        for name in os.environ.get('HUB_LISTENERS').split(','):
+            endpoint = os.path.join(api_path, name + '_endpoint.py')
+            consumer = os.path.join(api_path, name + '_consumer.py')
+            if os.path.exists(endpoint):
+                endpoint_paths.append(endpoint)
+            elif os.path.exists(consumer):
+                consumer_paths.append(consumer)
+            else:
+                raise IOError('No file found for listener "%s". The following paths were checked:\n  %s\n  %s' % (name, consumer, endpoint))
+    else:
+        endpoint_paths = glob.glob(os.path.join(api_path, '*_endpoint.py'))
+        consumer_paths = glob.glob(os.path.join(api_path, '*_consumer.py'))
+     
+    for path in endpoint_paths + consumer_paths:
         module = os.path.basename(path)[:-3]
         if sys.version_info.major == 2:
             import imp
@@ -132,11 +147,20 @@ def api(parsed, unknown):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
     util.strip_one_off_handlers()
+
+    if len(endpoint_paths) > 0 and len(consumer_paths) > 0:
+        from hub.listeners.combined import CombinedListener as Listener
+    elif len(endpoint_paths) > 0:
+        from hub.listeners.endpoint import EndpointListener as Listener
+    elif len(consumer_paths) > 0:
+        from hub.listeners.consumer import ConsumerListener as Listener
+    else:
+        raise IOError('No hub listeners found in %s' % api_path)
     
-    EndpointListener(
-        env.project,
-        host_index=os.environ.get("RABBIT_HOST_INDEX"),
-        concurrency=os.environ.get("HUB_CONCURRENCY", 4)
+    Listener(
+        os.environ.get('HUB_APP_NAME', env.project),
+        concurrency=os.environ.get("HUB_CONCURRENCY", 4),
+        host_index = os.environ.get("RABBIT_HOST_INDEX")
     ).start()
 
 
