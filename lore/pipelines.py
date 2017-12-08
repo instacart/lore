@@ -133,13 +133,7 @@ class TrainTestSplit(object):
     def encode_x(self, data):
         result = {}
         for encoder in self.encoders:
-            encoded = encoder.transform(data)
-            if hasattr(encoder, 'sequence_length'):
-                for i in range(encoder.sequence_length):
-                    name = encoder.name + '_' + str(i)
-                    result[name] = encoder.get_column(encoded, i)
-            else:
-                result[encoder.name] = encoded
+            result[encoder.name] = encoder.transform(data)
         return pd.DataFrame(result)
     
     @timed(logging.INFO)
