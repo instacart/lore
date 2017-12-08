@@ -315,7 +315,7 @@ class Discrete(Base):
             self.__min = series.min()
             self.__range = series.max() - self.__min
             if isinstance(self.__range, timedelta):
-                logger.warn('Discrete timedelta requires (slower) 64bit float math. '
+                logger.warning('Discrete timedelta requires (slower) 64bit float math. '
                             'Could you use the epoch instead for %s?' % self.name)
                 self.__range = self.__range.total_seconds() * 1000000000
 
