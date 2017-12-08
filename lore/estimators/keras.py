@@ -68,6 +68,7 @@ class Keras(BaseEstimator):
         self.history = None
         self.session = None
         self.model = model
+        self.lstm_size = self.embed_size
     
     def __getstate__(self):
         state = super(Keras, self).__getstate__()
@@ -124,9 +125,7 @@ class Keras(BaseEstimator):
         inputs = {}
         for encoder in self.model.pipeline.encoders:
             if hasattr(encoder, 'sequence_length'):
-                for i in range(encoder.sequence_length):
-                    name = encoder.name + '_' + str(i)
-                    inputs[name] = Input(shape=(1,), name=name)
+                inputs[encoder.name] = Input(shape=(encoder.sequence_length,), name=encoder.name)
             else:
                 inputs[encoder.name] = Input(shape=(1,), name=encoder.name)
         return inputs
@@ -136,17 +135,16 @@ class Keras(BaseEstimator):
         embeddings = {}
         reshape = Reshape(target_shape=(self.embed_size,))
         for encoder in self.model.pipeline.encoders:
+            embed_name = 'embed_' + encoder.name
             if isinstance(encoder, Continuous):
-                embedding = Dense(self.embed_size, activation='relu', name='embed_' + encoder.name)
+                embedding = Dense(self.embed_size, activation='relu', name=embed_name)
                 embeddings[encoder.name] = embedding(inputs[encoder.name])
             elif hasattr(encoder, 'sequence_length'):
-                for i in range(encoder.sequence_length):
-                    name = encoder.name + '_' + str(i)
-                    embedding = Embedding(encoder.cardinality(), self.embed_size, name='embed_' + name)
-                    embeddings[name] = reshape(embedding(inputs[name]))
+                adapter = Embedding(encoder.cardinality(), self.embed_size, name=embed_name)
+                embedding = LSTM(self.lstm_size, name=embed_name + '_lstm')
+                embeddings[embed_name] = embedding(adapter(inputs[encoder.name]))
             else:
-                logger.debug("%s: %s %s" % (encoder.name, encoder.dtype, encoder.cardinality()))
-                embedding = Embedding(encoder.cardinality(), self.embed_size, name='embed_' + encoder.name)
+                embedding = Embedding(encoder.cardinality(), self.embed_size, name=embed_name)
                 embeddings[encoder.name] = reshape(embedding(inputs[encoder.name]))
         
         return Concatenate()(list(embeddings.values()))
@@ -186,13 +184,11 @@ class Keras(BaseEstimator):
         if isinstance(x, pandas.DataFrame):
             x = x.to_dict(orient='series')
         
-        if isinstance(self.model.pipeline.encoded_validation_data.x, pandas.DataFrame):
+        if isinstance(validation_data.x, pandas.DataFrame):
             validation_data = Observations(
                 x=validation_data.x.to_dict(orient='series'),
                 y=validation_data.y
             )
-        else:
-            validation_data = self.model.pipeline.encoded_validation_data
             
         if not self.keras or not self.optimizer:
             self.build()
