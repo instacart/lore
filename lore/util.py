@@ -144,8 +144,15 @@ strip_one_off_handlers()
 
 
 @contextmanager
-def timer(message="elapsed time:", level=logging.INFO, caller_level=3, librato=True):
+def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True):
     global _librato
+    
+    if logger is None:
+        logger = logging.getLogger()
+    
+    if logger.level < level:
+        yield
+        return
     
     start = datetime.now()
     try:
@@ -157,7 +164,7 @@ def timer(message="elapsed time:", level=logging.INFO, caller_level=3, librato=T
             if librato_name.endswith(':'):
                 librato_name = librato_name[0:-1]
             librato_record(librato_name, time.total_seconds())
-        calling_logger(caller_level).log(level, '%s %s' % (message, time))
+        logger.log(level, '%s %s' % (message, time))
 
 
 def parametrized(decorator):
