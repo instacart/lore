@@ -120,7 +120,7 @@ class Base(object):
             series = data[self.column]
 
         if self.infinite_warning and series.dtype in ['float32', 'float64'] and numpy.isinf(series).any():
-            logger.warn('Infinite values are present for %s' % self.name)
+            logger.warning('Infinite values are present for %s' % self.name)
 
         return series
     
@@ -478,7 +478,7 @@ class Unique(Base):
             self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
-        with timer('transform unique %s:' % self.name, logging.DEBUG):
+        with timer('transform %s:' % self.name, logging.DEBUG):
             result = self.series(data).map(self.map, na_action='ignore')
             result[result == 0] = self.tail_value
             result[result.isnull()] = self.missing_value
@@ -517,7 +517,7 @@ class Token(Unique):
     
     def fit(self, data):
         with timer(('fit token %s:' % self.name), logging.DEBUG):
-            tokens = pandas.DataFrame({self.column: self.tokenize(data).values.flatten()}, copy=False)
+            tokens = pandas.DataFrame({self.column: self.tokenize(data).values.flatten()})
             super(Token, self).fit(tokens)
     
     def transform(self, data):
@@ -525,11 +525,14 @@ class Token(Unique):
         :param data: DataFrame with column to encode
         :return: encoded Series
         """
-        with timer('transform token %s:' % self.name, logging.DEBUG):
-            tokens = self.tokenize(data)
-            for column in tokens:
-                tokens[column] = super(Token, self).transform(pandas.DataFrame({self.column: tokens[column]}, copy=False))
-            return pandas.Series(tokens.values.tolist())
+        with timer('transform %s:' % self.name, logging.DEBUG):
+            results = {}
+            for column, values in self.tokenize(data).iteritems():
+                result = values.map(self.map, na_action='ignore')
+                result[result == 0] = self.tail_value
+                result[result.isnull()] = self.missing_value
+                results[column] = result.astype(self.dtype)
+            return pandas.Series(pandas.DataFrame(results).values.tolist())
         
     def reverse_transform(self, series):
         with timer('reverse_transform token %s:' % self.name, logging.DEBUG):
@@ -550,8 +553,11 @@ class Token(Unique):
         cleaned = self.series(data).str.replace(Token.PUNCTUATION_FILTER, ' ')
         lowered = cleaned.str.lower()
         dataframe = lowered.str.split(expand=True)
-        return dataframe.loc[:,0:self.sequence_length]
-    
+        return dataframe.loc[:,0:self.sequence_length - 1]
+
+    def fillna(self, series, addition=0):
+        return series.fillna(pandas.Series([[self.missing_value + addition] * self.sequence_length] * len(series.isnull())))
+
 
 class Glove(Token):
     """
