@@ -282,14 +282,15 @@ class TestToken(unittest.TestCase):
         b = self.encoder.reverse_transform(
             self.encoder.transform(pandas.DataFrame({'test': a}))
         ).tolist()
-        self.assertEqual(b, ['LONG_TAIL LONG_TAIL'])
+        self.assertEqual(b, ['LONG_TAIL LONG_TAIL MISSING_VALUE'])
         
     def test_handles_missing_labels(self):
         a = ['thisisnotavalidwordintheembeddings', None]
         b = self.encoder.reverse_transform(
             self.encoder.transform(pandas.DataFrame({'test': a}))
         ).tolist()
-        self.assertEqual(['LONG_TAIL', 'MISSING_VALUE'], b)
+        self.assertEqual(['LONG_TAIL MISSING_VALUE MISSING_VALUE',
+                          'MISSING_VALUE MISSING_VALUE MISSING_VALUE'], b)
         self.assertEqual(self.encoder.cardinality(), 6)
 
 
