@@ -478,7 +478,7 @@ class Unique(Base):
             self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
-        with timer('transform %s:' % self.name, logging.DEBUG):
+        with timer('transform unique %s:' % self.name, logging.DEBUG):
             result = self.series(data).map(self.map, na_action='ignore')
             result[result == 0] = self.tail_value
             result[result.isnull()] = self.missing_value
@@ -502,7 +502,7 @@ class Token(Unique):
     """
     PUNCTUATION_FILTER = re.compile(r'\W+\s\W+|\W+(\s|$)|(\s|^)\W+', re.UNICODE)
     
-    def __init__(self, column, name=None, sequence_length=10, minimum_occurrences=1, embed_scale=1):
+    def __init__(self, column, name=None, sequence_length=None, minimum_occurrences=1, embed_scale=1):
         """
         :param sequence_length: truncates tokens after sequence_length
         :param minimum_occurrences: ignore tokens with less than this many occurrences
@@ -517,22 +517,15 @@ class Token(Unique):
     
     def fit(self, data):
         with timer(('fit token %s:' % self.name), logging.DEBUG):
-            tokens = pandas.DataFrame({self.column: self.tokenize(data).values.flatten()})
-            super(Token, self).fit(tokens)
+            super(Token, self).fit(self.tokenize(data, fit=True))
     
     def transform(self, data):
         """
         :param data: DataFrame with column to encode
         :return: encoded Series
         """
-        with timer('transform %s:' % self.name, logging.DEBUG):
-            results = {}
-            for column, values in self.tokenize(data).iteritems():
-                result = values.map(self.map, na_action='ignore')
-                result[result == 0] = self.tail_value
-                result[result.isnull()] = self.missing_value
-                results[column] = result.astype(self.dtype)
-            return pandas.Series(pandas.DataFrame(results).values.tolist())
+        transformed = super(Token, self).transform(self.tokenize(data))
+        return pandas.Series(transformed.values.reshape((len(data), self.sequence_length)).tolist())
         
     def reverse_transform(self, series):
         with timer('reverse_transform token %s:' % self.name, logging.DEBUG):
@@ -548,12 +541,20 @@ class Token(Unique):
         if isinstance(tokens, float) or i >= len(tokens):
             return self.missing_value
         return tokens[i]
+        
+    def tokenize(self, data, fit=False):
+        with timer('tokenize %s' % self.name, logging.DEBUG):
+            cleaned = self.series(data).str.replace(Token.PUNCTUATION_FILTER, ' ')
+            lowered = cleaned.str.lower()
+            dataframe = lowered.str.split(expand=True)
     
-    def tokenize(self, data):
-        cleaned = self.series(data).str.replace(Token.PUNCTUATION_FILTER, ' ')
-        lowered = cleaned.str.lower()
-        dataframe = lowered.str.split(expand=True)
-        return dataframe.loc[:,0:self.sequence_length - 1]
+            if fit and self.sequence_length is None:
+                self.sequence_length = len(dataframe.columns)
+            while len(dataframe.columns) < self.sequence_length:
+                column = len(dataframe.columns)
+                logger.warning('No string has %i tokens, adding blank column %i' % (self.sequence_length, column))
+                dataframe[column] = float('nan')
+            return pandas.DataFrame({self.column: dataframe.loc[:,0:self.sequence_length - 1].values.flatten()})
 
     def fillna(self, series, addition=0):
         return series.fillna(pandas.Series([[self.missing_value + addition] * self.sequence_length] * len(series.isnull())))
