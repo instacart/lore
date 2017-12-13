@@ -150,7 +150,7 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
     if logger is None:
         logger = logging.getLogger()
     
-    if logger.level < level:
+    if level < logger.level:
         yield
         return
     
@@ -160,10 +160,11 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
     finally:
         time = datetime.now() - start
         if librato and _librato and level >= logging.INFO:
-            librato_name = 'timer.' + message.replace(' ', '.').lower()
-            if librato_name.endswith(':'):
-                librato_name = librato_name[0:-1]
+            librato_name = 'timer.' + message.lower()
+            librato_name = librato_name.split(':')[0]
+            librato_name = re.sub(r'[^A-Za-z0-9\.\-_]', '', librato_name)[0:255]
             librato_record(librato_name, time.total_seconds())
+            
         logger.log(level, '%s %s' % (message, time))
 
 
