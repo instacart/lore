@@ -253,8 +253,9 @@ if env.launched():
                 environment=env.name,
                 enabled=(env.name != env.DEVELOPMENT),
                 handler='blocking',
-                locals={"enabled": True})
-        
+                locals={"enabled": True}
+            )
+            
             def report_exception(exc_type=None, value=None, tb=None):
                 global project
                 if exc_type is None:
@@ -263,7 +264,10 @@ if env.launched():
                 print(stacktrace)
                 logger.exception('Exception: %s' % stacktrace)
                 try:
-                    rollbar.report_exc_info(extra_data={"app": env.project})
+                    rollbar.report_exc_info(
+                        exc_info=(exc_type, value, tb),
+                        extra_data={"app": env.project}
+                    )
                 except Exception as e:
                     logger.exception('reporting to rollbar: %s' % e)
     
