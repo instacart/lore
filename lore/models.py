@@ -3,6 +3,7 @@ import logging
 from tabulate import tabulate
 import lore.estimators
 import lore.serializers
+from lore.estimators.sklearn import SKLearn
 
 from sklearn.model_selection import RandomizedSearchCV
 
@@ -72,8 +73,13 @@ class Base(object):
         """
         if scoring is None:
             scoring = None
+        if isinstance(self.estimator, SKLearn):
+            estimator = self.estimator.sklearn
+        else:
+            estimator = self.estimator
+
         result = RandomizedSearchCV(
-            self.estimator,
+            estimator,
             param_distributions,
             n_iter=n_iter,
             scoring=scoring,
@@ -91,6 +97,9 @@ class Base(object):
             y=self.pipeline.encoded_training_data.y,
             **fit_params
         )
-        self.estimator = result.best_estimator_
+        if isinstance(self.estimator, SKLearn):
+            self.estimator.sklearn = result.best_estimator_
+        else:
+            self.estimator = result.best_estimator_
         
         return result
