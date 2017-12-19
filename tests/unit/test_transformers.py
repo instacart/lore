@@ -3,7 +3,7 @@ import unittest
 import lore.transformers
 import numpy
 import pandas
-
+import datetime
 
 class TestAreaCode(unittest.TestCase):
     def setUp(self):
@@ -70,3 +70,11 @@ class TestNameFamilial(unittest.TestCase):
         })
         result = self.transformer.transform(values)
         self.assertEqual(result.tolist(), [True, True, False])
+
+
+class TestDateTime(unittest.TestCase):
+    def test_transform_day_of_week(self):
+        transformer = lore.transformers.DateTime('test', 'dayofweek')
+        data = pandas.DataFrame({'test': [datetime.datetime(2016, 12, 31), datetime.date(2017, 1, 1)]})
+        transformed = transformer.transform(data)
+        self.assertEqual(transformed.iloc[0] + 1, transformed.iloc[1])
