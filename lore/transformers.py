@@ -5,8 +5,6 @@ import csv
 import os
 import re
 
-from past.builtins import basestring
-
 import inflection
 import numpy
 
@@ -26,6 +24,20 @@ class Base(object):
 class Map(Base):
     def transform(self, data):
         return data.loc[:, self.column].map(self.__class__.MAP)
+
+
+class DateTime(Base):
+    """
+    For available operators see:
+    https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DatetimeIndex.html#pandas.DatetimeIndex
+    """
+    
+    def __init__(self, column, operator):
+        super(DateTime, self).__init__(column)
+        self.operator = operator
+    
+    def transform(self, data):
+        return getattr(data[self.column].dt, self.operator)
 
 
 class Log(Base):
