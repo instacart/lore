@@ -53,10 +53,14 @@ class ReloadBest(keras.callbacks.ModelCheckpoint):
         time = datetime.utcnow() - self.train_begin
         train_loss = logs.get('loss')
         validate_loss = logs.get('val_loss')
-        if self.validate_loss is None or self.validate_loss > validate_loss:
-            self.best_epoch = epoch + 1
-            self.train_loss = train_loss
-            self.validate_loss = validate_loss
-        logger.info('| %8i | %8s | %8.5f | %8.5f |' % (
+        if validate_loss:
+            if self.validate_loss is None or self.validate_loss > validate_loss:
+                self.best_epoch = epoch + 1
+                self.train_loss = train_loss
+                self.validate_loss = validate_loss
+        else:
+            logger.error('No val_loss in logs, setting to NaN')
+            validate_loss = float('nan')
+        logger.info('| %8i | %8s | %8.4f | %8.4f |' % (
             epoch, str(time).split('.', 2)[0], train_loss, validate_loss)
         )
