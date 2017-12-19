@@ -278,7 +278,7 @@ class Norm(Continuous):
     def transform(self, data):
         with timer('transform %s:' % self.name, logging.DEBUG):
             if self.__std > 0:
-                series = self.series(data)
+                series = self.series(data).astype(self.dtype)
                 capped = numpy.maximum(series, self.__min)
                 capped = numpy.minimum(capped, self.__max)
                 result = (capped - self.__mean) / self.__std

@@ -69,7 +69,7 @@ class TestNorm(unittest.TestCase):
 
     def test_mean_sd(self):
         a = numpy.arange(10)
-        enc = lore.encoders.Norm('test')
+        enc = lore.encoders.Norm('test', dtype=numpy.float64)
         data = pandas.DataFrame({'test': a})
         enc.fit(data)
         b = enc.transform(data)
@@ -102,6 +102,11 @@ class TestNorm(unittest.TestCase):
         a = self.encoder.transform(pandas.DataFrame({'test': [None, float('nan')]}))
         self.assertEqual(a.tolist(), [0.0, 0.0])
 
+    def test_accidental_object_type_array_from_none(self):
+        self.encoder = lore.encoders.Norm('test')
+        self.encoder.fit(pandas.DataFrame({'test': [3, 1, 2, 1, 4]}))
+        a = self.encoder.transform(pandas.DataFrame({'test': [None]}))
+        self.assertEqual(a.tolist(), [0.0])
 
 class TestDiscrete(unittest.TestCase):
     def setUp(self):
