@@ -1,10 +1,11 @@
 from sklearn import svm
 
 import lore.models
+import lore.models.keras
 import tests.mocks.pipelines
 
 
-class Keras(lore.models.Base):
+class Keras(lore.models.keras.Keras):
     def __init__(
         self,
         embed_size=10

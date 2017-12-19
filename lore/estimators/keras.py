@@ -224,7 +224,7 @@ class Keras(BaseEstimator):
         )
         
         reload_best = ReloadBest(
-            filepath=self.model.serializer.checkpoint_path,
+            filepath=self.model.checkpoint_path(),
             monitor=self.monitor,
             mode='auto',
         )
@@ -265,7 +265,7 @@ class Keras(BaseEstimator):
             ).history
 
         if timeline:
-            with open(self.model.serializer.timeline_path, 'w') as f:
+            with open(self.model.timeline_path(), 'w') as f:
                 f.write(Timeline(step_stats=run_metadata.step_stats).generate_chrome_trace_format())
 
         return {

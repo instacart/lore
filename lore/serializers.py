@@ -4,6 +4,8 @@ from os.path import join
 import h5py
 import json
 import re
+import warnings
+import inspect
 
 import lore
 from lore import io
@@ -12,6 +14,8 @@ from lore.util import timer
 
 class Base(object):
     def __init__(self, klass=None, model=None):
+        warnings.showwarning('Serializers are now directly implemented in models. Please use the model class directly instead"', DeprecationWarning,
+                             __file__, inspect.currentframe().f_back.f_lineno)
         self.local_path = None
         self.remote_path = None
         self.fitting_path = None
