@@ -10,8 +10,8 @@ import gzip
 from datetime import datetime
 from io import StringIO
 from sqlalchemy import event
-from sqlalchemy.engine import Engine
 from sqlalchemy.schema import DropTable
+from sqlalchemy.orm import Session
 from sqlalchemy.ext.compiler import compiles
 
 import pandas
@@ -42,11 +42,63 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         if '__name__' in kwargs:
             del kwargs['__name__']
+        if 'isolation_level' not in kwargs:
+            kwargs['isolation_level'] = 'AUTOCOMMIT'
         self._engine = sqlalchemy.create_engine(url, **kwargs)
+        self._session = sqlalchemy.sessionmaker(bind=self.engine, class_=Session, autocommit=True)
         self._connection = None
         self._metadata = None
         self._transactions = []
+
+        dconns_by_trans = {}
     
+        @event.listens_for(self._session, 'after_begin')
+        def receive_after_begin(session, transaction, connection):
+            """When a (non-nested) transaction begins, turn autocommit off."""
+            dbapi_connection = connection.connection.connection
+            if transaction.nested:
+                assert not dbapi_connection.autocommit
+                return
+            assert dbapi_connection.autocommit
+            dbapi_connection.autocommit = False
+            dconns_by_trans.setdefault(transaction, set()).add(dbapi_connection)
+    
+        @event.listens_for(self._session, 'after_transaction_end')
+        def receive_after_transaction_end(session, transaction):
+            """Restore autocommit anywhere this transaction turned it off."""
+            if transaction in dconns_by_trans:
+                for dbapi_connection in dconns_by_trans[transaction]:
+                    assert not dbapi_connection.autocommit
+                    dbapi_connection.autocommit = True
+                del dconns_by_trans[transaction]
+
+        @event.listens_for(self._engine, "before_cursor_execute", retval=True)
+        def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
+            conn.info.setdefault('query_start_time', []).append(datetime.now())
+        
+            stack = inspect.stack()[1:-1]
+            if sys.version_info.major == 3:
+                stack = [(x.filename, x.lineno, x.function) for x in stack]
+            else:
+                stack = [(x[1], x[2], x[3]) for x in stack]
+        
+            paths = [x[0] for x in stack]
+            origin = next((x for x in paths if lore.env.project in x), None)
+            if origin is None:
+                origin = next((x for x in paths if 'sqlalchemy' not in x), None)
+            if origin is None:
+                origin = paths[0]
+            caller = next(x for x in stack if x[0] == origin)
+        
+            statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
+            logger.debug(statement)
+            return statement, parameters
+    
+        @event.listens_for(self._engine, "after_cursor_execute")
+        def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
+            total = datetime.now() - conn.info['query_start_time'].pop(-1)
+            logger.info("SQL: %s" % total)
+
     def __enter__(self):
         if self._connection is None:
             self._connection = self._engine.connect()
@@ -265,35 +317,6 @@ class Connection(object):
         if self._connection is None:
             self._connection = self._engine.connect()
         return self._connection.execute(sql, bindings)
-
-
-@event.listens_for(Engine, "before_cursor_execute", retval=True)
-def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
-    conn.info.setdefault('query_start_time', []).append(datetime.now())
-
-    stack = inspect.stack()[1:-1]
-    if sys.version_info.major == 3:
-        stack = [(x.filename, x.lineno, x.function) for x in stack]
-    else:
-        stack = [(x[1], x[2], x[3]) for x in stack]
-
-    paths = [x[0] for x in stack]
-    origin = next((x for x in paths if lore.env.project in x), None)
-    if origin is None:
-        origin = next((x for x in paths if 'sqlalchemy' not in x), None)
-    if origin is None:
-        origin = paths[0]
-    caller = next(x for x in stack if x[0] == origin)
-
-    statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
-    logger.debug(statement)
-    return statement, parameters
-
-
-@event.listens_for(Engine, "after_cursor_execute")
-def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
-    total = datetime.now() - conn.info['query_start_time'].pop(-1)
-    logger.info("SQL: %s" % total)
 
 
 _after_replace_callbacks = []
