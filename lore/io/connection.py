@@ -31,6 +31,12 @@ def _compile_drop_table(element, compiler, **kwargs):
     return compiler.visit_drop_table(element) + ' CASCADE'
 
 
+_after_replace_callbacks = []
+def after_replace(func):
+    global _after_replace_callbacks
+    _after_replace_callbacks.append(func)
+
+
 class Connection(object):
     UNLOAD_PREFIX = os.path.join(lore.env.name, 'unloads')
     IAM_ROLE = os.environ.get('IAM_ROLE', None)
@@ -43,35 +49,35 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         if '__name__' in kwargs:
             del kwargs['__name__']
-        if 'isolation_level' not in kwargs:
-            kwargs['isolation_level'] = 'AUTOCOMMIT'
+        # if 'isolation_level' not in kwargs:
+        #     kwargs['isolation_level'] = 'AUTOCOMMIT'
         self._engine = sqlalchemy.create_engine(url, **kwargs)
-        self._Session = sqlalchemy.orm.session.sessionmaker(bind=self._engine, class_=Session, autocommit=True)
+        # self._Session = sqlalchemy.orm.session.sessionmaker(bind=self._engine, class_=Session, autocommit=True)
         self._connection = None
         self._metadata = None
         self._transactions = []
 
         dconns_by_trans = {}
     
-        @event.listens_for(self._Session, 'after_begin')
-        def receive_after_begin(session, transaction, connection):
-            """When a (non-nested) transaction begins, turn autocommit off."""
-            dbapi_connection = connection.connection.connection
-            if transaction.nested:
-                assert not dbapi_connection.autocommit
-                return
-            assert dbapi_connection.autocommit
-            dbapi_connection.autocommit = False
-            dconns_by_trans.setdefault(transaction, set()).add(dbapi_connection)
-    
-        @event.listens_for(self._Session, 'after_transaction_end')
-        def receive_after_transaction_end(session, transaction):
-            """Restore autocommit anywhere this transaction turned it off."""
-            if transaction in dconns_by_trans:
-                for dbapi_connection in dconns_by_trans[transaction]:
-                    assert not dbapi_connection.autocommit
-                    dbapi_connection.autocommit = True
-                del dconns_by_trans[transaction]
+        # @event.listens_for(self._Session, 'after_begin')
+        # def receive_after_begin(session, transaction, connection):
+        #     """When a (non-nested) transaction begins, turn autocommit off."""
+        #     dbapi_connection = connection.connection.connection
+        #     if transaction.nested:
+        #         assert not dbapi_connection.autocommit
+        #         return
+        #     assert dbapi_connection.autocommit
+        #     dbapi_connection.autocommit = False
+        #     dconns_by_trans.setdefault(transaction, set()).add(dbapi_connection)
+        #
+        # @event.listens_for(self._Session, 'after_transaction_end')
+        # def receive_after_transaction_end(session, transaction):
+        #     """Restore autocommit anywhere this transaction turned it off."""
+        #     if transaction in dconns_by_trans:
+        #         for dbapi_connection in dconns_by_trans[transaction]:
+        #             assert not dbapi_connection.autocommit
+        #             dbapi_connection.autocommit = True
+        #         del dconns_by_trans[transaction]
 
         @event.listens_for(Engine, "before_cursor_execute", retval=True)
         def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
@@ -318,9 +324,3 @@ class Connection(object):
         if self._connection is None:
             self._connection = self._engine.connect()
         return self._connection.execute(sql, bindings)
-
-
-_after_replace_callbacks = []
-def after_replace(func):
-    global _after_replace_callbacks
-    _after_replace_callbacks.append(func)

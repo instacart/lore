@@ -2,7 +2,9 @@
 from __future__ import unicode_literals
 
 import unittest
-from datetime import datetime
+from threading import Thread
+import datetime
+import time
 
 import lore.io.connection
 import sqlalchemy
@@ -98,3 +100,36 @@ class TestConnection(unittest.TestCase):
         lore.io.main.execute(sql='insert into tests_autocommit values (1), (2), (3)')
         temps_two = lore.io.main_two.select(sql='select count(*) from tests_autocommit')
         self.assertEqual(temps_two[0][0], 3)
+
+    def test_transaction_locks_updates(self):
+        lore.io.main.execute(sql='drop table if exists tests_autocommit')
+        lore.io.main.execute(sql='create table tests_autocommit(id integer not null primary key)')
+
+        priors = []
+        posts = []
+        thrown = []
+        def insert(connection, delay=0):
+            try:
+                with connection as transaction:
+                    priors.append(transaction.select(sql='select count(*) from tests_autocommit')[0][0])
+                    transaction.execute(sql='insert into tests_autocommit values (1), (2), (3)')
+                    posts.append(transaction.select(sql='select count(*) from tests_autocommit')[0][0])
+                    time.sleep(delay)
+            except sqlalchemy.exc.IntegrityError as ex:
+                thrown.append(True)
+            
+        slow = Thread(target=insert, args=(lore.io.main, 1))
+        slow.start()
+
+        fast = Thread(target=insert, args=(lore.io.main_two, 0))
+        fast.start()
+        
+        fast.join()
+        fast_done = datetime.datetime.now()
+        slow.join()
+        slow_done = datetime.datetime.now()
+        
+        self.assertEqual(priors, [0, 0])
+        self.assertEqual(posts, [3])
+        self.assertEqual(thrown, [True])
+        self.assertAlmostEquals((slow_done - fast_done).total_seconds(), 0, 2)
