@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 from abc import ABCMeta, abstractmethod
 
 import csv
+import datetime
 import os
 import re
 
@@ -39,6 +40,35 @@ class DateTime(Base):
     def transform(self, data):
         return getattr(data[self.column].dt, self.operator)
 
+
+class Age(Base):
+    def __init__(self, column, unit='seconds'):
+        super(Age, self).__init__(column)
+        self.unit = unit
+
+    def transform(self, data):
+        age = (datetime.datetime.now() - data[self.column])
+        if self.unit in ['nanosecond', 'nanoseconds']:
+            return age
+        
+        seconds = age.dt.total_seconds()
+        if self.unit in ['second', 'seconds']:
+            return seconds
+        if self.unit in ['minute', 'minutes']:
+            return seconds / 60
+        if self.unit in ['hour', 'hours']:
+            return seconds / 3600
+        if self.unit in ['day', 'days']:
+            return seconds / 86400
+        if self.unit in ['week', 'weeks']:
+            return seconds / 604800
+        if self.unit in ['month', 'months']:
+            return seconds / 2592000
+        if self.unit in ['year', 'years']:
+            return seconds / 31536000
+
+        raise NameError('Unknown unit: %s' % self.unit)
+        
 
 class Log(Base):
     def transform(self, data):
