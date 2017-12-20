@@ -76,13 +76,25 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(len(users), 3)
 
     def test_persistent_temp_tables(self):
-        lore.io.main.execute(sql='''
-            create temporary table tests_temp(id integer not null primary key);
-        ''')
-        lore.io.main.execute(sql='''
-            insert into tests_temp values (1), (2), (3)
-        ''')
-        temps = lore.io.main.select(sql='''
-            select count(*) from tests_temp
-        ''')
+        lore.io.main.execute(sql='create temporary table tests_persistence(id integer not null primary key)')
+        lore.io.main.execute(sql='insert into tests_persistence values (1), (2), (3)')
+        temps = lore.io.main.select(sql='select count(*) from tests_persistence')
         self.assertEqual(temps[0][0], 3)
+
+    def test_connection_temp_table_isolation(self):
+        lore.io.main.execute(sql='create temporary table tests_temp(id integer not null primary key)')
+        lore.io.main.execute(sql='insert into tests_temp values (1), (2), (3)')
+        lore.io.main_two.execute(sql='create temporary table tests_temp(id integer not null primary key)')
+        lore.io.main_two.execute(sql='insert into tests_temp values (1), (2), (3)')
+
+        temps = lore.io.main.select(sql='select count(*) from tests_temp')
+        temps_two = lore.io.main_two.select(sql='select count(*) from tests_temp')
+        self.assertEqual(temps[0][0], 3)
+        self.assertEqual(temps_two[0][0], 3)
+
+    def test_connection_autocommit_isolation(self):
+        lore.io.main.execute(sql='drop table if exists tests_autocommit')
+        lore.io.main.execute(sql='create table tests_autocommit(id integer not null primary key)')
+        lore.io.main.execute(sql='insert into tests_autocommit values (1), (2), (3)')
+        temps_two = lore.io.main_two.select(sql='select count(*) from tests_autocommit')
+        self.assertEqual(temps_two[0][0], 3)

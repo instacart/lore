@@ -10,8 +10,9 @@ import gzip
 from datetime import datetime
 from io import StringIO
 from sqlalchemy import event
-from sqlalchemy.schema import DropTable
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
+from sqlalchemy.schema import DropTable
 from sqlalchemy.ext.compiler import compiles
 
 import pandas
@@ -45,14 +46,14 @@ class Connection(object):
         if 'isolation_level' not in kwargs:
             kwargs['isolation_level'] = 'AUTOCOMMIT'
         self._engine = sqlalchemy.create_engine(url, **kwargs)
-        self._session = sqlalchemy.sessionmaker(bind=self.engine, class_=Session, autocommit=True)
+        self._Session = sqlalchemy.orm.session.sessionmaker(bind=self._engine, class_=Session, autocommit=True)
         self._connection = None
         self._metadata = None
         self._transactions = []
 
         dconns_by_trans = {}
     
-        @event.listens_for(self._session, 'after_begin')
+        @event.listens_for(self._Session, 'after_begin')
         def receive_after_begin(session, transaction, connection):
             """When a (non-nested) transaction begins, turn autocommit off."""
             dbapi_connection = connection.connection.connection
@@ -63,7 +64,7 @@ class Connection(object):
             dbapi_connection.autocommit = False
             dconns_by_trans.setdefault(transaction, set()).add(dbapi_connection)
     
-        @event.listens_for(self._session, 'after_transaction_end')
+        @event.listens_for(self._Session, 'after_transaction_end')
         def receive_after_transaction_end(session, transaction):
             """Restore autocommit anywhere this transaction turned it off."""
             if transaction in dconns_by_trans:
@@ -72,7 +73,7 @@ class Connection(object):
                     dbapi_connection.autocommit = True
                 del dconns_by_trans[transaction]
 
-        @event.listens_for(self._engine, "before_cursor_execute", retval=True)
+        @event.listens_for(Engine, "before_cursor_execute", retval=True)
         def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
             conn.info.setdefault('query_start_time', []).append(datetime.now())
         
@@ -94,7 +95,7 @@ class Connection(object):
             logger.debug(statement)
             return statement, parameters
     
-        @event.listens_for(self._engine, "after_cursor_execute")
+        @event.listens_for(Engine, "after_cursor_execute")
         def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
             total = datetime.now() - conn.info['query_start_time'].pop(-1)
             logger.info("SQL: %s" % total)
