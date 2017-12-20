@@ -11,7 +11,6 @@ from datetime import datetime
 from io import StringIO
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session
 from sqlalchemy.schema import DropTable
 from sqlalchemy.ext.compiler import compiles
 
@@ -55,9 +54,6 @@ class Connection(object):
         self._connection = None
         self._metadata = None
         self._transactions = []
-
-        dconns_by_trans = {}
-    
 
         @event.listens_for(Engine, "before_cursor_execute", retval=True)
         def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
