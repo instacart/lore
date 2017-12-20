@@ -78,3 +78,13 @@ class TestDateTime(unittest.TestCase):
         data = pandas.DataFrame({'test': [datetime.datetime(2016, 12, 31), datetime.date(2017, 1, 1)]})
         transformed = transformer.transform(data)
         self.assertEqual(transformed.iloc[0] + 1, transformed.iloc[1])
+
+
+class TestAge(unittest.TestCase):
+    def test_transform_age(self):
+        transformer = lore.transformers.Age('test', 'days')
+        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+
+        data = pandas.DataFrame({'test': [datetime.datetime.now(), yesterday]})
+        transformed = transformer.transform(data)
+        self.assertEqual(transformed.astype(int).tolist(), [0, 1])
