@@ -8,7 +8,6 @@ import tempfile
 import csv
 import gzip
 from datetime import datetime
-from time import time
 from io import StringIO
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -85,6 +84,10 @@ class Connection(object):
             chunksize=batch_size
         )
 
+    def close(self):
+        self._engine.dispose()
+        self._connection = None
+        
     def replace(self, table, dataframe, batch_size=None):
         import migrate.changeset
         global _after_replace_callbacks
