@@ -49,35 +49,15 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         if '__name__' in kwargs:
             del kwargs['__name__']
-        # if 'isolation_level' not in kwargs:
-        #     kwargs['isolation_level'] = 'AUTOCOMMIT'
+        if 'isolation_level' not in kwargs:
+            kwargs['isolation_level'] = 'AUTOCOMMIT'
         self._engine = sqlalchemy.create_engine(url, **kwargs)
-        # self._Session = sqlalchemy.orm.session.sessionmaker(bind=self._engine, class_=Session, autocommit=True)
         self._connection = None
         self._metadata = None
         self._transactions = []
 
         dconns_by_trans = {}
     
-        # @event.listens_for(self._Session, 'after_begin')
-        # def receive_after_begin(session, transaction, connection):
-        #     """When a (non-nested) transaction begins, turn autocommit off."""
-        #     dbapi_connection = connection.connection.connection
-        #     if transaction.nested:
-        #         assert not dbapi_connection.autocommit
-        #         return
-        #     assert dbapi_connection.autocommit
-        #     dbapi_connection.autocommit = False
-        #     dconns_by_trans.setdefault(transaction, set()).add(dbapi_connection)
-        #
-        # @event.listens_for(self._Session, 'after_transaction_end')
-        # def receive_after_transaction_end(session, transaction):
-        #     """Restore autocommit anywhere this transaction turned it off."""
-        #     if transaction in dconns_by_trans:
-        #         for dbapi_connection in dconns_by_trans[transaction]:
-        #             assert not dbapi_connection.autocommit
-        #             dbapi_connection.autocommit = True
-        #         del dconns_by_trans[transaction]
 
         @event.listens_for(Engine, "before_cursor_execute", retval=True)
         def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
@@ -109,6 +89,12 @@ class Connection(object):
     def __enter__(self):
         if self._connection is None:
             self._connection = self._engine.connect()
+        dbapi_connection = self._connection.connection.connection
+        if self._transactions:
+            assert not dbapi_connection.autocommit
+        else:
+            assert dbapi_connection.autocommit
+            dbapi_connection.autocommit = False
         self._transactions.append(self._connection.begin())
         return self
     
@@ -118,6 +104,10 @@ class Connection(object):
             transaction.commit()
         else:
             transaction.rollback()
+        if not self._transactions:
+            dbapi_connection = self._connection.connection.connection
+            assert not dbapi_connection.autocommit
+            dbapi_connection.autocommit = True
 
     @staticmethod
     def path(filename, extension='.sql'):

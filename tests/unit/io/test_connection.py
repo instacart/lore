@@ -101,35 +101,50 @@ class TestConnection(unittest.TestCase):
         temps_two = lore.io.main_two.select(sql='select count(*) from tests_autocommit')
         self.assertEqual(temps_two[0][0], 3)
 
-    def test_transaction_locks_updates(self):
+    def test_transaction_rollback(self):
         lore.io.main.execute(sql='drop table if exists tests_autocommit')
         lore.io.main.execute(sql='create table tests_autocommit(id integer not null primary key)')
 
+        lore.io.main.execute(sql='insert into tests_autocommit values (0)')
+        with self.assertRaises(sqlalchemy.exc.IntegrityError):
+            with lore.io.main as transaction:
+                transaction.execute(sql='insert into tests_autocommit values (1), (2), (3)')
+                transaction.execute(sql='insert into tests_autocommit values (1), (2), (3)')
+
+        inserted = lore.io.main_two.select(sql='select count(*) from tests_autocommit')[0][0]
+
+        self.assertEqual(inserted, 1)
+
+    def test_out_of_transaction_does_not_block_concurrent_writes(self):
+        lore.io.main.execute(sql='drop table if exists tests_autocommit')
+        lore.io.main.execute(sql='create table tests_autocommit(id integer not null primary key)')
+    
         priors = []
         posts = []
         thrown = []
+    
         def insert(connection, delay=0):
             try:
-                with connection as transaction:
-                    priors.append(transaction.select(sql='select count(*) from tests_autocommit')[0][0])
-                    transaction.execute(sql='insert into tests_autocommit values (1), (2), (3)')
-                    posts.append(transaction.select(sql='select count(*) from tests_autocommit')[0][0])
-                    time.sleep(delay)
+                priors.append(connection.select(sql='select count(*) from tests_autocommit')[0][0])
+                connection.execute(sql='insert into tests_autocommit values (1), (2), (3)')
+                posts.append(connection.select(sql='select count(*) from tests_autocommit')[0][0])
+                time.sleep(delay)
             except sqlalchemy.exc.IntegrityError as ex:
                 thrown.append(True)
-            
+    
         slow = Thread(target=insert, args=(lore.io.main, 1))
-        slow.start()
-
         fast = Thread(target=insert, args=(lore.io.main_two, 0))
+
+        slow.start()
+        time.sleep(0.5)
         fast.start()
-        
+    
         fast.join()
         fast_done = datetime.datetime.now()
         slow.join()
         slow_done = datetime.datetime.now()
-        
-        self.assertEqual(priors, [0, 0])
+    
+        self.assertEqual(priors, [0, 3])
         self.assertEqual(posts, [3])
         self.assertEqual(thrown, [True])
-        self.assertAlmostEquals((slow_done - fast_done).total_seconds(), 0, 2)
+        self.assertAlmostEqual((slow_done - fast_done).total_seconds(), 0.5, 1)
