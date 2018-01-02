@@ -1,10 +1,10 @@
 import pandas
 from lore.encoders import Unique, Pass
 
-from lore.pipelines import TrainTestSplit, SortedTrainTestSplit
+from lore.pipelines import Holdout, TimeSeries
 
 
-class Xor(TrainTestSplit):
+class Xor(Holdout):
     def get_data(self):
         return pandas.DataFrame({
             'a': [0, 1, 0, 1] * 1000,
@@ -22,7 +22,7 @@ class Xor(TrainTestSplit):
         return Pass('xor')
 
 
-class MockData(SortedTrainTestSplit):
+class MockData(TimeSeries):
     def get_data(self):
         return pandas.DataFrame({
             'a': [1,2,3,4,5,6,7,8,9,10],

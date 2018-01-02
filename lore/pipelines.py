@@ -1,7 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
+import inspect
 import logging
-
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 Observations = namedtuple('Observations', 'x y')
 
 
-class TrainTestSplit(object):
+class Holdout(object):
     __metaclass__ = ABCMeta
     
     test_size = 0.1
@@ -131,10 +132,7 @@ class TrainTestSplit(object):
 
     @timed(logging.INFO)
     def encode_x(self, data):
-        result = {}
-        for encoder in self.encoders:
-            result[encoder.name] = encoder.transform(data)
-        return pd.DataFrame(result)
+        return {encoder.name: encoder.transform(data) for encoder in self.encoders}
     
     @timed(logging.INFO)
     def encode_y(self, data):
@@ -142,10 +140,7 @@ class TrainTestSplit(object):
 
     @timed(logging.INFO)
     def decode(self, predictions):
-        results = {}
-        for encoder in self._output_encoder:
-            results[encoder.name] = encoder.reverse_transform(predictions)
-        return results
+        return {encoder.name: encoder.reverse_transform(predictions) for encoder in self.encoder}
 
     @timed(logging.INFO)
     def _split_data(self):
@@ -212,11 +207,11 @@ class TrainTestSplit(object):
         ))
 
 
-class SortedTrainTestSplit(TrainTestSplit):
+class TimeSeries(Holdout):
     __metaclass__ = ABCMeta
 
     def __init__(self, test_size = 0.1, sort_by = None):
-        super(SortedTrainTestSplit, self).__init__()
+        super(TimeSeries, self).__init__()
         self.sort_by = sort_by
         self.test_size = test_size
 
@@ -238,3 +233,16 @@ class SortedTrainTestSplit(TrainTestSplit):
         self._validation_data = self._data[train_rows:train_rows+valid_rows]
         self._test_data = self._data.iloc[-test_rows:]
 
+
+class TrainTestSplit(Holdout):
+    def __init__(self, **kwargs):
+        warnings.showwarning('TrainTestSplit has been renamed to Holdout. Please update your code.', DeprecationWarning,
+                             __file__, inspect.currentframe().f_back.f_lineno)
+        super(TrainTestSplit, self).__init__(**kwargs)
+
+
+class SortedTrainTestSplit(TimeSeries):
+    def __init__(self, **kwargs):
+        warnings.showwarning('SortedTrainTestSplit has been renamed to SortedHoldout. Please update your code.', DeprecationWarning,
+                             __file__, inspect.currentframe().f_back.f_lineno)
+        super(SortedTrainTestSplit, self).__init__(**kwargs)
