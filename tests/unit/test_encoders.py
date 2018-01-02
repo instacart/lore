@@ -230,7 +230,7 @@ class TestUnique(unittest.TestCase):
     def test_avoiding_0(self):
         data = pandas.DataFrame({'test': ['a', 'b', 'e', None]})
         transform = self.encoder.transform(data)
-        self.assertFalse(0 in transform.values)
+        self.assertFalse(0 in transform)
 
     def test_minimum_occurrences(self):
         self.encoder = lore.encoders.Unique('test', minimum_occurrences=2)
