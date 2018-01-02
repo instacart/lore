@@ -18,3 +18,4 @@ class TestTimedTrainTestSplit(unittest.TestCase):
         self.assertEqual(mock.training_data['b'].max(), 28)
         self.assertEqual(mock.validation_data['b'].max(), 29)
         self.assertEqual(mock.test_data['b'].max(), 30)
+        
