@@ -1,7 +1,7 @@
 import pandas
 from lore.encoders import Unique, Pass
 
-from lore.pipelines import TrainTestSplit
+from lore.pipelines import TrainTestSplit, SortedTrainTestSplit
 
 
 class Xor(TrainTestSplit):
@@ -20,3 +20,12 @@ class Xor(TrainTestSplit):
     
     def get_output_encoder(self):
         return Pass('xor')
+
+
+class MockData(SortedTrainTestSplit):
+    def get_data(self):
+        return pandas.DataFrame({
+            'a': [1,2,3,4,5,6,7,8,9,10],
+            'b': [21,22,23,24,25,26,27,28,29,30]
+        })
+
