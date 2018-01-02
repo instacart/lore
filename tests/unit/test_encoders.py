@@ -108,6 +108,7 @@ class TestNorm(unittest.TestCase):
         a = self.encoder.transform(pandas.DataFrame({'test': [None]}))
         self.assertEqual(a.tolist(), [0.0])
 
+
 class TestDiscrete(unittest.TestCase):
     def setUp(self):
         self.encoder = lore.encoders.Discrete('test', bins=5)
@@ -268,9 +269,9 @@ class TestUnique(unittest.TestCase):
 
 class TestToken(unittest.TestCase):
     @classmethod
-    def setUpClass(self):
-        self.encoder = lore.encoders.Token('test', sequence_length=3)
-        self.encoder.fit(pandas.DataFrame({'test': ['apple, !orange! carrot']}))
+    def setUpClass(cls):
+        cls.encoder = lore.encoders.Token('test', sequence_length=3)
+        cls.encoder.fit(pandas.DataFrame({'test': ['apple, !orange! carrot']}))
 
     def test_cardinality(self):
         self.assertEqual(self.encoder.cardinality(), 6)
