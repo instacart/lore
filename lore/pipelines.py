@@ -243,6 +243,6 @@ class TrainTestSplit(Holdout):
 
 class SortedTrainTestSplit(TimeSeries):
     def __init__(self, **kwargs):
-        warnings.showwarning('SortedTrainTestSplit has been renamed to SortedHoldout. Please update your code.', DeprecationWarning,
+        warnings.showwarning('SortedTrainTestSplit has been renamed to TimeSeries. Please update your code.', DeprecationWarning,
                              __file__, inspect.currentframe().f_back.f_lineno)
         super(SortedTrainTestSplit, self).__init__(**kwargs)
