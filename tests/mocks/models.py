@@ -5,7 +5,7 @@ import lore.models.keras
 import tests.mocks.pipelines
 
 
-class Keras(lore.models.keras.Keras):
+class Keras(lore.models.keras.Base):
     def __init__(
         self,
         embed_size=10

@@ -14,8 +14,9 @@ from lore.util import timer
 
 class Base(object):
     def __init__(self, klass=None, model=None):
+        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
         warnings.showwarning('Serializers are now directly implemented in models. Please use the model class directly instead"', DeprecationWarning,
-                             __file__, inspect.currentframe().f_back.f_lineno)
+                             filename, line_number)
         self.local_path = None
         self.remote_path = None
         self.fitting_path = None

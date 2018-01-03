@@ -252,13 +252,15 @@ class TimeSeries(Holdout):
 
 class TrainTestSplit(Holdout):
     def __init__(self, **kwargs):
+        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
         warnings.showwarning('TrainTestSplit has been renamed to Holdout. Please update your code.', DeprecationWarning,
-                             __file__, inspect.currentframe().f_back.f_lineno)
+                             filename, line_number)
         super(TrainTestSplit, self).__init__(**kwargs)
 
 
 class SortedTrainTestSplit(TimeSeries):
     def __init__(self, **kwargs):
+        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
         warnings.showwarning('SortedTrainTestSplit has been renamed to TimeSeries. Please update your code.', DeprecationWarning,
-                             __file__, inspect.currentframe().f_back.f_lineno)
+                             filename, line_number)
         super(SortedTrainTestSplit, self).__init__(**kwargs)

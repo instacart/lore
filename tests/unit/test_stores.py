@@ -22,6 +22,9 @@ class TestDisk(unittest.TestCase):
     def test_disk(self):
         cache = Disk(os.path.join(lore.env.data_dir, 'cache'))
 
+        for key in cache.keys():
+            del cache[key]
+            
         self.assertEqual(len(cache), 0)
         self.assertEqual(cache['a'], None)
         self.assertEqual(cache.keys(), [])

@@ -522,11 +522,8 @@ class Token(Unique):
         )
         self.sequence_length = sequence_length
     
-    def sequence_name(self, i, suffix=None):
-        name = self.name
-        if suffix:
-            name += suffix
-        return name + '_%i' % i
+    def sequence_name(self, i, suffix=''):
+        return (self.name + '_%i' + suffix) % i
         
     def fit(self, data):
         with timer(('fit token %s:' % self.name), logging.DEBUG):
@@ -573,9 +570,6 @@ class Token(Unique):
                 logger.warning('No string has %i tokens, adding blank column %i' % (self.sequence_length, column))
                 dataframe[column] = float('nan')
             return pandas.DataFrame({self.column: dataframe.loc[:,0:self.sequence_length - 1].values.flatten()})
-
-    def fillna(self, series, addition=0):
-        return series.fillna(pandas.Series([[self.missing_value + addition] * self.sequence_length] * len(series.isnull())))
 
 
 class Glove(Token):

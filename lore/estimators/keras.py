@@ -110,7 +110,7 @@ class Keras(BaseEstimator):
     
     def callbacks(self):
         return []
-    
+
     @timed(logging.INFO)
     def build(self, log_device_placement=False):
         keras.backend.clear_session()
@@ -123,12 +123,12 @@ class Keras(BaseEstimator):
                 embedding_layer = self.build_embedding_layer(inputs, i)
                 hidden_layers = self.build_hidden_layers(embedding_layer, i)
                 outputs.append(self.build_output_layer(hidden_layers, i))
-            
+        
             self.keras = keras.models.Model(inputs=list(inputs.values()), outputs=outputs)
             self.optimizer = Adam(lr=self.learning_rate, decay=self.decay)
             self.keras._make_predict_function()
         logger.info('\n\n' + self.description + '\n\n')
-    
+
     @timed(logging.INFO)
     def build_inputs(self):
         inputs = {}
@@ -143,7 +143,6 @@ class Keras(BaseEstimator):
     @timed(logging.INFO)
     def build_embedding_layer(self, inputs, tower):
         embeddings = {}
-        reshape = Reshape(target_shape=(self.embed_size,))
         for encoder in self.model.pipeline.encoders:
             embed_name = str(tower) + '_embed_' + encoder.name
             embed_size = encoder.embed_scale * self.embed_size
@@ -154,30 +153,35 @@ class Keras(BaseEstimator):
                 embedding = Embedding(encoder.cardinality(), embed_size, name=embed_name)
 
             if hasattr(encoder, 'sequence_length'):
-                sequence = []
-                for i in range(encoder.sequence_length):
-                    sequence.append(embedding(inputs[encoder.sequence_name(i)]))
-                embed_sequence = Concatenate(name=embed_name + 'sequence')(sequence)
-
-                sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
-                if self.sequence_embedding == 'lstm':
-                    shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
-                    embeddings[embed_name] = LSTM(sequence_embed_size, name=embed_name + '_lstm')(shaped_sequence)
-                elif self.sequence_embedding == 'gru':
-                    shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
-                    embeddings[embed_name] = GRU(sequence_embed_size, name=embed_name + '_gru')(shaped_sequence)
-                elif self.sequence_embedding == 'simple_rnn':
-                    shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
-                    embeddings[embed_name] = SimpleRNN(sequence_embed_size, name=embed_name + '_rnn')(shaped_sequence)
-                elif self.sequence_embedding == 'flatten':
-                    embeddings[embed_name] = Reshape(target_shape=(encoder.sequence_length * embed_size,))(embed_sequence)
-                else:
-                    raise ValueError("Unknown sequence_embedding type: %s" % self.sequence_embedding)
+                embeddings[embed_name] = self.build_sequence_embedding(encoder, embedding, inputs, embed_name)
             else:
-                embeddings[encoder.name] = reshape(embedding(inputs[encoder.name]))
+                embeddings[embed_name] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.name]))
 
         return Concatenate()(list(embeddings.values()))
     
+    def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix=''):
+        embed_size = encoder.embed_scale * self.embed_size
+    
+        sequence = []
+        for i in range(encoder.sequence_length):
+            sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
+        embed_sequence = Concatenate(name=embed_name + '_sequence' + suffix)(sequence)
+    
+        sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
+        if self.sequence_embedding == 'flatten':
+            embedding = Reshape(target_shape=(encoder.sequence_length * embed_size,), name=embed_name + '_reshape' + suffix)(embed_sequence)
+        else:
+            shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
+            if self.sequence_embedding == 'lstm':
+                embedding = LSTM(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
+            elif self.sequence_embedding == 'gru':
+                embedding = GRU(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
+            elif self.sequence_embedding == 'simple_rnn':
+                embedding = SimpleRNN(sequence_embed_size, name=embed_name + '_rnn' + suffix)(shaped_sequence)
+            else:
+                raise ValueError("Unknown sequence_embedding type: %s" % self.sequence_embedding)
+        return embedding
+
     @timed(logging.INFO)
     def build_hidden_layers(self, input_layer, tower):
         hidden_layers = input_layer

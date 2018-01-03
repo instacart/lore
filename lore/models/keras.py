@@ -3,13 +3,12 @@ from os.path import join, dirname
 import h5py
 
 import lore
-from lore.models import Base
 from lore.util import timer
 
 
-class Keras(Base):
+class Base(lore.models.Base):
     def __init__(self, pipeline, estimator):
-        super(Keras, self).__init__(pipeline, estimator)
+        super(Base, self).__init__(pipeline, estimator)
     
     def weights_path(self):
         return join(self.fitting_path(), 'weights.h5')
@@ -41,7 +40,7 @@ class Keras(Base):
                 os.makedirs(dirname(self.tensorboard_path()))
     
     def save(self, stats=None):
-        super(Keras, self).save(stats)
+        super(Base, self).save(stats)
         
         with timer('save weights:'):
             # Only save weights, because saving named layers that have shared
@@ -56,7 +55,7 @@ class Keras(Base):
     
     @classmethod
     def load(cls, fitting=None):
-        model = super(Keras, cls).load(fitting)
+        model = super(Base, cls).load(fitting)
         
         if hasattr(model, 'estimator'):
             # HACK to set estimator model, and model serializer
@@ -78,7 +77,7 @@ class Keras(Base):
         return model
     
     def upload(self):
-        super(Keras, self).upload()
+        super(Base, self).upload()
         lore.io.upload(self.weights_path(), self.remote_weights_path())
     
     @classmethod
@@ -86,4 +85,4 @@ class Keras(Base):
         model = cls(None, None)
         model.fitting = fitting
         lore.io.download(model.weights_path(), model.remote_weights_path())
-        return super(Keras, cls).download(fitting)
+        return super(Base, cls).download(fitting)
