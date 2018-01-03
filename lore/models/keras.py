@@ -6,7 +6,7 @@ import lore
 from lore.util import timer
 
 
-class Base(lore.models.Base):
+class Base(lore.models.base.Base):
     def __init__(self, pipeline, estimator):
         super(Base, self).__init__(pipeline, estimator)
     
