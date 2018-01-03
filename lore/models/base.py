@@ -1,3 +1,4 @@
+import inspect
 import json
 import logging
 import os.path
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class Base(object):
-    def __init__(self, pipeline, estimator):
+    def __init__(self, pipeline=None, estimator=None):
         self.name = self.__module__ + '.' + self.__class__.__name__
         self._estimator = None
         self.estimator = estimator
@@ -155,7 +156,7 @@ class Base(object):
 
     @classmethod
     def load(cls, fitting=None):
-        model = cls(None, None)
+        model = cls()
         if fitting is None:
             model.fitting = model.last_fitting()
         else:

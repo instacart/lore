@@ -1,5 +1,5 @@
 import pandas
-from lore.encoders import Unique, Pass
+from lore.encoders import Unique, Pass, Token
 
 from lore.pipelines import Holdout, TimeSeries
 
@@ -9,6 +9,7 @@ class Xor(Holdout):
         return pandas.DataFrame({
             'a': [0, 1, 0, 1] * 1000,
             'b': [0, 0, 1, 1] * 1000,
+            'words': ['is false', 'is true', 'is not false', 'is not true' ] * 1000,
             'xor': [0, 1, 1, 0] * 1000
         })
     
@@ -16,6 +17,7 @@ class Xor(Holdout):
         return (
             Unique('a'),
             Unique('b'),
+            Token('words')
         )
     
     def get_output_encoder(self):

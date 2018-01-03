@@ -26,11 +26,11 @@ class TestKeras(unittest.TestCase):
         m3.estimator.build()
         
         with m1.estimator.session.as_default():
-            weights1 = m1.estimator.keras.get_layer('hidden_0').get_weights()[0][0]
+            weights1 = m1.estimator.keras.get_layer('0_hidden_0').get_weights()[0][0]
         with m2.estimator.session.as_default():
-            weights2 = m2.estimator.keras.get_layer('hidden_0').get_weights()[0][0]
+            weights2 = m2.estimator.keras.get_layer('0_hidden_0').get_weights()[0][0]
         with m3.estimator.session.as_default():
-            weights3 = m3.estimator.keras.get_layer('hidden_0').get_weights()[0][0]
+            weights3 = m3.estimator.keras.get_layer('0_hidden_0').get_weights()[0][0]
 
         self.assertTrue(numpy.all([numpy.all(x == y) for x, y in zip(weights1, weights2)]))
         self.assertFalse(numpy.all([numpy.all(x == y) for x, y in zip(weights1, weights3)]))

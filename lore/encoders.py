@@ -522,8 +522,11 @@ class Token(Unique):
         )
         self.sequence_length = sequence_length
     
-    def sequence_name(self, i):
-        self.name + '_%i' % i
+    def sequence_name(self, i, suffix=None):
+        name = self.name
+        if suffix:
+            name += suffix
+        return name + '_%i' % i
         
     def fit(self, data):
         with timer(('fit token %s:' % self.name), logging.DEBUG):

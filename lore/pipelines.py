@@ -4,8 +4,8 @@ import inspect
 import logging
 import warnings
 
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 from lore.util import timer, timed
 from sklearn.model_selection import train_test_split
 
@@ -132,7 +132,23 @@ class Holdout(object):
 
     @timed(logging.INFO)
     def encode_x(self, data):
-        return {encoder.name: encoder.transform(data) for encoder in self.encoders}
+        """
+        :param data: unencoded input dataframe
+        :return: a dict with encoded values
+        """
+        encoded = {}
+        for encoder in self.encoders:
+            transformed = encoder.transform(data)
+            if hasattr(encoder, 'sequence_length'):
+                for i in range(encoder.sequence_length):
+                    encoded[encoder.sequence_name(i)] = transformed[:,i]
+            else:
+                encoded[encoder.name] = transformed
+        
+        # Using a DataFrame as a container temporairily requires double the memory,
+        # as pandas copies all data on __init__. This is justified by having a
+        # type supported by all dependent libraries (heterogeneous dict is not)
+        return pandas.DataFrame(encoded)
     
     @timed(logging.INFO)
     def encode_y(self, data):
@@ -147,7 +163,7 @@ class Holdout(object):
         if self._data:
             return
 
-        np.random.seed(self.split_seed)
+        numpy.random.seed(self.split_seed)
         logger.debug('random seed set to: %i' % self.split_seed)
 
         self._data = self.get_data()
@@ -158,7 +174,7 @@ class Holdout(object):
                     self.stratify, self.subsample))
                 ids = self._data[[self.stratify]].drop_duplicates()
                 ids = ids.sample(self.subsample)
-                self._data = pd.merge(self._data, ids, on=self.stratify)
+                self._data = pandas.merge(self._data, ids, on=self.stratify)
             else:
                 logger.debug('subsampling rows: %s' % self.subsample)
                 self._data = self._data.sample(self.subsample)
@@ -178,9 +194,9 @@ class Holdout(object):
             )
         
             rows = self._data[self.stratify].values
-            self._training_data = self._data.iloc[np.in1d(rows, train_ids.values)]
-            self._validation_data = self._data.iloc[np.in1d(rows, validate_ids.values)]
-            self._test_data = self._data.iloc[np.in1d(rows, test_ids.values)]
+            self._training_data = self._data.iloc[numpy.in1d(rows, train_ids.values)]
+            self._validation_data = self._data.iloc[numpy.in1d(rows, validate_ids.values)]
+            self._test_data = self._data.iloc[numpy.in1d(rows, test_ids.values)]
         else:
             self._training_data, self._validation_data = train_test_split(
                 self._data,
