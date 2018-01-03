@@ -2,6 +2,8 @@ from sklearn import svm
 
 import lore.models
 import lore.models.keras
+import lore.models.sklearn
+import lore.models.xgboost
 import tests.mocks.pipelines
 
 
@@ -23,7 +25,7 @@ class Keras(lore.models.keras.Base):
         )
 
 
-class XGBoost(lore.models.Base):
+class XGBoost(lore.models.xgboost.Base):
     def __init__(self):
         super(XGBoost, self).__init__(
             tests.mocks.pipelines.Xor(),
@@ -34,7 +36,7 @@ class XGBoost(lore.models.Base):
         )
 
 
-class SVM(lore.models.Base):
+class SVM(lore.models.sklearn.Base):
     def __init__(self):
         super(SVM, self).__init__(
             tests.mocks.pipelines.Xor(),
