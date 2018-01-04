@@ -7,7 +7,7 @@ import pandas
 import keras
 import keras.backend
 from keras.callbacks import EarlyStopping, TensorBoard, TerminateOnNaN
-from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, LSTM, GRU, SimpleRNN
+from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, LSTM, GRU, SimpleRNN, Flatten
 from keras.optimizers import Adam
 from sklearn.base import BaseEstimator
 import tensorflow
@@ -167,10 +167,10 @@ class Keras(BaseEstimator):
             sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
         embed_sequence = Concatenate(name=embed_name + '_sequence' + suffix)(sequence)
     
-        sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
         if self.sequence_embedding == 'flatten':
-            embedding = Reshape(target_shape=(encoder.sequence_length * embed_size,), name=embed_name + '_reshape' + suffix)(embed_sequence)
+            embedding = Flatten(name=embed_name + '_flatten' + suffix)(embed_sequence)
         else:
+            sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
             shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
             if self.sequence_embedding == 'lstm':
                 embedding = LSTM(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
