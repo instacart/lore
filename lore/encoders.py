@@ -148,10 +148,10 @@ class Boolean(Base):
             null = series.isnull()
             series[series != 0] = 1
             series[null] = 2
-            return series.astype(numpy.uint8)
+            return series.astype(numpy.uint8).values
     
-    def reverse_transform(self, series):
-        return series.round().astype(bool)
+    def reverse_transform(self, array):
+        return pandas.Series(array).round().astype(bool).values
 
     def cardinality(self):
         return 3
@@ -178,10 +178,10 @@ class Equals(Base):
 
     def transform(self, data):
         with timer('transform %s:' % self.name, logging.DEBUG):
-            return numpy.equal(self.series(data), self.other_series(data)).astype(numpy.uint8)
+            return numpy.equal(self.series(data), self.other_series(data)).astype(numpy.uint8).values
     
-    def reverse_transform(self, data):
-        return numpy.full((len(data),), 'LOSSY')
+    def reverse_transform(self, array):
+        return numpy.full((len(array),), 'LOSSY')
 
     def cardinality(self):
         return 2
@@ -210,10 +210,10 @@ class Pass(Continuous):
     """
     def transform(self, data):
         """ :return: the series exactly as it is"""
-        return self.series(data)
+        return self.series(data).values
     
-    def reverse_transform(self, series):
-        return series
+    def reverse_transform(self, array):
+        return array
         
 
 class Uniform(Continuous):
@@ -242,13 +242,14 @@ class Uniform(Continuous):
                 difference = numpy.maximum(0, series - self.__min)
                 result = numpy.minimum(self.__range, difference) / self.__range
                 result[series.isnull()] = self.missing_value
+                result = result.astype(self.dtype).values
             else:
-                result = numpy.zeros(len(data))
-            return pandas.Series(result, dtype=self.dtype)
+                result = numpy.zeros(len(data), dtype=self.dtype)
+            return result
 
-    def reverse_transform(self, series):
+    def reverse_transform(self, array):
         with timer('reverse_transform %s:' % self.name, logging.DEBUG):
-            return series * self.__range + self.__min
+            return array * self.__range + self.__min
 
 
 class Norm(Continuous):
@@ -282,13 +283,14 @@ class Norm(Continuous):
                 capped = numpy.minimum(capped, self.__max)
                 result = (capped - self.__mean) / self.__std
                 result[series.isnull()] = self.missing_value
+                result = result.astype(self.dtype).values
             else:
-                result = numpy.zeros(len(data))
-            return pandas.Series(result, dtype=self.dtype)
+                result = numpy.zeros(len(data), dtype=self.dtype)
+            return result
 
-    def reverse_transform(self, series):
+    def reverse_transform(self, array):
         with timer('reverse_transform %s:' % self.name, logging.DEBUG):
-            return series * self.__std + self.__mean
+            return array * self.__std + self.__mean
 
 
 class Discrete(Base):
@@ -329,12 +331,14 @@ class Discrete(Base):
                 difference[difference > self.__range] = self.__range
                 result = difference * self.__norm // self.__range
                 result[result.isnull()] = self.missing_value
+                result = result.astype(self.dtype).values
             else:
-                result = pandas.Series(numpy.zeros(len(data)), copy=False, dtype=self.dtype)
-            return result.astype(self.dtype)
+                result = numpy.zeros(len(data), dtype=self.dtype)
+            return result
         
-    def reverse_transform(self, series):
+    def reverse_transform(self, array):
         with timer('reverse_transform %s:' % self.name, logging.DEBUG):
+            series = pandas.Series(array)
             series[series >= self.missing_value] = float('nan')
             return (series / self.__norm * self.__range) + self.__min
             
@@ -368,12 +372,13 @@ class Enum(Base):
             result = pandas.Series(series, copy=True)
             result[(series > self.__max) | (series < 0)] = self.unfit_value
             result[series.isnull()] = self.missing_value
-            return result.astype(self.dtype)
+            return result.astype(self.dtype).values
             
-    def reverse_transform(self, series):
+    def reverse_transform(self, array):
         with timer('reverse_transform %s:' % self.name, logging.DEBUG):
+            series = pandas.Series(array)
             series[series >= self.missing_value] = float('nan')
-            return series
+            return series.values
 
     def cardinality(self):
         return self.__max + 3
@@ -415,14 +420,15 @@ class Quantile(Base):
             cut[series < self.lower_bound] = self.quantiles
             cut[series > self.upper_bound] = self.quantiles + 1
             cut[series.isnull()] = self.missing_value
-            return cut.astype(self.dtype)
+            return cut.astype(self.dtype).values
     
-    def reverse_transform(self, series):
+    def reverse_transform(self, array):
+        series = pandas.Series(array)
         result = series.apply(lambda i: self.bins[int(i)] if i < self.quantiles else None)
         result[series == self.quantiles] = '<' + str(self.lower_bound)
         result[series == self.quantiles + 1] = '>' + str(self.upper_bound)
         result[series == self.missing_value] = None
-        return result
+        return result.values
     
     def cardinality(self):
         return self.missing_value + 1
@@ -481,10 +487,11 @@ class Unique(Base):
             result = self.series(data).map(self.map, na_action='ignore')
             result[result == 0] = self.tail_value
             result[result.isnull()] = self.missing_value
-            return result.astype(self.dtype)
+            return result.astype(self.dtype).values
     
-    def reverse_transform(self, series):
+    def reverse_transform(self, array):
         with timer('reverse_transform unique %s:' % self.name, logging.DEBUG):
+            series = pandas.Series(array)
             result = series.map(self.inverse, na_action=None)
             result[result.isnull()] = 'MISSING_VALUE'
             return result
@@ -496,14 +503,14 @@ class Unique(Base):
 
 class Token(Unique):
     """
-    Breaks sentences into individual words, and encodes each word individually,
-    with the same properties as the ID encoder.
+    Breaks strings into individual words, and encodes each word individually,
+    with the same methodology as the Unique encoder.
     """
     PUNCTUATION_FILTER = re.compile(r'\W+\s\W+|\W+(\s|$)|(\s|^)\W+', re.UNICODE)
     
     def __init__(self, column, name=None, sequence_length=None, minimum_occurrences=1, embed_scale=1, tags=[]):
         """
-        :param sequence_length: truncates tokens after sequence_length
+        :param sequence_length: truncates tokens after sequence_length. None for unlimited.
         :param minimum_occurrences: ignore tokens with less than this many occurrences
         """
         super(Token, self).__init__(
@@ -515,6 +522,9 @@ class Token(Unique):
         )
         self.sequence_length = sequence_length
     
+    def sequence_name(self, i, suffix=''):
+        return (self.name + '_%i' + suffix) % i
+        
     def fit(self, data):
         with timer(('fit token %s:' % self.name), logging.DEBUG):
             super(Token, self).fit(self.tokenize(data, fit=True))
@@ -525,11 +535,11 @@ class Token(Unique):
         :return: encoded Series
         """
         transformed = super(Token, self).transform(self.tokenize(data))
-        return pandas.Series(transformed.values.reshape((len(data), self.sequence_length)).tolist())
+        return transformed.reshape((len(data), self.sequence_length))
         
-    def reverse_transform(self, series):
+    def reverse_transform(self, array):
         with timer('reverse_transform token %s:' % self.name, logging.DEBUG):
-            data = pandas.DataFrame(series.tolist())
+            data = pandas.DataFrame(array)
             for column in data:
                 data[column] = super(Token, self).reverse_transform(data[column])
             return data.T.apply(' '.join)
@@ -543,6 +553,11 @@ class Token(Unique):
         return tokens[i]
         
     def tokenize(self, data, fit=False):
+        """
+        :param data: a dataframe containing a column to be tokenized
+        :param fit: if True, self.sequence_length will exactly accomodate the largest tokenized sequence length
+        :return: 1D array of tokens with length = rows * sequence_length
+        """
         with timer('tokenize %s' % self.name, logging.DEBUG):
             cleaned = self.series(data).str.replace(Token.PUNCTUATION_FILTER, ' ')
             lowered = cleaned.str.lower()
@@ -555,9 +570,6 @@ class Token(Unique):
                 logger.warning('No string has %i tokens, adding blank column %i' % (self.sequence_length, column))
                 dataframe[column] = float('nan')
             return pandas.DataFrame({self.column: dataframe.loc[:,0:self.sequence_length - 1].values.flatten()})
-
-    def fillna(self, series, addition=0):
-        return series.fillna(pandas.Series([[self.missing_value + addition] * self.sequence_length] * len(series.isnull())))
 
 
 class Glove(Token):

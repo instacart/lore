@@ -3,7 +3,8 @@ import unittest
 
 
 class TestTimedTrainTestSplit(unittest.TestCase):
-    def test_timed_train_test_split(self):
+    
+    def test_time_series(self):
         mock = tests.mocks.pipelines.MockData(sort_by=None)
         self.assertEqual(mock.training_data['a'].max(), 8)
         self.assertEqual(mock.validation_data['a'].max(), 9)

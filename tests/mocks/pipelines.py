@@ -1,14 +1,15 @@
 import pandas
-from lore.encoders import Unique, Pass
+from lore.encoders import Unique, Pass, Token
 
-from lore.pipelines import TrainTestSplit, SortedTrainTestSplit
+from lore.pipelines import Holdout, TimeSeries
 
 
-class Xor(TrainTestSplit):
+class Xor(Holdout):
     def get_data(self):
         return pandas.DataFrame({
             'a': [0, 1, 0, 1] * 1000,
             'b': [0, 0, 1, 1] * 1000,
+            'words': ['is false', 'is true', 'is not false', 'is not true' ] * 1000,
             'xor': [0, 1, 1, 0] * 1000
         })
     
@@ -16,13 +17,14 @@ class Xor(TrainTestSplit):
         return (
             Unique('a'),
             Unique('b'),
+            Token('words')
         )
     
     def get_output_encoder(self):
         return Pass('xor')
 
 
-class MockData(SortedTrainTestSplit):
+class MockData(TimeSeries):
     def get_data(self):
         return pandas.DataFrame({
             'a': [1,2,3,4,5,6,7,8,9,10],

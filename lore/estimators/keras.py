@@ -7,7 +7,7 @@ import pandas
 import keras
 import keras.backend
 from keras.callbacks import EarlyStopping, TensorBoard, TerminateOnNaN
-from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, LSTM
+from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, LSTM, GRU, SimpleRNN
 from keras.optimizers import Adam
 from sklearn.base import BaseEstimator
 import tensorflow
@@ -33,6 +33,8 @@ class Keras(BaseEstimator):
             self,
             model=None,
             embed_size=10,
+            sequence_embedding='flatten',
+            sequence_embed_size=10,
             hidden_width=1024,
             hidden_layers=4,
             layer_shrink=0.5,
@@ -46,10 +48,13 @@ class Keras(BaseEstimator):
             hidden_bias_regularizer=None,
             hidden_kernel_regularizer=None,
             monitor='val_acc',
-            loss='categorical_crossentropy'
+            loss='categorical_crossentropy',
+            towers=1,
     ):
         super(Keras, self).__init__()
+        self.towers = towers
         self.embed_size = embed_size
+        self.sequence_embed_size = 10
         self.hidden_width = hidden_width
         self.hidden_layers = hidden_layers
         self.layer_shrink = layer_shrink
@@ -68,7 +73,9 @@ class Keras(BaseEstimator):
         self.history = None
         self.session = None
         self.model = model
-        self.lstm_size = self.embed_size
+        self.sequence_embedding = sequence_embedding
+        self.sequence_embed_size = sequence_embed_size
+        
     
     def __getstate__(self):
         state = super(Keras, self).__getstate__()
@@ -103,7 +110,7 @@ class Keras(BaseEstimator):
     
     def callbacks(self):
         return []
-    
+
     @timed(logging.INFO)
     def build(self, log_device_placement=False):
         keras.backend.clear_session()
@@ -111,46 +118,72 @@ class Keras(BaseEstimator):
         keras.backend.set_session(self.session)
         with self.session.as_default():
             inputs = self.build_inputs()
-            embedding_layer = self.build_embedding_layer(inputs)
-            hidden_layers = self.build_hidden_layers(embedding_layer)
-            output = self.build_output_layer(hidden_layers)
-            
-            self.keras = keras.models.Model(inputs=list(inputs.values()), outputs=output)
+            outputs = []
+            for i in range(self.towers):
+                embedding_layer = self.build_embedding_layer(inputs, i)
+                hidden_layers = self.build_hidden_layers(embedding_layer, i)
+                outputs.append(self.build_output_layer(hidden_layers, i))
+        
+            self.keras = keras.models.Model(inputs=list(inputs.values()), outputs=outputs)
             self.optimizer = Adam(lr=self.learning_rate, decay=self.decay)
             self.keras._make_predict_function()
         logger.info('\n\n' + self.description + '\n\n')
-    
+
     @timed(logging.INFO)
     def build_inputs(self):
         inputs = {}
         for encoder in self.model.pipeline.encoders:
             if hasattr(encoder, 'sequence_length'):
-                inputs[encoder.name] = Input(shape=(encoder.sequence_length,), name=encoder.name)
+                for i in range(encoder.sequence_length):
+                    inputs[encoder.sequence_name(i)] = Input(shape=(1,), name=encoder.sequence_name(i))
             else:
                 inputs[encoder.name] = Input(shape=(1,), name=encoder.name)
         return inputs
-    
+
     @timed(logging.INFO)
-    def build_embedding_layer(self, inputs):
+    def build_embedding_layer(self, inputs, tower):
         embeddings = {}
-        reshape = Reshape(target_shape=(self.embed_size,))
         for encoder in self.model.pipeline.encoders:
-            embed_name = 'embed_' + encoder.name
+            embed_name = str(tower) + '_embed_' + encoder.name
+            embed_size = encoder.embed_scale * self.embed_size
+
             if isinstance(encoder, Continuous):
-                embedding = Dense(self.embed_size, activation='relu', name=embed_name)
-                embeddings[encoder.name] = embedding(inputs[encoder.name])
-            elif hasattr(encoder, 'sequence_length'):
-                adapter = Embedding(encoder.cardinality(), self.embed_size, name=embed_name)
-                embedding = LSTM(self.lstm_size, name=embed_name + '_lstm')
-                embeddings[embed_name] = embedding(adapter(inputs[encoder.name]))
+                embedding = Dense(embed_size, activation='relu', name=embed_name)
             else:
-                embedding = Embedding(encoder.cardinality(), self.embed_size, name=embed_name)
-                embeddings[encoder.name] = reshape(embedding(inputs[encoder.name]))
-        
+                embedding = Embedding(encoder.cardinality(), embed_size, name=embed_name)
+
+            if hasattr(encoder, 'sequence_length'):
+                embeddings[embed_name] = self.build_sequence_embedding(encoder, embedding, inputs, embed_name)
+            else:
+                embeddings[embed_name] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.name]))
+
         return Concatenate()(list(embeddings.values()))
     
+    def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix=''):
+        embed_size = encoder.embed_scale * self.embed_size
+    
+        sequence = []
+        for i in range(encoder.sequence_length):
+            sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
+        embed_sequence = Concatenate(name=embed_name + '_sequence' + suffix)(sequence)
+    
+        sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
+        if self.sequence_embedding == 'flatten':
+            embedding = Reshape(target_shape=(encoder.sequence_length * embed_size,), name=embed_name + '_reshape' + suffix)(embed_sequence)
+        else:
+            shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
+            if self.sequence_embedding == 'lstm':
+                embedding = LSTM(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
+            elif self.sequence_embedding == 'gru':
+                embedding = GRU(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
+            elif self.sequence_embedding == 'simple_rnn':
+                embedding = SimpleRNN(sequence_embed_size, name=embed_name + '_rnn' + suffix)(shaped_sequence)
+            else:
+                raise ValueError("Unknown sequence_embedding type: %s" % self.sequence_embedding)
+        return embedding
+
     @timed(logging.INFO)
-    def build_hidden_layers(self, input_layer):
+    def build_hidden_layers(self, input_layer, tower):
         hidden_layers = input_layer
 
         hidden_width = self.hidden_width
@@ -160,7 +193,7 @@ class Keras(BaseEstimator):
                                   activity_regularizer=self.hidden_activity_regularizer,
                                   kernel_regularizer=self.hidden_kernel_regularizer,
                                   bias_regularizer=self.hidden_bias_regularizer,
-                                  name='hidden_%i' % i)(hidden_layers)
+                                  name='%i_hidden_%i' % (tower, i))(hidden_layers)
             if self.dropout > 0:
                 hidden_layers = Dropout(self.dropout)(hidden_layers)
             if self.layer_shrink < 1:
@@ -172,8 +205,8 @@ class Keras(BaseEstimator):
         return hidden_layers
     
     @timed(logging.INFO)
-    def build_output_layer(self, hidden_layers):
-        return Dense(1, activation='sigmoid')(hidden_layers)
+    def build_output_layer(self, hidden_layers, tower):
+        return Dense(1, activation='sigmoid', name='%i_output' % tower)(hidden_layers)
     
     @timed(logging.INFO)
     def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=True):
@@ -224,7 +257,7 @@ class Keras(BaseEstimator):
         )
         
         reload_best = ReloadBest(
-            filepath=self.model.serializer.checkpoint_path,
+            filepath=self.model.checkpoint_path(),
             monitor=self.monitor,
             mode='auto',
         )
@@ -256,8 +289,8 @@ class Keras(BaseEstimator):
         with self.session.as_default():
             self.history = self.keras.fit(
                 x=x,
-                y=y,
-                validation_data=validation_data,
+                y=[y] * self.towers,
+                validation_data=Observations(x=validation_data.x, y=[validation_data.y] * self.towers),
                 batch_size=self.batch_size,
                 epochs=epochs,
                 verbose=verbose,
@@ -265,7 +298,7 @@ class Keras(BaseEstimator):
             ).history
 
         if timeline:
-            with open(self.model.serializer.timeline_path, 'w') as f:
+            with open(self.model.timeline_path(), 'w') as f:
                 f.write(Timeline(step_stats=run_metadata.step_stats).generate_chrome_trace_format())
 
         return {

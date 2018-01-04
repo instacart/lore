@@ -1,10 +1,11 @@
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
+import inspect
 import logging
+import warnings
 
-
-import numpy as np
-import pandas as pd
+import numpy
+import pandas
 from lore.util import timer, timed
 from sklearn.model_selection import train_test_split
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 Observations = namedtuple('Observations', 'x y')
 
 
-class TrainTestSplit(object):
+class Holdout(object):
     __metaclass__ = ABCMeta
     
     test_size = 0.1
@@ -131,10 +132,23 @@ class TrainTestSplit(object):
 
     @timed(logging.INFO)
     def encode_x(self, data):
-        result = {}
+        """
+        :param data: unencoded input dataframe
+        :return: a dict with encoded values
+        """
+        encoded = {}
         for encoder in self.encoders:
-            result[encoder.name] = encoder.transform(data)
-        return pd.DataFrame(result)
+            transformed = encoder.transform(data)
+            if hasattr(encoder, 'sequence_length'):
+                for i in range(encoder.sequence_length):
+                    encoded[encoder.sequence_name(i)] = transformed[:,i]
+            else:
+                encoded[encoder.name] = transformed
+        
+        # Using a DataFrame as a container temporairily requires double the memory,
+        # as pandas copies all data on __init__. This is justified by having a
+        # type supported by all dependent libraries (heterogeneous dict is not)
+        return pandas.DataFrame(encoded)
     
     @timed(logging.INFO)
     def encode_y(self, data):
@@ -142,17 +156,14 @@ class TrainTestSplit(object):
 
     @timed(logging.INFO)
     def decode(self, predictions):
-        results = {}
-        for encoder in self._output_encoder:
-            results[encoder.name] = encoder.reverse_transform(predictions)
-        return results
+        return {encoder.name: encoder.reverse_transform(predictions) for encoder in self.encoder}
 
     @timed(logging.INFO)
     def _split_data(self):
         if self._data:
             return
 
-        np.random.seed(self.split_seed)
+        numpy.random.seed(self.split_seed)
         logger.debug('random seed set to: %i' % self.split_seed)
 
         self._data = self.get_data()
@@ -163,7 +174,7 @@ class TrainTestSplit(object):
                     self.stratify, self.subsample))
                 ids = self._data[[self.stratify]].drop_duplicates()
                 ids = ids.sample(self.subsample)
-                self._data = pd.merge(self._data, ids, on=self.stratify)
+                self._data = pandas.merge(self._data, ids, on=self.stratify)
             else:
                 logger.debug('subsampling rows: %s' % self.subsample)
                 self._data = self._data.sample(self.subsample)
@@ -183,9 +194,9 @@ class TrainTestSplit(object):
             )
         
             rows = self._data[self.stratify].values
-            self._training_data = self._data.iloc[np.in1d(rows, train_ids.values)]
-            self._validation_data = self._data.iloc[np.in1d(rows, validate_ids.values)]
-            self._test_data = self._data.iloc[np.in1d(rows, test_ids.values)]
+            self._training_data = self._data.iloc[numpy.in1d(rows, train_ids.values)]
+            self._validation_data = self._data.iloc[numpy.in1d(rows, validate_ids.values)]
+            self._test_data = self._data.iloc[numpy.in1d(rows, test_ids.values)]
         else:
             self._training_data, self._validation_data = train_test_split(
                 self._data,
@@ -212,11 +223,11 @@ class TrainTestSplit(object):
         ))
 
 
-class SortedTrainTestSplit(TrainTestSplit):
+class TimeSeries(Holdout):
     __metaclass__ = ABCMeta
 
     def __init__(self, test_size = 0.1, sort_by = None):
-        super(SortedTrainTestSplit, self).__init__()
+        super(TimeSeries, self).__init__()
         self.sort_by = sort_by
         self.test_size = test_size
 
@@ -238,3 +249,18 @@ class SortedTrainTestSplit(TrainTestSplit):
         self._validation_data = self._data[train_rows:train_rows+valid_rows]
         self._test_data = self._data.iloc[-test_rows:]
 
+
+class TrainTestSplit(Holdout):
+    def __init__(self, **kwargs):
+        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
+        warnings.showwarning('TrainTestSplit has been renamed to Holdout. Please update your code.', DeprecationWarning,
+                             filename, line_number)
+        super(TrainTestSplit, self).__init__(**kwargs)
+
+
+class SortedTrainTestSplit(TimeSeries):
+    def __init__(self, **kwargs):
+        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
+        warnings.showwarning('SortedTrainTestSplit has been renamed to TimeSeries. Please update your code.', DeprecationWarning,
+                             filename, line_number)
+        super(SortedTrainTestSplit, self).__init__(**kwargs)
