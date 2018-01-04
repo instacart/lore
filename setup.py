@@ -49,11 +49,12 @@ setup(
     license='MIT',
     packages=[
         'lore',
-        'lore.io',
-        'lore.stores',
         'lore.estimators',
         'lore.estimators.holt_winters',
-        'lore.features'
+        'lore.features',
+        'lore.io',
+        'lore.models',
+        'lore.stores',
     ],
     install_requires=[
         'future>=0.15, <0.16.99',
