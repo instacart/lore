@@ -1,13 +1,12 @@
 from __future__ import absolute_import
 import atexit
 import logging
-import sys
 
 import pandas
 import keras
 import keras.backend
 from keras.callbacks import EarlyStopping, TensorBoard, TerminateOnNaN
-from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, LSTM, GRU, SimpleRNN, Flatten
+from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, SimpleRNN, Flatten
 from keras.optimizers import Adam
 from sklearn.base import BaseEstimator
 import tensorflow
@@ -18,6 +17,15 @@ from lore.callbacks import ReloadBest
 from lore.encoders import Continuous
 from lore.pipelines import Observations
 from lore.util import timed
+
+from tensorflow.python.client import device_lib
+gpus = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
+if len(gpus) > 0:
+    from keras.layers import CuDNNLSTM as LSTM
+    from keras.layers import CuDNNGRU as GRU
+else:
+    from keras.layers import LSTM
+    from keras.layers import GRU
 
 logger = logging.getLogger(__name__)
 
@@ -120,9 +128,16 @@ class Keras(BaseEstimator):
             inputs = self.build_inputs()
             outputs = []
             for i in range(self.towers):
-                embedding_layer = self.build_embedding_layer(inputs, i)
-                hidden_layers = self.build_hidden_layers(embedding_layer, i)
-                outputs.append(self.build_output_layer(hidden_layers, i))
+                if len(gpus) > 0:
+                    chip = 'gpu'
+                    node = i % gpus
+                else:
+                    chip = 'cpu'
+                    node = 0
+                with tensorflow.device('/%s:%i' % (chip, node)):
+                    embedding_layer = self.build_embedding_layer(inputs, i)
+                    hidden_layers = self.build_hidden_layers(embedding_layer, i)
+                    outputs.append(self.build_output_layer(hidden_layers, i))
         
             self.keras = keras.models.Model(inputs=list(inputs.values()), outputs=outputs)
             self.optimizer = Adam(lr=self.learning_rate, decay=self.decay)
@@ -209,7 +224,7 @@ class Keras(BaseEstimator):
         return Dense(1, activation='sigmoid', name='%i_output' % tower)(hidden_layers)
     
     @timed(logging.INFO)
-    def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=True):
+    def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False):
 
         if validation_data is None:
             validation_data = self.model.pipeline.encoded_validation_data
