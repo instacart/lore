@@ -36,7 +36,8 @@ class DateTime(Base):
     def __init__(self, column, operator):
         super(DateTime, self).__init__(column)
         self.operator = operator
-    
+        self.name = self.column + '_' + inflection.underscore(self.__class__.__name__) + '_' + self.operator
+
     def transform(self, data):
         return getattr(data[self.column].dt, self.operator)
 
