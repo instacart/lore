@@ -123,7 +123,10 @@ class Connection(object):
             self._connection = self._engine.connect()
 
         if self._engine.dialect.name in ['postgresql', 'redshift']:
-            rows = io.BytesIO()
+            if sys.version_info[0] == 2:
+                rows = io.BytesIO()
+            else:
+                rows = io.StringIO()
             dataframe.to_csv(rows, index=False, header=False, sep='|', quoting=csv.QUOTE_NONE)
             rows.seek(0)
             self._connection.connection.cursor().copy_from(rows, table, sep='|', columns=dataframe.columns)
