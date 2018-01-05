@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import logging
+import io
 import os
 import re
 import sys
@@ -121,13 +122,22 @@ class Connection(object):
         if self._connection is None:
             self._connection = self._engine.connect()
 
-        dataframe.to_sql(
-            table,
-            self._connection,
-            if_exists='append',
-            index=False,
-            chunksize=batch_size
-        )
+        if self._engine.dialect.name in ['postgresql', 'redshift']:
+            if sys.version_info[0] == 2:
+                rows = io.BytesIO()
+            else:
+                rows = io.StringIO()
+            dataframe.to_csv(rows, index=False, header=False, sep='|', quoting=csv.QUOTE_NONE)
+            rows.seek(0)
+            self._connection.connection.cursor().copy_from(rows, table, sep='|', columns=dataframe.columns)
+        else:
+            dataframe.to_sql(
+                table,
+                self._connection,
+                if_exists='append',
+                index=False,
+                chunksize=batch_size
+            )
 
     def close(self):
         self._engine.dispose()

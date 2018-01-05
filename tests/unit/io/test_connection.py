@@ -57,13 +57,13 @@ class TestConnection(unittest.TestCase):
         global calls
         calls = 0
         lore.io.main.insert(self.table.name, self.dataframe)
-        self.assertEqual(calls, 2)
+        self.assertEqual(calls, 0)
 
     def test_insert_batches(self):
         global calls
         calls = 0
         lore.io.main.insert(self.table.name, self.dataframe, batch_size=100)
-        self.assertEqual(calls, 11)
+        self.assertEqual(calls, 0)
 
     def test_multiple_statements(self):
         users = lore.io.main.select(sql='''
