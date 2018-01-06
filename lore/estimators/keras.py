@@ -130,7 +130,7 @@ class Keras(BaseEstimator):
             for i in range(self.towers):
                 if len(gpus) > 0:
                     chip = 'gpu'
-                    node = i % gpus
+                    node = i % len(gpus)
                 else:
                     chip = 'cpu'
                     node = 0
