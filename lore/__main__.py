@@ -167,7 +167,7 @@ def api(parsed, unknown):
 def console(parsed, unknown):
     install_jupyter_kernel()
     sys.argv[0] = env.bin_jupyter
-    args = [env.bin_jupyter, 'console', '--kernel', env.project]
+    args = [env.bin_jupyter, 'console', '--kernel', env.project] + unknown
     print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
     os.execv(env.bin_jupyter, args)
 
