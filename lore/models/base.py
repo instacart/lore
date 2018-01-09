@@ -169,6 +169,7 @@ class Base(object):
                 return pickle.load(f)
     
     def upload(self):
+        self.fitting = 0
         self.save()
         lore.io.upload(self.model_path(), self.remote_model_path())
      
