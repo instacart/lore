@@ -129,9 +129,9 @@ class Connection(object):
                 rows = io.BytesIO()
             else:
                 rows = io.StringIO()
-            dataframe.to_csv(rows, index=False, header=False, sep='|', quoting=csv.QUOTE_NONE)
+            dataframe.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
             rows.seek(0)
-            self._connection.connection.cursor().copy_from(rows, table, sep='|', columns=dataframe.columns)
+            self._connection.connection.cursor().copy_from(rows, table, null='\\N', sep='|', columns=dataframe.columns)
         else:
             dataframe.to_sql(
                 table,
