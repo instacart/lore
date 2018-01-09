@@ -37,6 +37,35 @@ def after_replace(func):
     _after_replace_callbacks.append(func)
 
 
+@event.listens_for(Engine, "before_cursor_execute", retval=True)
+def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
+    conn.info.setdefault('query_start_time', []).append(datetime.now())
+    
+    stack = inspect.stack()[1:-1]
+    if sys.version_info.major == 3:
+        stack = [(x.filename, x.lineno, x.function) for x in stack]
+    else:
+        stack = [(x[1], x[2], x[3]) for x in stack]
+    
+    paths = [x[0] for x in stack]
+    origin = next((x for x in paths if lore.env.project in x), None)
+    if origin is None:
+        origin = next((x for x in paths if 'sqlalchemy' not in x), None)
+    if origin is None:
+        origin = paths[0]
+    caller = next(x for x in stack if x[0] == origin)
+    
+    statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
+    logger.debug(statement)
+    return statement, parameters
+
+
+@event.listens_for(Engine, "after_cursor_execute")
+def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
+    total = datetime.now() - conn.info['query_start_time'].pop(-1)
+    logger.info("SQL: %s" % total)
+
+
 class Connection(object):
     UNLOAD_PREFIX = os.path.join(lore.env.name, 'unloads')
     IAM_ROLE = os.environ.get('IAM_ROLE', None)
@@ -55,33 +84,6 @@ class Connection(object):
         self._connection = None
         self._metadata = None
         self._transactions = []
-
-        @event.listens_for(Engine, "before_cursor_execute", retval=True)
-        def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
-            conn.info.setdefault('query_start_time', []).append(datetime.now())
-        
-            stack = inspect.stack()[1:-1]
-            if sys.version_info.major == 3:
-                stack = [(x.filename, x.lineno, x.function) for x in stack]
-            else:
-                stack = [(x[1], x[2], x[3]) for x in stack]
-        
-            paths = [x[0] for x in stack]
-            origin = next((x for x in paths if lore.env.project in x), None)
-            if origin is None:
-                origin = next((x for x in paths if 'sqlalchemy' not in x), None)
-            if origin is None:
-                origin = paths[0]
-            caller = next(x for x in stack if x[0] == origin)
-        
-            statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
-            logger.debug(statement)
-            return statement, parameters
-    
-        @event.listens_for(Engine, "after_cursor_execute")
-        def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
-            total = datetime.now() - conn.info['query_start_time'].pop(-1)
-            logger.info("SQL: %s" % total)
 
     def __enter__(self):
         if self._connection is None:
