@@ -166,7 +166,9 @@ class Base(object):
         
         with timer('unpickle model:'):
             with open(model.model_path(), 'rb') as f:
-                return pickle.load(f)
+                model = pickle.load(f)
+                model.fitting = fitting
+                return model
     
     def upload(self):
         self.fitting = 0
