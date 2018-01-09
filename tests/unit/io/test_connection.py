@@ -29,6 +29,7 @@ class TestConnection(unittest.TestCase):
             sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
             sqlalchemy.Column('first_name', sqlalchemy.String(50)),
             sqlalchemy.Column('last_name', sqlalchemy.String(50)),
+            sqlalchemy.Column('nullable', sqlalchemy.Float()),
             sqlalchemy.Index('index_tests_users_first_name_last_name', 'first_name', 'last_name', unique=True),
             sqlalchemy.Index('long_name_long_name_long_name_long_name_long_name_long_name_63_', 'first_name', unique=True),
         )
@@ -40,6 +41,7 @@ class TestConnection(unittest.TestCase):
             'id': range(1000),
             'first_name': [str(i) for i in range(1000)],
             'last_name': [str(i) for i in range(1000)],
+            'nullable': [i if i % 2 == 0 else None for i in range(1000)]
         })
 
         lore.io.main.metadata.create_all()
