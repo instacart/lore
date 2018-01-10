@@ -8,6 +8,7 @@ import sys
 import tempfile
 import csv
 import gzip
+import math
 from datetime import datetime
 from io import StringIO
 from sqlalchemy import event
@@ -117,10 +118,7 @@ class Connection(object):
     def execute(self, sql=None, filename=None, **kwargs):
         self.__execute(self.__prepare(sql, filename), kwargs)
 
-    def insert(self, table, dataframe, batch_size=None):
-        if batch_size is None:
-            batch_size = len(dataframe)
-
+    def insert(self, table, dataframe, batch_size=10 ** 5):
         if self._connection is None:
             self._connection = self._engine.connect()
 
@@ -129,9 +127,14 @@ class Connection(object):
                 rows = io.BytesIO()
             else:
                 rows = io.StringIO()
-            dataframe.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
-            rows.seek(0)
-            self._connection.connection.cursor().copy_from(rows, table, null='\\N', sep='|', columns=dataframe.columns)
+            batch = 0
+            while batch * batch_size < len(dataframe):
+                rows.seek(0)
+                slice = dataframe.iloc[batch * batch_size:(batch + 1) * batch_size]
+                slice.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
+                rows.seek(0)
+                self._connection.connection.cursor().copy_from(rows, table, null='\\N', sep='|', columns=dataframe.columns)
+                batch += 1
         else:
             dataframe.to_sql(
                 table,
@@ -145,7 +148,7 @@ class Connection(object):
         self._engine.dispose()
         self._connection = None
         
-    def replace(self, table, dataframe, batch_size=None):
+    def replace(self, table, dataframe, batch_size=10 ** 5):
         import migrate.changeset
         global _after_replace_callbacks
         
