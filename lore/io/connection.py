@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import logging
+import gc
 import io
 import os
 import re
@@ -132,6 +133,8 @@ class Connection(object):
                 slice.to_csv(rows, index=False, header=False, sep='|', na_rep='\N', quoting=csv.QUOTE_NONE)
                 rows.seek(0)
                 self._connection.connection.cursor().copy_from(rows, table, null='\N', sep='|', columns=dataframe.columns)
+                del rows
+                gc.collect()
         else:
             dataframe.to_sql(
                 table,
