@@ -130,9 +130,9 @@ class Connection(object):
                 else:
                     rows = io.StringIO()
                 slice = dataframe.iloc[batch * batch_size:(batch + 1) * batch_size]
-                slice.to_csv(rows, index=False, header=False, sep='|', na_rep='\N', quoting=csv.QUOTE_NONE)
+                slice.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
                 rows.seek(0)
-                self._connection.connection.cursor().copy_from(rows, table, null='\N', sep='|', columns=dataframe.columns)
+                self._connection.connection.cursor().copy_from(rows, table, null='\\N', sep='|', columns=dataframe.columns)
                 del rows
                 gc.collect()
         else:
