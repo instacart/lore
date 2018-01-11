@@ -1,6 +1,7 @@
 import hashlib
 import inspect
 import logging
+import gc
 import io
 import os
 import re
@@ -123,18 +124,17 @@ class Connection(object):
             self._connection = self._engine.connect()
 
         if self._engine.dialect.name in ['postgresql', 'redshift']:
-            if sys.version_info[0] == 2:
-                rows = io.BytesIO()
-            else:
-                rows = io.StringIO()
-            batch = 0
-            while batch * batch_size < len(dataframe):
-                rows.seek(0)
+            for batch in range(int(math.ceil(float(len(dataframe)) / batch_size))):
+                if sys.version_info[0] == 2:
+                    rows = io.BytesIO()
+                else:
+                    rows = io.StringIO()
                 slice = dataframe.iloc[batch * batch_size:(batch + 1) * batch_size]
                 slice.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
                 rows.seek(0)
                 self._connection.connection.cursor().copy_from(rows, table, null='\\N', sep='|', columns=dataframe.columns)
-                batch += 1
+                del rows
+                gc.collect()
         else:
             dataframe.to_sql(
                 table,

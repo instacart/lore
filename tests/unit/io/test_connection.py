@@ -5,6 +5,7 @@ import unittest
 from threading import Thread
 import datetime
 import time
+import math
 
 import lore.io.connection
 import sqlalchemy
@@ -27,9 +28,11 @@ class TestConnection(unittest.TestCase):
         self.table = sqlalchemy.Table(
             'tests_users', lore.io.main.metadata,
             sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
-            sqlalchemy.Column('first_name', sqlalchemy.String(50)),
-            sqlalchemy.Column('last_name', sqlalchemy.String(50)),
-            sqlalchemy.Column('nullable', sqlalchemy.Float()),
+            sqlalchemy.Column('first_name', sqlalchemy.String(50), nullable=False),
+            sqlalchemy.Column('last_name', sqlalchemy.String(50), nullable=False),
+            sqlalchemy.Column('nullable', sqlalchemy.Float(), nullable=True),
+            sqlalchemy.Column('zero', sqlalchemy.Integer(), nullable=False),
+            sqlalchemy.Column('pi', sqlalchemy.Float(), nullable=False),
             sqlalchemy.Index('index_tests_users_first_name_last_name', 'first_name', 'last_name', unique=True),
             sqlalchemy.Index('long_name_long_name_long_name_long_name_long_name_long_name_63_', 'first_name', unique=True),
         )
@@ -38,10 +41,12 @@ class TestConnection(unittest.TestCase):
     def setUp(self):
         self.table.drop()
         self.dataframe = pandas.DataFrame({
-            'id': range(1000),
-            'first_name': [str(i) for i in range(1000)],
-            'last_name': [str(i) for i in range(1000)],
-            'nullable': [i if i % 2 == 0 else None for i in range(1000)]
+            'id': range(1001),
+            'first_name': [str(i) for i in range(1001)],
+            'last_name': [str(i) for i in range(1001)],
+            'nullable': [i if i % 2 == 0 else None for i in range(1001)],
+            'zero': [0] * 1001,
+            'pi': [math.pi] * 1001,
         })
 
         lore.io.main.metadata.create_all()
@@ -69,12 +74,12 @@ class TestConnection(unittest.TestCase):
 
     def test_multiple_statements(self):
         users = lore.io.main.select(sql='''
-            insert into tests_users(first_name, last_name)
-            values ('1', '2');
-            insert into tests_users(first_name, last_name)
-            values ('3', '4');
-            insert into tests_users(first_name, last_name)
-            values ('4', '5');
+            insert into tests_users(first_name, last_name, zero, pi)
+            values ('1', '2', 0, 3.14);
+            insert into tests_users(first_name, last_name, zero, pi)
+            values ('3', '4', 0, 3.14);
+            insert into tests_users(first_name, last_name, zero, pi)
+            values ('4', '5', 0, 3.14);
             select * from tests_users;
         ''')
         self.assertEqual(len(users), 3)
