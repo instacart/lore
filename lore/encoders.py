@@ -106,6 +106,7 @@ class Base(object):
         
         return series.fillna(self.missing_value + addition).astype(self.dtype)
     
+    @property
     def source_column(self):
         column = self.column
         while isinstance(column, lore.transformers.Base):
@@ -115,6 +116,8 @@ class Base(object):
     def series(self, data):
         if isinstance(self.column, lore.transformers.Base):
             series = self.column.transform(data)
+        elif isinstance(data, pandas.Series):
+            series = data
         else:
             series = data[self.column]
 
