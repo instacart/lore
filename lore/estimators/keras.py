@@ -30,10 +30,8 @@ else:
 logger = logging.getLogger(__name__)
 
 
-def cleanup_tensorflow():
-    # prevents random gc exception at exit
-    keras.backend.clear_session()
-atexit.register(cleanup_tensorflow)
+# prevents random gc exception at exit
+atexit.register(keras.backend.clear_session)
 
 
 class Keras(BaseEstimator):
