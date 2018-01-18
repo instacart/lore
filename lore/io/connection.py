@@ -9,7 +9,7 @@ import tempfile
 import csv
 import gzip
 from datetime import datetime
-from io import StringIO
+
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import DropTable
@@ -80,6 +80,7 @@ class Connection(object):
             del kwargs['__name__']
         if 'isolation_level' not in kwargs:
             kwargs['isolation_level'] = 'AUTOCOMMIT'
+
         self._engine = sqlalchemy.create_engine(url, **kwargs)
         self._connection = None
         self._metadata = None
@@ -282,7 +283,7 @@ class Connection(object):
 
             result = pandas.concat(frames)
             result.columns = columns
-            buffer = StringIO()
+            buffer = io.StringIO()
             result.info(buf=buffer, memory_usage='deep')
             logger.info(buffer.getvalue())
             logger.info(result.head())
@@ -296,7 +297,7 @@ class Connection(object):
         sql = self.__prepare(sql, filename)
         dataframe = self._dataframe(sql, kwargs, cache=cache, chunksize=chunksize)
         if chunksize is None:
-            buffer = StringIO()
+            buffer = io.StringIO()
             dataframe.info(buf=buffer, memory_usage='deep')
             logger.info(buffer.getvalue())
             logger.info(dataframe.head())

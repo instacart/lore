@@ -4,8 +4,10 @@ from collections import namedtuple
 import gc
 import hashlib
 import inspect
+import io
 import logging
 import os
+import pickle
 import sqlite3
 import types
 import warnings
@@ -277,11 +279,12 @@ class LowMemory(Holdout):
         self.loaded = False
         self._columns = None
         self._length = None
+        self._datetime_columns = None
     
     @property
     def table(self):
         if self._table is None:
-            self._table = 'pipeline_' + self.__class__.__name__.lower() + '_' + hashlib.sha1(str(self.__dict__)).hexdigest()
+            self._table = 'pipeline_' + self.__class__.__name__.lower() + '_' + hashlib.sha1(str(self.__dict__).encode('utf-8')).hexdigest()
             
         return self._table
     
@@ -313,11 +316,26 @@ class LowMemory(Holdout):
         if not self.loaded:
             self._split_data()
     
-        return pandas.read_sql("SELECT * FROM {name}".format(name=name), self.connection, chunksize=self.chunksize)
+        return pandas.read_sql(
+            "SELECT * FROM {name}".format(name=name),
+            self.connection,
+            chunksize=self.chunksize,
+            parse_dates=self.datetime_columns
+        )
+
+    @property
+    def datetime_columns(self):
+        if self._datetime_columns is None:
+            with open(self.metadata_path, 'rb') as f:
+                self._datetime_columns = pickle.load(f)
+                
+        return self._datetime_columns
 
     @property
     def encoded_training_data(self):
         if not self._encoded_training_data:
+            if not self.loaded:
+                self._split_data()
             with timer('encode training data:'):
                 self._encoded_training_data = self.observations(self.table_training)
     
@@ -326,6 +344,8 @@ class LowMemory(Holdout):
     @property
     def encoded_validation_data(self):
         if not self._encoded_validation_data:
+            if not self.loaded:
+                self._split_data()
             with timer('encode validation data:'):
                 self._encoded_validation_data = self.observations(self.table_validation)
     
@@ -334,6 +354,8 @@ class LowMemory(Holdout):
     @property
     def encoded_test_data(self):
         if not self._encoded_test_data:
+            if not self.loaded:
+                self._split_data()
             with timer('encode test data:'):
                 self._encoded_test_data = self.observations(self.table_test)
     
@@ -356,7 +378,8 @@ class LowMemory(Holdout):
                 column=self.quote(column),
                 table=self.quote(table)
             ),
-            self.connection
+            self.connection,
+            parse_dates=set(self.datetime_columns).intersection([column])
         )
     
     @property
@@ -401,6 +424,10 @@ class LowMemory(Holdout):
     def decode(self, predictions):
         return {encoder.name: encoder.reverse_transform(predictions) for encoder in self.encoder}
     
+    @property
+    def metadata_path(self):
+        return os.path.join(lore.env.data_dir,  self.table + '.pickle')
+    
     def _split_data(self):
         self.loaded = True
     
@@ -422,14 +449,24 @@ class LowMemory(Holdout):
             raise TypeError('LowMemory pipelines must be passed a generator rather than a dataframe. Did you forget to pass a `chunksize` to lore.io.Connection.dataframe()?')
     
         self.length = 0
+
+        # This loop is unfortunately CPU limited rather than IO bound, based on dataframe creation
         for i, dataframe in enumerate(self._data):
-            logger.info('appending %i rows to sqlite' % len(dataframe))
             if i == 0:
                 self._columns = dataframe.columns
                 self.chunksize = len(dataframe)
-        
+                buffer = io.StringIO()
+                dataframe.info(buf=buffer, memory_usage='deep')
+                logger.info(buffer.getvalue())
+                logger.info(dataframe.head())
+
+                self._datetime_columns = [col for col, type in dataframe.dtypes.iteritems() if type == 'datetime64[ns]']
+                with open(self.metadata_path, 'wb') as f:
+                    pickle.dump(self.datetime_columns, f, pickle.HIGHEST_PROTOCOL)
+
+            logger.info('appending %i rows to sqlite' % len(dataframe))
             self.length += len(dataframe)
-            dataframe.to_sql(self.name, self.connection, index=False, if_exists="append")
+            dataframe.to_sql(self.table, self.connection, index=False, if_exists="append")
     
         if self.subsample:
             self.connection.executescript(
@@ -437,18 +474,18 @@ class LowMemory(Holdout):
                     BEGIN;
                     
                     CREATE TABLE {subsample} AS
-                    SELECT * FROM {name}
+                    SELECT * FROM {table}
                     ORDER BY random()
                     LIMIT {limit};
                     
-                    DROP TABLE {name};
+                    DROP TABLE {table};
                     
-                    ALTER TABLE {subsample} RENAME TO {name};
+                    ALTER TABLE {subsample} RENAME TO {table};
                     
                     COMMIT;
                 """.format(
-                    name=self.quote(self.name),
-                    subsample=self.quote(self.name + '_subsample'),
+                    table=self.quote(self.table),
+                    subsample=self.quote(self.table + '_subsample'),
                     limit=self.subsample
                 )
             )
@@ -469,13 +506,13 @@ class LowMemory(Holdout):
         return self.connection.execute(
             'SELECT {column} FROM {table}'.format(
                 column=self.quote(column),
-                table=self.quote(self.name),
+                table=self.quote(self.table),
             )
         )
 
     def __len__(self):
         if self._length is None:
-            self._length = self.table_length(self.name)
+            self._length = self.table_length(self.table)
         return self._length
 
     def table_length(self, name):
@@ -493,8 +530,8 @@ class LowMemory(Holdout):
         if self._columns is None:
             self._columns = [
                 row[1] for row in self.connection.execute(
-                    'PRAGMA table_info({table});'.format(table=self.quote(self.name))
-                )
+                    'PRAGMA table_info({table});'.format(table=self.quote(self.table))
+                ).fetchall()
             ]
     
         return self._columns
@@ -511,7 +548,7 @@ class LowMemory(Holdout):
                 ORDER BY random();
             """.format(
                 random=random,
-                source=self.quote(self.name),
+                source=self.quote(self.table),
                 stratify=self.quote(stratify)
             ))
             random_column = self.quote(stratify)
@@ -524,22 +561,22 @@ class LowMemory(Holdout):
                 ORDER BY random();
             """.format(
                 random=random,
-                source=self.quote(self.name)
+                source=self.quote(self.table)
             ))
             stratify = '_rowid_'
             random_column = 'other_rowid'
     
         self.connection.execute("""
             CREATE TABLE IF NOT EXISTS {split} AS
-            SELECT {table}.*
-            FROM {table}
+            SELECT {source}.*
+            FROM {source}
             JOIN {random}
-              ON {random}.{random_column} = {table}.{stratify}
+              ON {random}.{random_column} = {source}.{stratify}
             WHERE {random}._rowid_ - 1 >= (select max(_rowid_) from {random}) * {start}
               AND {random}._rowid_ - 1 < (select max(_rowid_) from {random}) * {stop}
         """.format(
             split=name,
-            table=self.quote(self.name),
+            source=self.quote(self.table),
             random=random,
             random_column=random_column,
             start=start,

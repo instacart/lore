@@ -74,3 +74,12 @@ class TestLowMemory(unittest.TestCase):
         self.assertEqual(len(self.pipeline.encoded_training_data.x), 40)
         self.assertEqual(len(self.pipeline.encoded_validation_data.x), 5)
         self.assertEqual(len(self.pipeline.encoded_test_data.x), 5)
+
+    def test_preserves_types(self):
+        self.pipeline = tests.mocks.pipelines.Users()
+        training_data = pandas.concat([chunk for chunk in self.pipeline.training_data])
+        self.assertTrue(training_data['id'].dtype, 'integer')
+        self.assertTrue(training_data['first_name'].dtype, 'object')
+        self.assertTrue(training_data['last_name'].dtype, 'object')
+        self.assertTrue(training_data['subscriber'].dtype, 'bool')
+        self.assertTrue(training_data['signup_at'].dtype, 'datetime64[ns]')

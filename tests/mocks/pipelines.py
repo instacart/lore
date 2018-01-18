@@ -1,3 +1,5 @@
+import datetime
+
 import pandas
 import sqlalchemy
 
@@ -49,14 +51,16 @@ class Users(LowMemory):
         'id': range(1000),
         'first_name': [str(i) for i in range(1000)],
         'last_name': [str(i % 100) for i in range(1000)],
-        'subscriber': [i % 2 == 0 for i in range(1000)]
+        'subscriber': [i % 2 == 0 for i in range(1000)],
+        'signup_at': [datetime.datetime.now()] * 1000
     })
     sqlalchemy_table = sqlalchemy.Table(
         'tests_low_memory_users', lore.io.main.metadata,
         sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
         sqlalchemy.Column('first_name', sqlalchemy.String(50)),
         sqlalchemy.Column('last_name', sqlalchemy.String(50)),
-        sqlalchemy.Column('subscriber', sqlalchemy.Boolean),
+        sqlalchemy.Column('subscriber', sqlalchemy.Boolean()),
+        sqlalchemy.Column('signup_at', sqlalchemy.DateTime()),
     )
     sqlalchemy_table.drop(checkfirst=True)
     lore.io.main.metadata.create_all()
