@@ -70,10 +70,10 @@ class TestLowMemory(unittest.TestCase):
         self.pipeline = tests.mocks.pipelines.Users()
         self.pipeline.subsample = 50
         self.pipeline.connection.execute('drop table if exists {name}'.format(name=self.pipeline.table_training + '_random'))
-
-        self.assertEqual(len(self.pipeline.encoded_training_data.x), 40)
-        self.assertEqual(len(self.pipeline.encoded_validation_data.x), 5)
-        self.assertEqual(len(self.pipeline.encoded_test_data.x), 5)
+        
+        self.assertEqual(len(pandas.concat([chunk.x for chunk in self.pipeline.encoded_training_data])), 40)
+        self.assertEqual(len(pandas.concat([chunk.x for chunk in self.pipeline.encoded_validation_data])), 5)
+        self.assertEqual(len(pandas.concat([chunk.x for chunk in self.pipeline.encoded_test_data])), 5)
 
     def test_preserves_types(self):
         self.pipeline = tests.mocks.pipelines.Users()
@@ -83,3 +83,30 @@ class TestLowMemory(unittest.TestCase):
         self.assertTrue(training_data['last_name'].dtype, 'object')
         self.assertTrue(training_data['subscriber'].dtype, 'bool')
         self.assertTrue(training_data['signup_at'].dtype, 'datetime64[ns]')
+
+    def test_generator(self):
+        pipeline = tests.mocks.pipelines.Users()
+        pipeline.stratify = 'last_name'
+        chunks = 0
+        length = 0
+        for chunk in pipeline.generator(pipeline.table_training, orient='row', encoded=True, stratify=False, chunksize=200):
+            chunks += 1
+            length += len(chunk.x)
+        self.assertEqual(chunks, 4)
+        self.assertEqual(length, 800)
+
+        chunks = 0
+        length = 0
+        for chunk in pipeline.generator(pipeline.table_training, orient='row', encoded=True, stratify=True, chunksize=10):
+            chunks += 1
+            length += len(chunk.x)
+        self.assertEqual(chunks, 80)
+        self.assertEqual(length, 800)
+
+        chunks = 0
+        length = 0
+        for chunk in pipeline.generator(pipeline.table_training, orient='column', encoded=True):
+            chunks += 1
+            length += len(chunk.x)
+        self.assertEqual(chunks, 5)
+        self.assertEqual(length, 5 * 800)

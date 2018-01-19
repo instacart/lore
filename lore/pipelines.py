@@ -38,6 +38,7 @@ class Holdout(object):
         self.stratify = None
         self.subsample = None
         self.split_seed = 1
+        self.index = []
         self._data = None
         self._encoders = None
         self._training_data = None
@@ -150,25 +151,45 @@ class Holdout(object):
         """
         encoded = {}
         for encoder in self.encoders:
-            transformed = encoder.transform(data)
-            if hasattr(encoder, 'sequence_length'):
-                for i in range(encoder.sequence_length):
-                    encoded[encoder.sequence_name(i)] = transformed[:,i]
-            else:
-                encoded[encoder.name] = transformed
-        
-        # Using a DataFrame as a container temporairily requires double the memory,
+            if encoder.source_column in data.columns:
+                transformed = encoder.transform(self.read_column(data, encoder.source_column))
+                if hasattr(encoder, 'sequence_length'):
+                    for i in range(encoder.sequence_length):
+                        encoded[encoder.sequence_name(i)] = transformed[:, i]
+                else:
+                    encoded[encoder.name] = transformed
+    
+        for column in self.index:
+            encoded[column] = self.read_column(data, column)
+    
+        # Using a DataFrame as a container temporarily requires double the memory,
         # as pandas copies all data on __init__. This is justified by having a
         # type supported by all dependent libraries (heterogeneous dict is not)
-        return pandas.DataFrame(encoded)
-    
+        dataframe = pandas.DataFrame(encoded)
+        if self.index:
+            dataframe.set_index(self.index)
+        return dataframe
+
     @timed(logging.INFO)
     def encode_y(self, data):
-        return self.output_encoder.transform(data)
+        if self.output_encoder.source_column in data.columns:
+            return self.output_encoder.transform(self.read_column(data, self._output_encoder.source_column))
+        else:
+            return None
 
     @timed(logging.INFO)
     def decode(self, predictions):
         return {encoder.name: encoder.reverse_transform(predictions) for encoder in self.encoder}
+
+    def read_column(self, data, column):
+        """
+        Implemented so subclasses can overide handle different types of columnar data
+
+        :param dataframe:
+        :param column:
+        :return:
+        """
+        return data[column]
 
     @timed(logging.INFO)
     def _split_data(self):
@@ -304,26 +325,15 @@ class LowMemory(Holdout):
 
     @property
     def training_data(self):
-        return self.read_table(self.table_training)
+        return self.generator(self.table_training)
         
     @property
     def validation_data(self):
-        return self.read_table(self.table_validation)
+        return self.generator(self.table_validation)
 
     @property
     def test_data(self):
-        return self.read_table(self.table_test)
-        
-    def read_table(self, name):
-        if not self.loaded:
-            self._split_data()
-    
-        return pandas.read_sql(
-            "SELECT * FROM {name}".format(name=name),
-            self.connection,
-            chunksize=self.chunksize,
-            parse_dates=self.datetime_columns
-        )
+        return self.generator(self.table_test)
 
     @property
     def datetime_columns(self):
@@ -335,33 +345,15 @@ class LowMemory(Holdout):
 
     @property
     def encoded_training_data(self):
-        if not self._encoded_training_data:
-            if not self.loaded:
-                self._split_data()
-            with timer('encode training data:'):
-                self._encoded_training_data = self.observations(self.table_training)
-    
-        return self._encoded_training_data
+        return self.generator(self.table_training, encoded=True)
 
     @property
     def encoded_validation_data(self):
-        if not self._encoded_validation_data:
-            if not self.loaded:
-                self._split_data()
-            with timer('encode validation data:'):
-                self._encoded_validation_data = self.observations(self.table_validation)
-    
-        return self._encoded_validation_data
+        return self.generator(self.table_validation, encoded=True)
 
     @property
     def encoded_test_data(self):
-        if not self._encoded_test_data:
-            if not self.loaded:
-                self._split_data()
-            with timer('encode test data:'):
-                self._encoded_test_data = self.observations(self.table_test)
-    
-        return self._encoded_test_data
+        return self.generator(self.table_test, encoded=True)
 
     @property
     def encoders(self):
@@ -373,8 +365,101 @@ class LowMemory(Holdout):
                     gc.collect()
 
         return self._encoders
-    
+
+    @property
+    def output_encoder(self):
+        if self._output_encoder is None:
+            with timer('fit output encoder:'):
+                self._output_encoder = self.get_output_encoder()
+                self._output_encoder.fit(self.read_column(self.table_training, self._output_encoder.source_column))
+
+        return self._output_encoder
+
+    def generator(self, table, orient='row', encoded=False, stratify=False, chunksize=None):
+        if not self.loaded:
+            self._split_data()
+            
+        if orient == 'column':
+            for column in self.columns:
+                dataframe = self.read_column(table, column)
+                if encoded:
+                    dataframe = Observations(x=self.encode_x(dataframe), y=self.encode_y(dataframe))
+                yield dataframe
+        elif orient == 'row':
+            if stratify:
+                if not self.stratify:
+                    raise ValueError("Can't stratify a generator for a pipeline with no stratify")
+                
+                if chunksize is None:
+                    chunksize = 1
+                min, max = self.connection.execute(
+                    """
+                        SELECT min({stratify}), max({stratify})
+                        FROM (
+                            SELECT {stratify}
+                            FROM {table}
+                            ORDER BY {stratify} ASC
+                            LIMIT :chunksize
+                        )
+                    """.format(
+                        stratify=self.quote(self.stratify),
+                        table=self.quote(table),
+                    ),
+                    {'chunksize': chunksize}
+                ).fetchone()
+                while min and max:
+                    dataframe = pandas.read_sql(
+                        """
+                            SELECT * FROM {table} WHERE {stratify} BETWEEN :min AND :max
+                        """.format(
+                            stratify=self.quote(self.stratify),
+                            table=self.quote(table),
+                        ),
+                        self.connection,
+                        parse_dates=self.datetime_columns,
+                        params={'min': min, 'max': max}
+                    )
+                    if encoded:
+                        dataframe = Observations(x=self.encode_x(dataframe), y=self.encode_y(dataframe))
+                    yield dataframe
+                    
+                    min, max = self.connection.execute(
+                        """
+                            SELECT min({stratify}), max({stratify})
+                            FROM (
+                                SELECT {stratify}
+                                FROM {table}
+                                WHERE {stratify} > :max
+                                ORDER BY {stratify} ASC
+                                LIMIT :chunksize
+                            )
+                        """.format(
+                            stratify=self.quote(self.stratify),
+                            table=self.quote(table),
+                        ),
+                        {'max': max, 'chunksize': chunksize}
+                    ).fetchone()
+
+            else:
+                if chunksize is None:
+                    chunksize = self.chunksize
+                for dataframe in pandas.read_sql(
+                    "SELECT * FROM {name}".format(name=self.quote(table)),
+                    self.connection,
+                    chunksize=chunksize,
+                    parse_dates=self.datetime_columns
+                ):
+                    if encoded:
+                        dataframe = Observations(x=self.encode_x(dataframe), y=self.encode_y(dataframe))
+                    yield dataframe
+        else:
+            raise ValueError('orient "%s" not in "[row, column]"' % orient)
+            
+    @timed(logging.INFO)
     def read_column(self, table, column):
+        if isinstance(table, pandas.DataFrame):
+            return super(LowMemory, self).read_column(table, column)
+            
         return pandas.read_sql(
             'SELECT {column} FROM {table}'.format(
                 column=self.quote(column),
@@ -383,45 +468,7 @@ class LowMemory(Holdout):
             self.connection,
             parse_dates=set(self.datetime_columns).intersection([column])
         )
-    
-    @property
-    def output_encoder(self):
-        if self._output_encoder is None:
-            with timer('fit output encoder:'):
-                self._output_encoder = self.get_output_encoder()
-                self._output_encoder.fit(self.read_column(self.table_training, self._output_encoder.source_column))
-        
-        return self._output_encoder
-    
-    def observations(self, data):
-        return Observations(x=self.encode_x(data), y=self.encode_y(data))
-    
-    @timed(logging.INFO)
-    def encode_x(self, data):
-        if isinstance(data, pandas.DataFrame):
-            return super(LowMemory, self).encode_x(data)
-        
-        encoded = {}
-        for encoder in self.encoders:
-            transformed = encoder.transform(self.read_column(data, encoder.source_column))
-            if hasattr(encoder, 'sequence_length'):
-                for i in range(encoder.sequence_length):
-                    encoded[encoder.sequence_name(i)] = transformed[:, i]
-            else:
-                encoded[encoder.name] = transformed
-        
-        # Using a DataFrame as a container temporairily requires double the memory,
-        # as pandas copies all data on __init__. This is justified by having a
-        # type supported by all dependent libraries (heterogeneous dict is not)
-        return pandas.DataFrame(encoded)
-    
-    @timed(logging.INFO)
-    def encode_y(self, data):
-        if isinstance(data, pandas.DataFrame):
-            return super(LowMemory, self).encode_x(data)
-            
-        return self.output_encoder.transform(self.read_column(data, self._output_encoder.source_column))
-    
+
     @timed(logging.INFO)
     def decode(self, predictions):
         return {encoder.name: encoder.reverse_transform(predictions) for encoder in self.encoder}
@@ -453,6 +500,7 @@ class LowMemory(Holdout):
         self.length = 0
 
         # This loop is unfortunately CPU limited rather than IO bound, based on dataframe creation
+        # TODO parrallelize with multiple processes?
         for i, dataframe in enumerate(self._data):
             if i == 0:
                 self._columns = dataframe.columns
@@ -471,26 +519,27 @@ class LowMemory(Holdout):
             dataframe.to_sql(self.table, self.connection, index=False, if_exists="append")
     
         if self.subsample:
-            self.connection.executescript(
-                """
-                    BEGIN;
-                    
-                    CREATE TABLE {subsample} AS
-                    SELECT * FROM {table}
-                    ORDER BY random()
-                    LIMIT {limit};
-                    
-                    DROP TABLE {table};
-                    
-                    ALTER TABLE {subsample} RENAME TO {table};
-                    
-                    COMMIT;
-                """.format(
-                    table=self.quote(self.table),
-                    subsample=self.quote(self.table + '_subsample'),
-                    limit=self.subsample
+            with timer('subsample'):
+                self.connection.executescript(
+                    """
+                        BEGIN;
+                        
+                        CREATE TABLE {subsample} AS
+                        SELECT * FROM {table}
+                        ORDER BY random()
+                        LIMIT {limit};
+                        
+                        DROP TABLE {table};
+                        
+                        ALTER TABLE {subsample} RENAME TO {table};
+                        
+                        COMMIT;
+                    """.format(
+                        table=self.quote(self.table),
+                        subsample=self.quote(self.table + '_subsample'),
+                        limit=self.subsample
+                    )
                 )
-            )
             self.length = self.subsample
 
         self._random_split(self.table_training, 0, 0.8, stratify=self.stratify)
@@ -504,19 +553,12 @@ class LowMemory(Holdout):
             self.table_length(self.table_test),
         ))
 
-    def __getitem__(self, column):
-        return self.connection.execute(
-            'SELECT {column} FROM {table}'.format(
-                column=self.quote(column),
-                table=self.quote(self.table),
-            )
-        )
-
     def __len__(self):
         if self._length is None:
             self._length = self.table_length(self.table)
         return self._length
 
+    @timed(logging.INFO)
     def table_length(self, name):
         return self.connection.execute(
             'SELECT count(_ROWID_) FROM {table}'.format(
@@ -538,9 +580,9 @@ class LowMemory(Holdout):
     
         return self._columns
 
+    @timed(logging.INFO)
     def _random_split(self, name, start, stop, stratify=None):
         random = self.quote(name + '_random')
-        name = self.quote(name)
         
         if stratify is not None:
             self.connection.execute("""
@@ -574,17 +616,27 @@ class LowMemory(Holdout):
             FROM {source}
             JOIN {random}
               ON {random}.{random_column} = {source}.{stratify}
-            WHERE {random}._rowid_ - 1 >= (select max(_rowid_) from {random}) * {start}
-              AND {random}._rowid_ - 1 < (select max(_rowid_) from {random}) * {stop}
+            WHERE {random}._rowid_ - 1 >= (SELECT max(_rowid_) FROM {random}) * :start
+              AND {random}._rowid_ - 1 < (SELECT max(_rowid_) FROM {random}) * :stop
         """.format(
-            split=name,
+            split=self.quote(name),
             source=self.quote(self.table),
             random=random,
             random_column=random_column,
-            start=start,
-            stop=stop,
             stratify=stratify
-        ))
+        ), {
+            'start': start,
+            'stop': stop
+        })
+        
+        if self.stratify:
+            self.connection.execute("""
+                CREATE INDEX IF NOT EXISTS {name} ON {table} ({column})
+            """.format(
+                name=self.quote('index_' + name + '_stratify'),
+                table=self.quote(name),
+                column=self.quote(self.stratify),
+            ))
 
     def quote(self, identifier, errors="strict"):
         """
@@ -594,6 +646,9 @@ class LowMemory(Holdout):
         :param errors:
         :return:
         """
+        if identifier is None:
+            return None
+        
         encodable = identifier.encode("utf-8", errors).decode("utf-8")
     
         nul_index = encodable.find("\x00")

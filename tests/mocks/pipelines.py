@@ -3,7 +3,8 @@ import datetime
 import pandas
 import sqlalchemy
 
-from lore.encoders import Unique, Pass, Token
+from lore.encoders import Unique, Pass, Token, Boolean, Enum
+from lore.transformers import DateTime
 import lore.io
 from lore.pipelines import Holdout, LowMemory, TimeSeries
 
@@ -75,8 +76,11 @@ class Users(LowMemory):
     
     def get_encoders(self):
         return (
+            Unique('id'),
             Unique('first_name'),
             Unique('last_name'),
+            Boolean('subscriber'),
+            Enum(DateTime('signup_at', 'dayofweek')),
         )
     
     def get_output_encoder(self):
