@@ -6,7 +6,7 @@ import pandas
 import keras
 import keras.backend
 from keras.callbacks import EarlyStopping, TensorBoard, TerminateOnNaN
-from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, SimpleRNN, Flatten
+from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, SimpleRNN, Flatten, LSTM, GRU
 from keras.optimizers import Adam
 from sklearn.base import BaseEstimator
 import tensorflow
@@ -21,11 +21,7 @@ from lore.util import timed
 from tensorflow.python.client import device_lib
 gpus = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
 if len(gpus) > 0:
-    from keras.layers import CuDNNLSTM as LSTM
-    from keras.layers import CuDNNGRU as GRU
-else:
-    from keras.layers import LSTM
-    from keras.layers import GRU
+    from keras.layers import CuDNNLSTM, CuDNNGRU
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +52,7 @@ class Keras(BaseEstimator):
             monitor='val_acc',
             loss='categorical_crossentropy',
             towers=1,
+            cudnn=True,
     ):
         super(Keras, self).__init__()
         self.towers = towers
@@ -81,7 +78,7 @@ class Keras(BaseEstimator):
         self.model = model
         self.sequence_embedding = sequence_embedding
         self.sequence_embed_size = sequence_embed_size
-        
+        self.cudnn = cudnn
     
     def __getstate__(self):
         state = super(Keras, self).__getstate__()
@@ -186,9 +183,15 @@ class Keras(BaseEstimator):
             sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
             shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
             if self.sequence_embedding == 'lstm':
-                embedding = LSTM(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
+                lstm = LSTM
+                if self.cudnn:
+                    lstm = CuDNNLSTM
+                embedding = lstm(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
             elif self.sequence_embedding == 'gru':
-                embedding = GRU(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
+                gru = GRU
+                if self.cudnn:
+                    gru = CuDNNGRU
+                embedding = gru(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
             elif self.sequence_embedding == 'simple_rnn':
                 embedding = SimpleRNN(sequence_embed_size, name=embed_name + '_rnn' + suffix)(shaped_sequence)
             else:
