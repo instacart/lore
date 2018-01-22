@@ -12,6 +12,7 @@ import os
 import pickle
 import sqlite3
 import types
+import threading
 import warnings
 
 import numpy
@@ -287,9 +288,6 @@ class TimeSeries(Holdout):
 
 
 class LowMemory(Holdout):
-    connection = sqlite3.connect(os.path.join(lore.env.data_dir, 'low_memory.sqlite'), isolation_level=None)
-    connection.execute('PRAGMA synchronous = OFF')
-    connection.execute('PRAGMA journal_mode = MEMORY')
 
     @timed(logging.INFO)
     def __init__(self):
@@ -303,7 +301,23 @@ class LowMemory(Holdout):
         self._columns = None
         self._length = None
         self._datetime_columns = None
+        self._connection = None
+        self._connected_on_thread = None
     
+    @property
+    def connection(self):
+        if self._connected_on_thread and self._connected_on_thread != threading.get_ident():
+            logger.warning('Pipeline accessed via thread, reconnecting to sqlite (generators can not be shared)')
+            self._connection = None
+            
+        if not self._connection:
+            self._connection = sqlite3.connect(os.path.join(lore.env.data_dir, 'low_memory.sqlite'), isolation_level=None)
+            self._connection.execute('PRAGMA synchronous = OFF')
+            self._connection.execute('PRAGMA journal_mode = MEMORY')
+            self._connected_on_thread = threading.get_ident()
+            
+        return self._connection
+        
     @property
     def table(self):
         if self._table is None:
@@ -337,6 +351,9 @@ class LowMemory(Holdout):
 
     @property
     def datetime_columns(self):
+        if not self.loaded:
+            self._split_data()
+            
         if self._datetime_columns is None:
             with open(self.metadata_path, 'rb') as f:
                 self._datetime_columns = pickle.load(f)
