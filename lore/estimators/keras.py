@@ -184,12 +184,12 @@ class Keras(BaseEstimator):
             shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
             if self.sequence_embedding == 'lstm':
                 lstm = LSTM
-                if self.cudnn:
+                if self.cudnn and len(gpus) > 0:
                     lstm = CuDNNLSTM
                 embedding = lstm(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
             elif self.sequence_embedding == 'gru':
                 gru = GRU
-                if self.cudnn:
+                if self.cudnn and len(gpus) > 0:
                     gru = CuDNNGRU
                 embedding = gru(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
             elif self.sequence_embedding == 'simple_rnn':
