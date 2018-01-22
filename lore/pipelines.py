@@ -306,7 +306,8 @@ class LowMemory(Holdout):
     
     @property
     def connection(self):
-        if self._connected_on_thread and self._connected_on_thread != threading.get_ident():
+        current_thread = threading.current_thread().ident
+        if self._connected_on_thread and self._connected_on_thread != current_thread:
             logger.warning('Pipeline accessed via thread, reconnecting to sqlite (generators can not be shared)')
             self._connection = None
             
@@ -314,7 +315,7 @@ class LowMemory(Holdout):
             self._connection = sqlite3.connect(os.path.join(lore.env.data_dir, 'low_memory.sqlite'), isolation_level=None)
             self._connection.execute('PRAGMA synchronous = OFF')
             self._connection.execute('PRAGMA journal_mode = MEMORY')
-            self._connected_on_thread = threading.get_ident()
+            self._connected_on_thread = current_thread
             
         return self._connection
         
