@@ -6,10 +6,12 @@ import sqlalchemy
 from lore.encoders import Unique, Pass, Token, Boolean, Enum
 from lore.transformers import DateTime
 import lore.io
-from lore.pipelines import Holdout, LowMemory, TimeSeries
+import lore.pipelines.holdout
+import lore.pipelines.iterative
+import lore.pipelines.time_series
 
 
-class Xor(Holdout):
+class Xor(lore.pipelines.holdout.Base):
     def get_data(self):
         return pandas.DataFrame({
             'a': [0, 1, 0, 1] * 1000,
@@ -29,7 +31,7 @@ class Xor(Holdout):
         return Pass('xor')
 
 
-class MockData(TimeSeries):
+class MockData(lore.pipelines.time_series.Base):
     def get_data(self):
         return pandas.DataFrame({
             'a': [1,2,3,4,5,6,7,8,9,10],
@@ -47,7 +49,7 @@ class MockData(TimeSeries):
         return Pass('target')
 
 
-class Users(LowMemory):
+class Users(lore.pipelines.iterative.Base):
     dataframe = pandas.DataFrame({
         'id': range(1000),
         'first_name': [str(i) for i in range(1000)],
