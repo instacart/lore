@@ -3,6 +3,7 @@ from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import gc
 import logging
+from collections import OrderedDict
 
 import numpy
 import pandas
@@ -135,7 +136,7 @@ class Base(object):
         :param data: unencoded input dataframe
         :return: a dict with encoded values
         """
-        encoded = {}
+        encoded = OrderedDict()
         for encoder in self.encoders:
             if encoder.source_column in data.columns:
                 transformed = encoder.transform(self.read_column(data, encoder.source_column))
