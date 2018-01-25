@@ -1,10 +1,17 @@
+import datetime
+
 import pandas
-from lore.encoders import Unique, Pass, Token
+import sqlalchemy
 
-from lore.pipelines import Holdout, TimeSeries
+from lore.encoders import Unique, Pass, Token, Boolean, Enum
+from lore.transformers import DateTime
+import lore.io
+import lore.pipelines.holdout
+import lore.pipelines.iterative
+import lore.pipelines.time_series
 
 
-class Xor(Holdout):
+class Xor(lore.pipelines.holdout.Base):
     def get_data(self):
         return pandas.DataFrame({
             'a': [0, 1, 0, 1] * 1000,
@@ -24,7 +31,7 @@ class Xor(Holdout):
         return Pass('xor')
 
 
-class MockData(TimeSeries):
+class MockData(lore.pipelines.time_series.Base):
     def get_data(self):
         return pandas.DataFrame({
             'a': [1,2,3,4,5,6,7,8,9,10],
@@ -41,3 +48,42 @@ class MockData(TimeSeries):
     def get_output_encoder(self):
         return Pass('target')
 
+
+class Users(lore.pipelines.iterative.Base):
+    dataframe = pandas.DataFrame({
+        'id': range(1000),
+        'first_name': [str(i) for i in range(1000)],
+        'last_name': [str(i % 100) for i in range(1000)],
+        'subscriber': [i % 2 == 0 for i in range(1000)],
+        'signup_at': [datetime.datetime.now()] * 1000
+    })
+    sqlalchemy_table = sqlalchemy.Table(
+        'tests_low_memory_users', lore.io.main.metadata,
+        sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
+        sqlalchemy.Column('first_name', sqlalchemy.String(50)),
+        sqlalchemy.Column('last_name', sqlalchemy.String(50)),
+        sqlalchemy.Column('subscriber', sqlalchemy.Boolean()),
+        sqlalchemy.Column('signup_at', sqlalchemy.DateTime()),
+    )
+    sqlalchemy_table.drop(checkfirst=True)
+    lore.io.main.metadata.create_all()
+    lore.io.main.insert('tests_low_memory_users', dataframe)
+
+    def _split_data(self):
+        self.connection.execute('drop table if exists {name};'.format(name=self.table))
+        super(Users, self)._split_data()
+        
+    def get_data(self):
+        return lore.io.main.dataframe(sql='select * from tests_low_memory_users', chunksize=2)
+    
+    def get_encoders(self):
+        return (
+            Unique('id'),
+            Unique('first_name'),
+            Unique('last_name'),
+            Boolean('subscriber'),
+            Enum(DateTime('signup_at', 'dayofweek')),
+        )
+    
+    def get_output_encoder(self):
+        return Pass('subscriber')

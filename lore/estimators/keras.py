@@ -6,7 +6,7 @@ import pandas
 import keras
 import keras.backend
 from keras.callbacks import EarlyStopping, TensorBoard, TerminateOnNaN
-from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, SimpleRNN, Flatten
+from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, SimpleRNN, Flatten, LSTM, GRU
 from keras.optimizers import Adam
 from sklearn.base import BaseEstimator
 import tensorflow
@@ -19,21 +19,16 @@ from lore.pipelines import Observations
 from lore.util import timed
 
 from tensorflow.python.client import device_lib
-gpus = [x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU']
-if len(gpus) > 0:
-    from keras.layers import CuDNNLSTM as LSTM
-    from keras.layers import CuDNNGRU as GRU
-else:
-    from keras.layers import LSTM
-    from keras.layers import GRU
+available_gpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
+
+if available_gpus:
+    from keras.layers import CuDNNLSTM, CuDNNGRU
 
 logger = logging.getLogger(__name__)
 
 
-def cleanup_tensorflow():
-    # prevents random gc exception at exit
-    keras.backend.clear_session()
-atexit.register(cleanup_tensorflow)
+# prevents random gc exception at exit
+atexit.register(keras.backend.clear_session)
 
 
 class Keras(BaseEstimator):
@@ -58,6 +53,8 @@ class Keras(BaseEstimator):
             monitor='val_acc',
             loss='categorical_crossentropy',
             towers=1,
+            cudnn=True,
+            multi_gpu_model=True,
     ):
         super(Keras, self).__init__()
         self.towers = towers
@@ -83,7 +80,8 @@ class Keras(BaseEstimator):
         self.model = model
         self.sequence_embedding = sequence_embedding
         self.sequence_embed_size = sequence_embed_size
-        
+        self.cudnn = cudnn
+        self.multi_gpu_model = multi_gpu_model
     
     def __getstate__(self):
         state = super(Keras, self).__getstate__()
@@ -122,15 +120,20 @@ class Keras(BaseEstimator):
     @timed(logging.INFO)
     def build(self, log_device_placement=False):
         keras.backend.clear_session()
-        self.session = tensorflow.Session(config=tensorflow.ConfigProto(log_device_placement=log_device_placement))
+        self.session = tensorflow.Session(
+            config=tensorflow.ConfigProto(
+                allow_soft_placement=available_gpus > 0,
+                log_device_placement=log_device_placement
+            )
+        )
         keras.backend.set_session(self.session)
         with self.session.as_default():
             inputs = self.build_inputs()
             outputs = []
             for i in range(self.towers):
-                if len(gpus) > 0:
+                if available_gpus > 0 and not self.multi_gpu_model:
                     chip = 'gpu'
-                    node = i % len(gpus)
+                    node = i % available_gpus
                 else:
                     chip = 'cpu'
                     node = 0
@@ -140,6 +143,8 @@ class Keras(BaseEstimator):
                     outputs.append(self.build_output_layer(hidden_layers, i))
         
             self.keras = keras.models.Model(inputs=list(inputs.values()), outputs=outputs)
+            if self.multi_gpu_model and available_gpus > 0:
+                self.keras = keras.utils.multi_gpu_model(self.keras, gpus=available_gpus)
             self.optimizer = Adam(lr=self.learning_rate, decay=self.decay)
             self.keras._make_predict_function()
         logger.info('\n\n' + self.description + '\n\n')
@@ -188,9 +193,21 @@ class Keras(BaseEstimator):
             sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
             shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
             if self.sequence_embedding == 'lstm':
-                embedding = LSTM(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
+                lstm = LSTM
+                if self.cudnn:
+                    if available_gpus > 0:
+                        lstm = CuDNNLSTM
+                    else:
+                        raise ValueError('Your estimator self.cuddn is True, but there are no GPUs available to tensorflow')
+                embedding = lstm(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
             elif self.sequence_embedding == 'gru':
-                embedding = GRU(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
+                gru = GRU
+                if self.cudnn:
+                    if available_gpus > 0:
+                        gru = CuDNNGRU
+                    else:
+                        raise ValueError('Your estimator self.cuddn is True, but there are no GPUs available to tensorflow')
+                embedding = gru(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
             elif self.sequence_embedding == 'simple_rnn':
                 embedding = SimpleRNN(sequence_embed_size, name=embed_name + '_rnn' + suffix)(shaped_sequence)
             else:

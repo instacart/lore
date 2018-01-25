@@ -11,7 +11,7 @@ import csv
 import gzip
 import math
 from datetime import datetime
-from io import StringIO
+
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import DropTable
@@ -72,7 +72,7 @@ class Connection(object):
     UNLOAD_PREFIX = os.path.join(lore.env.name, 'unloads')
     IAM_ROLE = os.environ.get('IAM_ROLE', None)
     
-    def __init__(self, url, **kwargs):
+    def __init__(self, url, name='connection', **kwargs):
         for int_value in ['pool_size', 'pool_recycle', 'max_overflow']:
             if int_value in kwargs:
                 kwargs[int_value] = int(kwargs[int_value])
@@ -82,9 +82,11 @@ class Connection(object):
             del kwargs['__name__']
         if 'isolation_level' not in kwargs:
             kwargs['isolation_level'] = 'AUTOCOMMIT'
+
         self._engine = sqlalchemy.create_engine(url, **kwargs)
         self._connection = None
         self._metadata = None
+        self.name = name
         self._transactions = []
 
     def __enter__(self):
@@ -284,7 +286,7 @@ class Connection(object):
 
             result = pandas.concat(frames)
             result.columns = columns
-            buffer = StringIO()
+            buffer = io.StringIO()
             result.info(buf=buffer, memory_usage='deep')
             logger.info(buffer.getvalue())
             logger.info(result.head())
@@ -292,25 +294,28 @@ class Connection(object):
         
     def dataframe(self, sql=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
+        chunksize = kwargs.pop('chunksize', None)
+        if chunksize and cache:
+            raise ValueError('Chunking is incompatible with caching. Choose to pass either "cache" or "chunksize".')
         sql = self.__prepare(sql, filename)
-        dataframe = self._dataframe(sql, kwargs, cache=cache)
-        buffer = StringIO()
-        dataframe.info(buf=buffer, memory_usage='deep')
-        logger.info(buffer.getvalue())
-        logger.info(dataframe.head())
+        dataframe = self._dataframe(sql, kwargs, cache=cache, chunksize=chunksize)
+        if chunksize is None:
+            buffer = io.StringIO()
+            dataframe.info(buf=buffer, memory_usage='deep')
+            logger.info(buffer.getvalue())
+            logger.info(dataframe.head())
         return dataframe
         
     @query_cached
-    def _dataframe(self, sql, bindings):
+    def _dataframe(self, sql, bindings, chunksize=None):
         with timer("dataframe:"):
             if self._connection is None:
                 self._connection = self._engine.connect()
-            return pandas.read_sql(sql=sql, con=self._connection, params=bindings)
+            return pandas.read_sql(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
 
     def quote_identifier(self, identifier):
         return self._engine.dialect.identifier_preparer.quote(identifier)
         
-
     def __prepare(self, sql, filename):
         if sql is None and filename is not None:
             filename = Connection.path(filename, '.sql')

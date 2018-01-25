@@ -8,6 +8,7 @@ import re
 
 import inflection
 import numpy
+import pandas
 
 
 class Base(object):
@@ -21,10 +22,16 @@ class Base(object):
     def transform(self, data):
         pass
 
+    def series(self, data):
+        if isinstance(data, pandas.Series):
+            return data
+        else:
+            return data[self.column]
+
 
 class Map(Base):
     def transform(self, data):
-        return data.loc[:, self.column].map(self.__class__.MAP)
+        return self.series(data).map(self.__class__.MAP)
 
 
 class DateTime(Base):
@@ -39,7 +46,7 @@ class DateTime(Base):
         self.name = self.column + '_' + inflection.underscore(self.__class__.__name__) + '_' + self.operator
 
     def transform(self, data):
-        return getattr(data[self.column].dt, self.operator)
+        return getattr(self.series(data).dt, self.operator)
 
 
 class Age(Base):
@@ -48,7 +55,7 @@ class Age(Base):
         self.unit = unit
 
     def transform(self, data):
-        age = (datetime.datetime.now() - data[self.column])
+        age = (datetime.datetime.now() - self.series(data))
         if self.unit in ['nanosecond', 'nanoseconds']:
             return age
         
@@ -73,12 +80,12 @@ class Age(Base):
 
 class Log(Base):
     def transform(self, data):
-        return numpy.log(data.loc[:, self.column])
+        return numpy.log(self.series(data))
 
 
 class LogPlusOne(Base):
     def transform(self, data):
-        return numpy.log1p(numpy.maximum(data.loc[:, self.column], 0))
+        return numpy.log1p(numpy.maximum(self.series(data), 0))
 
 
 class AreaCode(Base):
@@ -94,7 +101,7 @@ class AreaCode(Base):
     PUNCTUATED = re.compile(r'(?:1[.\-]?)?\s?\(?(\d{3})\)?\s?[.\-]?[\d]{3}[.\-]?[\d]{4}', re.UNICODE)
 
     def transform(self, data):
-        series = data[self.column].astype(object)
+        series = self.series(data).astype(object)
         countries = series.str.extract(AreaCode.COUNTRY_DIGITS, expand=False)
         countries = countries.str[0:3]
         punctuated = series.str.extract(AreaCode.PUNCTUATED, expand=False)
@@ -113,7 +120,7 @@ class EmailDomain(Base):
     NAIVE = re.compile(r'^[^@]+@(.+)$', re.UNICODE)
 
     def transform(self, data):
-        domains = data[self.column].str.extract(EmailDomain.NAIVE, expand=False)
+        domains = self.series(data).str.extract(EmailDomain.NAIVE, expand=False)
         domains[domains.isnull()] = ''
         return domains
 
@@ -149,4 +156,4 @@ class NameFamilial(Base):
     NAIVE = re.compile(r'\b(mom|dad|mother|father|mama|papa|bro|brother|sis|sister)\b', re.UNICODE | re.IGNORECASE)
     
     def transform(self, data):
-        return ~data[self.column].str.extract(NameFamilial.NAIVE, expand=False).isnull()
+        return ~self.series(data).str.extract(NameFamilial.NAIVE, expand=False).isnull()

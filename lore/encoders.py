@@ -46,7 +46,13 @@ class Base(object):
             else:
                 self.name = self.column
             self.name = inflection.underscore(self.__class__.__name__) + '_' + self.name
+    
+    def __str__(self):
+        return self.name
         
+    def __repr__(self):
+        return self.name
+    
     def fit(self, data):
         """
         Establishes the encoding for a data set
@@ -106,6 +112,7 @@ class Base(object):
         
         return series.fillna(self.missing_value + addition).astype(self.dtype)
     
+    @property
     def source_column(self):
         column = self.column
         while isinstance(column, lore.transformers.Base):
@@ -115,6 +122,8 @@ class Base(object):
     def series(self, data):
         if isinstance(self.column, lore.transformers.Base):
             series = self.column.transform(data)
+        elif isinstance(data, pandas.Series):
+            series = data
         else:
             series = data[self.column]
 

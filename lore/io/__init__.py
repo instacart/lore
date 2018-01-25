@@ -26,7 +26,7 @@ config = lore.env.database_config
 if config:
     try:
         for database, url in config.items('DATABASES'):
-            vars()[database] = Connection(url=url)
+            vars()[database] = Connection(url=url, name=database)
     except configparser.NoSectionError:
         pass
 
@@ -35,7 +35,7 @@ if config:
             continue
             
         options = config._sections[section]
-        vars()[section.lower()] = Connection(**options)
+        vars()[section.lower()] = Connection(name=section.lower(), **options)
 
 redis_config = lore.env.redis_config
 

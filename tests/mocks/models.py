@@ -20,7 +20,8 @@ class Keras(lore.models.keras.Base):
                 hidden_layers=1,
                 hidden_width=100,
                 loss='binary_crossentropy',
-                monitor='val_loss'
+                monitor='val_loss',
+                cudnn=False
             )
         )
 
