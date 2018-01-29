@@ -77,6 +77,28 @@ class Age(Base):
 
         raise NameError('Unknown unit: %s' % self.unit)
         
+        
+class String(Base):
+    def __init__(self, column, operator, *args, **kwargs):
+        super(String, self).__init__(column)
+        self.operator = operator
+        self.args = args
+        self.kwargs = kwargs
+
+    def transform(self, data):
+        series = self.series(data).astype(object)
+        return getattr(series.str, self.operator)(*self.args, **self.kwargs)
+
+
+class Extract(String):
+    def __init__(self, column, regex):
+        super(Extract, self).__init__(column, 'extract', pat=regex, expand=False)
+
+
+class Length(String):
+    def __init__(self, column):
+        super(Length, self).__init__(column, 'len')
+
 
 class Log(Base):
     def transform(self, data):

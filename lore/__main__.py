@@ -199,7 +199,7 @@ def init(parsed, unknown):
     if parsed.python_version:
         python_version = parsed.python_version
     else:
-        python_version = '3.6.2'
+        python_version = '3.6.3'
 
     with open('runtime.txt', 'wt') as file:
         file.write('python-' + python_version + '\n')

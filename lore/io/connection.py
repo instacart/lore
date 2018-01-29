@@ -68,6 +68,11 @@ def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
     logger.info("SQL: %s" % total)
 
 
+@event.listens_for(Engine, "connect")
+def receive_connect(dbapi_connection, connection_record):
+    logger.info("connect: %s" % dbapi_connection.get_dsn_parameters())
+
+
 class Connection(object):
     UNLOAD_PREFIX = os.path.join(lore.env.name, 'unloads')
     IAM_ROLE = os.environ.get('IAM_ROLE', None)
