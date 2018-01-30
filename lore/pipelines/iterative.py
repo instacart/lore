@@ -134,11 +134,21 @@ class Base(lore.pipelines.holdout.Base):
             self._split_data()
         
         if orient == 'column':
-            for column in self.columns:
-                dataframe = self.read_column(table, column)
-                if encoded:
-                    dataframe = Observations(x=self.encode_x(dataframe), y=self.encode_y(dataframe))
-                yield dataframe
+            if encoded:
+                for encoder in self.encoders:
+                    transformed = encoder.transform(self.read_column(table, encoder.source_column))
+                    encoded = {}
+                    if hasattr(encoder, 'sequence_length'):
+                        for i in range(encoder.sequence_length):
+                            encoded[encoder.sequence_name(i)] = transformed[:, i]
+                    else:
+                        encoded[encoder.name] = transformed
+                    yield Observations(x=pandas.DataFrame(encoded), y=None)
+
+            else:
+                for column in self.columns:
+                    yield self.read_column(table, column)
+
         elif orient == 'row':
             if stratify:
                 if not self.stratify:
