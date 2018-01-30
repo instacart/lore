@@ -24,6 +24,18 @@ import lore
 from lore.util import timer
 from lore.stores import query_cached
 
+try:
+    import jinja2
+    jinja2_env = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(
+            os.path.join(lore.env.root, lore.env.project, 'extracts')
+        ),
+        autoescape=jinja2.select_autoescape(['html', 'xml']),
+        trim_blocks=True,
+        lstrip_blocks=True
+    )
+except ImportError as ex:
+    jinja2_env = False
 
 logger = logging.getLogger(__name__)
 
@@ -321,12 +333,21 @@ class Connection(object):
     def quote_identifier(self, identifier):
         return self._engine.dialect.identifier_preparer.quote(identifier)
         
+    def template(self, filename, **kwargs):
+        if not jinja2_env:
+            raise ImportError("jinja2 not present")
+        logger.debug("READ SQL TEMPLATE: " + filename)
+        sql = jinja2_env.get_template(filename + '.sql.j2').render(**kwargs)
+            
+        return re.sub(r'\{(\w+?)\}', r'%(\1)s', sql)
+    
     def __prepare(self, sql, filename):
         if sql is None and filename is not None:
             filename = Connection.path(filename, '.sql')
             logger.debug("READ SQL FILE: " + filename)
             with open(filename) as file:
                 sql = file.read()
+
         # support mustache style bindings
         sql = re.sub(r'\{(\w+?)\}', r'%(\1)s', sql)
         return sql
