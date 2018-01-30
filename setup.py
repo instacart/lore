@@ -54,6 +54,7 @@ setup(
         'lore.features',
         'lore.io',
         'lore.models',
+        'lore.pipelines',
         'lore.stores',
     ],
     install_requires=[
