@@ -181,7 +181,7 @@ class Equals(Base):
         if not name:
             column_name = column.name if isinstance(column, lore.transformers.Base) else column
             other_name = other.name if isinstance(other, lore.transformers.Base) else other
-            name = 'match_' + column_name + '_and_' + other_name
+            name = 'equals_' + column_name + '_and_' + other_name
         super(Equals, self).__init__(column=column, name=name, embed_scale=embed_scale, tags=tags)
         self.other = other
 
@@ -195,10 +195,23 @@ class Equals(Base):
     def cardinality(self):
         return 2
 
+    @property
+    def source_column(self):
+        column = self.column
+        while isinstance(column, lore.transformers.Base):
+            column = column.column
+        other = self.other
+        while isinstance(other, lore.transformers.Base):
+            other = other.column
+
+        return [column, other]
+    
     def other_series(self, data):
         if isinstance(self.other, lore.transformers.Base):
             return self.other.transform(data)
-    
+        elif isinstance(data, pandas.Series):
+            raise NotImplementedError("Equals require multi column compatible pipeline")
+        
         return data[self.other]
 
 
