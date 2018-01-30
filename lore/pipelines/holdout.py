@@ -138,13 +138,12 @@ class Base(object):
         """
         encoded = OrderedDict()
         for encoder in self.encoders:
-            if encoder.source_column in data.columns:
-                transformed = encoder.transform(self.read_column(data, encoder.source_column))
-                if hasattr(encoder, 'sequence_length'):
-                    for i in range(encoder.sequence_length):
-                        encoded[encoder.sequence_name(i)] = transformed[:, i]
-                else:
-                    encoded[encoder.name] = transformed
+            transformed = encoder.transform(self.read_column(data, encoder.source_column))
+            if hasattr(encoder, 'sequence_length'):
+                for i in range(encoder.sequence_length):
+                    encoded[encoder.sequence_name(i)] = transformed[:, i]
+            else:
+                encoded[encoder.name] = transformed
         
         for column in self.index:
             encoded[column] = self.read_column(data, column)
