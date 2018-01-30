@@ -197,14 +197,11 @@ class Equals(Base):
 
     @property
     def source_column(self):
-        column = self.column
-        while isinstance(column, lore.transformers.Base):
-            column = column.column
         other = self.other
         while isinstance(other, lore.transformers.Base):
             other = other.column
 
-        return [column, other]
+        return [super(Equals, self).source_column, other]
     
     def other_series(self, data):
         if isinstance(self.other, lore.transformers.Base):
