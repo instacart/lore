@@ -30,7 +30,6 @@ try:
         loader=jinja2.FileSystemLoader(
             os.path.join(lore.env.root, lore.env.project, 'extracts')
         ),
-        autoescape=jinja2.select_autoescape(['html', 'xml']),
         trim_blocks=True,
         lstrip_blocks=True
     )
