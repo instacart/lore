@@ -1,10 +1,15 @@
 import unittest
-from tests.mocks.features import UserWarehouseSearchesFeature
+import tempfile
+
 from moto import mock_s3
 import boto3
-import tempfile
-import pandas as pd
+import pandas
+
 from lore.io import download
+
+from tests.mocks.features import UserWarehouseSearchesFeature
+
+
 class TestFeatures(unittest.TestCase):
 
     @mock_s3
@@ -19,6 +24,6 @@ class TestFeatures(unittest.TestCase):
         temp_file, temp_path = tempfile.mkstemp()
         download(temp_path, user_warehouse_feature.data_path(), cache=False)
 
-        fetched_data = pd.read_csv(temp_path)
+        fetched_data = pandas.read_csv(temp_path)
         self.assertTrue(len(user_warehouse_feature.get_data()) == 3)
         self.assertTrue(user_warehouse_feature.get_data().equals(fetched_data))
