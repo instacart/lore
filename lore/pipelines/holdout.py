@@ -147,7 +147,7 @@ class Base(object):
             transformed = encoder.transform(self.read_column(data, encoder.source_column))
             if hasattr(encoder, 'sequence_length'):
                 for i in range(encoder.sequence_length):
-                    encoded[encoder.sequence_name(i)] = transformed[:, i]
+                    encoded[encoder.sequence_name(i)] = transformed.iloc[:, i]
             else:
                 encoded[encoder.name] = transformed
         
