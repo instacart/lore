@@ -380,7 +380,12 @@ class Enum(Base):
 
     def fit(self, data):
         with timer(('fit %s:' % self.name), logging.DEBUG):
-            self.__max = int(self.series(data).max())
+            self.__max = self.series(data).max()
+            if numpy.isnan(self.__max):
+                logger.warning('nan for max value in %s' % self.name)
+                self.__max = 0
+            else:
+                self.__max = int(self.__max)
             self.unfit_value = self.__max + 1
             self.missing_value = self.__max + 2
             self.dtype = self._type_from_cardinality()
