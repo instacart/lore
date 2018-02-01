@@ -50,7 +50,13 @@ class Base(object):
         ]:
             state[bloat] = None
         return state
-    
+
+    def __setstate__(self, dict):
+        self.__dict__ = dict
+        # 0.4.X backward compatibility
+        if 'index' not in self.__dict__.keys():
+            self.__dict__['index'] = []
+            
     @abstractmethod
     def get_data(self):
         pass

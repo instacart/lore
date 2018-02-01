@@ -94,7 +94,17 @@ class Keras(BaseEstimator):
         ]:
             state[bloat] = None
         return state
-    
+
+    def __setstate__(self, dict):
+        self.__dict__ = dict
+        # 0.4.X backward compatibility
+        if 'towers' not in self.__dict__.keys():
+            self.__dict__['towers'] = 1
+        if 'cudnn' not in self.__dict__.keys():
+            self.__dict__['cudnn'] = False
+        if 'multi_gpu_model' not in self.__dict__.keys():
+            self.__dict__['multi_gpu_model'] = False
+
     @property
     def description(self):
         return '\n'.join([
