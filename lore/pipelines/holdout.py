@@ -170,8 +170,7 @@ class Base(object):
     
         else:
             for encoder in self.encoders:
-                transformed = encoder.transform(self.read_column(data, encoder.source_column))
-                self.merged_transformed(encoded, encoder, transformed)
+                self.merged_transformed(encoded, encoder, self.transform(encoder, data))
 
         for column in self.index:
             encoded[column] = self.read_column(data, column)
@@ -195,7 +194,10 @@ class Base(object):
     def merged_transformed(encoded, encoder, transformed):
         if hasattr(encoder, 'sequence_length'):
             for i in range(encoder.sequence_length):
-                encoded[encoder.sequence_name(i)] = transformed.iloc[:, i]
+                if isinstance(transformed, pandas.DataFrame):
+                    encoded[encoder.sequence_name(i)] = transformed.iloc[:, i]
+                else:
+                    encoded[encoder.sequence_name(i)] = transformed[:, i]
         else:
             encoded[encoder.name] = transformed
         
