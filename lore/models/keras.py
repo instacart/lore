@@ -67,7 +67,7 @@ class Base(lore.models.base.Base):
             # https://github.com/fchollet/keras/issues/5442
             model.estimator.build()
             
-            with timer('load weights:'):
+            with timer('load weights %i:' % model.fitting):
                 model.estimator.keras.load_weights(model.weights_path())
         else:
             model.build()
