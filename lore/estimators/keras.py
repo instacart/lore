@@ -252,7 +252,7 @@ class Keras(BaseEstimator):
         return Dense(1, activation='sigmoid', name='%i_output' % tower)(hidden_layers)
     
     @timed(logging.INFO)
-    def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False):
+    def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False, **keras_kwargs):
 
         if validation_data is None:
             validation_data = self.model.pipeline.encoded_validation_data
@@ -337,7 +337,8 @@ class Keras(BaseEstimator):
                 batch_size=self.batch_size,
                 epochs=epochs,
                 verbose=verbose,
-                callbacks=callbacks
+                callbacks=callbacks,
+                **keras_kwargs
             ).history
 
         if timeline:
