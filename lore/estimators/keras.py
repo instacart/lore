@@ -106,7 +106,6 @@ class Keras(BaseEstimator):
             if key not in self.__dict__.keys():
                 self.__dict__[key] = default
 
-
     @property
     def description(self):
         return '\n'.join([
