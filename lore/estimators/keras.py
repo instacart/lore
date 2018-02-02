@@ -338,7 +338,7 @@ class Keras(BaseEstimator):
                 epochs=epochs,
                 verbose=verbose,
                 callbacks=callbacks,
-                **kwargs
+                **keras_kwargs
             ).history
 
         if timeline:
