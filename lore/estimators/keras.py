@@ -97,13 +97,14 @@ class Keras(BaseEstimator):
 
     def __setstate__(self, dict):
         self.__dict__ = dict
-        # 0.4.X backward compatibility
-        if 'towers' not in self.__dict__.keys():
-            self.__dict__['towers'] = 1
-        if 'cudnn' not in self.__dict__.keys():
-            self.__dict__['cudnn'] = False
-        if 'multi_gpu_model' not in self.__dict__.keys():
-            self.__dict__['multi_gpu_model'] = False
+        backward_compatible_defaults = {
+            'towers': 1,
+            'cudnn': False,
+            'multi_gpu_model': None,
+        }
+        for key, default in backward_compatible_defaults.items():
+            if key not in self.__dict__.keys():
+                self.__dict__[key] = default
 
     @property
     def description(self):

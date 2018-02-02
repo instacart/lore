@@ -131,7 +131,10 @@ class Base(object):
             logger.warning('Infinite values are present for %s' % self.name)
 
         return series
-    
+
+    def sequence_name(self, i, suffix=''):
+        return (self.name + '_%i' + suffix) % i
+
     def _type_from_cardinality(self):
         if self.cardinality() < 2**8:
             return numpy.uint8
@@ -150,13 +153,16 @@ class Boolean(Base):
     Transforms a series of booleans into floating points suitable for
     training.
     """
-    
+    def __init__(self, column, name=None, dtype=numpy.bool, embed_scale=1, tags=[]):
+        super(Boolean, self).__init__(column, name, dtype, embed_scale, tags)
+        self.missing_value = 2
+        
     def transform(self, data):
         with timer('transform %s:' % (self.name), logging.DEBUG):
             series = self.series(data).astype(numpy.float16)
             null = series.isnull()
             series[series != 0] = 1
-            series[null] = 2
+            series[null] = self.missing_value
             return series.astype(numpy.uint8).values
     
     def reverse_transform(self, array):
@@ -546,9 +552,6 @@ class Token(Unique):
         )
         self.sequence_length = sequence_length
     
-    def sequence_name(self, i, suffix=''):
-        return (self.name + '_%i' + suffix) % i
-        
     def fit(self, data):
         with timer(('fit token %s:' % self.name), logging.DEBUG):
             super(Token, self).fit(self.tokenize(data, fit=True))

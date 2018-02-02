@@ -1,9 +1,10 @@
 from __future__ import absolute_import
 
 from abc import ABCMeta, abstractmethod
+from collections import OrderedDict
 import gc
 import logging
-from collections import OrderedDict
+import multiprocessing
 
 import numpy
 import pandas
@@ -26,6 +27,8 @@ class Base(object):
         self.subsample = None
         self.split_seed = 1
         self.index = []
+        self.multiprocessing = False
+        self.workers = None
         self._data = None
         self._encoders = None
         self._training_data = None
@@ -53,10 +56,15 @@ class Base(object):
 
     def __setstate__(self, dict):
         self.__dict__ = dict
-        # 0.4.X backward compatibility
-        if 'index' not in self.__dict__.keys():
-            self.__dict__['index'] = []
-            
+        backward_compatible_defaults = {
+            'index': [],
+            'multiprocessing': False,
+            'workers': None,
+        }
+        for key, default in backward_compatible_defaults.items():
+            if key not in self.__dict__.keys():
+                self.__dict__[key] = default
+
     @abstractmethod
     def get_data(self):
         pass
@@ -74,8 +82,16 @@ class Base(object):
         if self._encoders is None:
             with timer('fit encoders:'):
                 self._encoders = self.get_encoders()
-                for encoder in self._encoders:
-                    encoder.fit(self.training_data)
+                if self.multiprocessing:
+                    pool = multiprocessing.Pool(self.workers)
+                    results = []
+                    for encoder in self.encoders:
+                        results.append(pool.apply_async(self.fit, (encoder, self.training_data)))
+                    self._encoders = [result.get() for result in results]
+                    
+                else:
+                    for encoder in self._encoders:
+                        encoder.fit(self.training_data)
         
         return self._encoders
     
@@ -143,17 +159,22 @@ class Base(object):
         :return: a dict with encoded values
         """
         encoded = OrderedDict()
-        for encoder in self.encoders:
-            transformed = encoder.transform(self.read_column(data, encoder.source_column))
-            if hasattr(encoder, 'sequence_length'):
-                for i in range(encoder.sequence_length):
-                    encoded[encoder.sequence_name(i)] = transformed.iloc[:, i]
-            else:
-                encoded[encoder.name] = transformed
-        
+        if self.multiprocessing:
+            pool = multiprocessing.Pool(self.workers)
+            results = []
+            for encoder in self.encoders:
+                results.append((encoder, pool.apply_async(self.transform, (encoder, data))))
+
+            for encoder, result in results:
+                self.merged_transformed(encoded, encoder, result.get())
+    
+        else:
+            for encoder in self.encoders:
+                self.merged_transformed(encoded, encoder, self.transform(encoder, data))
+
         for column in self.index:
             encoded[column] = self.read_column(data, column)
-        
+            
         # Using a DataFrame as a container temporarily requires double the memory,
         # as pandas copies all data on __init__. This is justified by having a
         # type supported by all dependent libraries (heterogeneous dict is not)
@@ -161,6 +182,25 @@ class Base(object):
         if self.index:
             dataframe.set_index(self.index)
         return dataframe
+
+    def fit(self, encoder, data):
+        encoder.fit(data)
+        return encoder
+
+    def transform(self, encoder, data):
+        return encoder.transform(self.read_column(data, encoder.source_column))
+        
+    @staticmethod
+    def merged_transformed(encoded, encoder, transformed):
+        if hasattr(encoder, 'sequence_length'):
+            for i in range(encoder.sequence_length):
+                if isinstance(transformed, pandas.DataFrame):
+                    encoded[encoder.sequence_name(i)] = transformed.iloc[:, i]
+                else:
+                    encoded[encoder.sequence_name(i)] = transformed[:, i]
+        else:
+            encoded[encoder.name] = transformed
+        
     
     @timed(logging.INFO)
     def encode_y(self, data):

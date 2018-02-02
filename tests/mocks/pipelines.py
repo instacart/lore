@@ -16,7 +16,7 @@ class Xor(lore.pipelines.holdout.Base):
         return pandas.DataFrame({
             'a': [0, 1, 0, 1] * 1000,
             'b': [0, 0, 1, 1] * 1000,
-            'words': ['is false', 'is true', 'is not false', 'is not true' ] * 1000,
+            'words': ['is false', 'is true', 'is not false', 'is not true'] * 1000,
             'xor': [0, 1, 1, 0] * 1000
         })
     
@@ -34,9 +34,9 @@ class Xor(lore.pipelines.holdout.Base):
 class MockData(lore.pipelines.time_series.Base):
     def get_data(self):
         return pandas.DataFrame({
-            'a': [1,2,3,4,5,6,7,8,9,10],
-            'b': [21,22,23,24,25,26,27,28,29,30],
-            'target': [1,0,1,0,1,0,1,0,1,0]
+            'a': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            'b': [21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+            'target': [1, 0, 1, 0, 1, 0, 1, 0, 1, 0]
         })
 
     def get_encoders(self):
