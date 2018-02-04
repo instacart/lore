@@ -1,2 +1,2 @@
 tox
-lore
+lore[devel]

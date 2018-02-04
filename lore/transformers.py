@@ -149,14 +149,17 @@ class EmailDomain(Base):
 
 class NameAge(Map):
     MAP = {}
-    
+
     with open(os.path.join(os.path.dirname(__file__), 'data', 'names.csv'), 'r') as file:
         reader = csv.reader(file)
         for line in reader:
             MAP[line[0]] = float(line[2])
 
+    def transform(self, data):
+        return self.series(data).str.lower().map(self.__class__.MAP)
 
-class NamePopulation(Map):
+
+class NamePopulation(NameAge):
     MAP = {}
     
     with open(os.path.join(os.path.dirname(__file__), 'data', 'names.csv'), 'r') as file:
@@ -165,7 +168,7 @@ class NamePopulation(Map):
             MAP[line[0]] = float(line[3])
 
 
-class NameSex(Map):
+class NameSex(NameAge):
     MAP = {}
     
     with open(os.path.join(os.path.dirname(__file__), 'data', 'names.csv'), 'r') as file:
