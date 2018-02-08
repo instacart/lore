@@ -162,7 +162,7 @@ class Base(object):
         if fitting is None:
             model.fitting = model.last_fitting()
         else:
-            model.fitting = fitting
+            model.fitting = int(fitting)
         
         with timer('unpickle model:'):
             with open(model.model_path(), 'rb') as f:
@@ -178,6 +178,6 @@ class Base(object):
     @classmethod
     def download(cls, fitting=0):
         model = cls(None, None)
-        model.fitting = fitting
+        model.fitting = int(fitting)
         lore.io.download(model.model_path(), model.remote_model_path())
         return cls.load(fitting)
