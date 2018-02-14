@@ -3,12 +3,20 @@ import tempfile
 import re
 import configparser
 import sys
+import tarfile
 import logging
-import redis
+
+if sys.version_info[0] == 2:
+    from urlparse import urlparse
+    from urllib import urlretrieve
+else:
+    from urllib.parse import urlparse
+    from urllib.request import urlretrieve
 
 import lore
 from lore.util import timer
 from lore.io.connection import Connection
+
 
 if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
     ModuleNotFoundError = ImportError
@@ -18,6 +26,12 @@ try:
 except ModuleNotFoundError as e:
     boto3 = False
     ClientError = Exception
+
+try:
+    import redis
+except ModuleNotFoundError as e:
+    redis = False
+    
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +53,16 @@ if config:
 
 redis_config = lore.env.redis_config
 
-if redis_config:
-    try:
-        for section in config.sections():
-            vars()[section.lower()] = redis.StrictRedis(host=redis_config.get(section, 'url'),
-                                                        port=redis_config.get(section, 'port'))
-    except:
-        pass
-else:
-    redis_conn = redis.StrictRedis(host='localhost', port=6379)
+if redis:
+    if redis_config:
+        try:
+            for section in config.sections():
+                vars()[section.lower()] = redis.StrictRedis(host=redis_config.get(section, 'url'),
+                                                            port=redis_config.get(section, 'port'))
+        except:
+            pass
+    else:
+        redis_conn = redis.StrictRedis(host='localhost', port=6379)
 
 if boto3:
     config = lore.env.aws_config
@@ -65,27 +80,53 @@ if boto3:
         bucket = s3.Bucket(config.get('BUCKET', 'name'))
 
 
-def download(local_path, remote_path=None, cache=True):
-    if remote_path is None:
-        remote_path = remote_from_local(local_path)
-    remote_path = prefix_remote_root(remote_path)
+def download(remote_url, local_path=None, cache=True, extract=False):
+    if re.match(r'^https?://', remote_url):
+        protocol = 'http'
+    else:
+        protocol = 's3'
+        remote_url = prefix_remote_root(remote_url)
 
-    if cache and os.path.exists(local_path):
-        return
+    if cache:
+        if local_path is None:
+            if protocol == 'http':
+                filename = urlparse(remote_url).path.split('/')[-1]
+            elif protocol == 's3':
+                filename = remote_url
+            local_path = os.path.join(lore.env.data_dir, filename)
+        
+        if os.path.exists(local_path):
+            return local_path
+    elif local_path:
+        raise ValueError("You can't pass lore.io.download(local_path=X), unless you also pass cache=True")
+    elif extract:
+        raise ValueError("You can't pass lore.io.download(extract=True), unless you also pass cache=True")
 
-    dir = os.path.dirname(local_path)
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    
-    with timer('DOWNLOAD: %s -> %s' % (remote_path, local_path)):
+    with timer('DOWNLOAD: %s' % remote_url):
         temp_file, temp_path = tempfile.mkstemp()
         try:
-            bucket.download_file(remote_path, temp_path)
+            if protocol == 'http':
+                urlretrieve(remote_url, temp_path)
+            else:
+                bucket.download_file(remote_url, temp_path)
         except ClientError as e:
             logger.error("Error downloading file: %s" % e)
             raise
-        
+            
+    if cache:
+        dir = os.path.dirname(local_path)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+    
         os.rename(temp_path, local_path)
+
+        if extract:
+            with tarfile.open(local_path, 'r:gz') as tar:
+                tar.extractall()
+    else:
+        local_path = temp_path
+        
+    return local_path
 
 
 def upload(local_path, remote_path=None):

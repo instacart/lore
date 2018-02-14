@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-import inspect
 import json
 import logging
 import os.path
@@ -55,7 +54,8 @@ class Base(object):
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
     
     def predict(self, dataframe):
-        return self.estimator.predict(self.pipeline.encode_x(dataframe))
+        predictions = self.estimator.predict(self.pipeline.encode_x(dataframe))
+        return self.pipeline.output_encoder.reverse_transform(predictions)
     
     def hyper_parameter_search(
             self,
@@ -173,11 +173,11 @@ class Base(object):
     def upload(self):
         self.fitting = 0
         self.save()
-        lore.io.upload(self.model_path(), self.remote_model_path())
+        lore.io.upload(self.remote_model_path(), self.model_path())
      
     @classmethod
     def download(cls, fitting=0):
         model = cls(None, None)
         model.fitting = int(fitting)
-        lore.io.download(model.model_path(), model.remote_model_path())
+        lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         return cls.load(fitting)

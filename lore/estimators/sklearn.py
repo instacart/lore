@@ -1,12 +1,16 @@
 from __future__ import absolute_import
+import inspect
 import logging
+import warnings
+
 from sklearn.base import BaseEstimator
+
 from lore.util import timed
 
 
-class SKLearn(BaseEstimator):
+class Base(BaseEstimator):
     def __init__(self, estimator):
-        super(SKLearn, self).__init__()
+        super(Base, self).__init__()
         self.sklearn = estimator
 
     @timed(logging.INFO)
@@ -19,3 +23,12 @@ class SKLearn(BaseEstimator):
     @timed(logging.INFO)
     def predict(self, dataframe):
         return self.sklearn.predict(dataframe)
+
+
+class SKLearn(Base):
+    def __init__(self, estimator):
+        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
+        warnings.showwarning('Please import SKLearn with "from lore.estimators.sklearn import Base"',
+                             DeprecationWarning,
+                             filename, line_number)
+        super(SKLearn, self).__init__(estimator)

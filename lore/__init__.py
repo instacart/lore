@@ -15,7 +15,7 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2017, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay']
 __license__ = 'MIT'
-__version__ = '0.4.87'
+__version__ = '0.4.88'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
 __status__ = 'Development Status :: 3 - Alpha'
@@ -28,8 +28,10 @@ def banner():
     return '%s in %s on %s' % (
         ansi.foreground(ansi.GREEN, env.project),
         ansi.foreground(env.color, env.name),
-        ansi.foreground(ansi.CYAN,
-                        getpass.getuser() + '@' + socket.gethostname())
+        ansi.foreground(
+            ansi.CYAN,
+            getpass.getuser() + '@' + socket.gethostname()
+        )
     )
 
 

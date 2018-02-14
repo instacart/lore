@@ -118,3 +118,13 @@ class TestNamePopulation(unittest.TestCase):
         transformed = transformer.transform(data)
         self.assertTrue(transformed.iloc[0] > 0)
         self.assertEquals(transformed.iloc[0], transformed.iloc[1])
+
+
+class TestStringLower(unittest.TestCase):
+    def test_transform_name(self):
+        transformer = lore.transformers.String('test', 'lower')
+        
+        data = pandas.DataFrame({'test': ['bob', 'Bob']})
+        transformed = transformer.transform(data)
+        self.assertEqual(transformed.iloc[0], 'bob')
+        self.assertEqual(transformed.iloc[1], 'bob')

@@ -19,6 +19,8 @@ import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 import socket
 
+import jupyter_core.paths
+
 from lore import ansi
 
 TEST = 'test'
@@ -88,6 +90,7 @@ models_dir = os.path.join(work_dir, 'models')
 data_dir = os.path.join(work_dir, 'data')
 log_dir = os.path.join(root if name == TEST else work_dir, 'logs')
 tests_dir = os.path.join(root, 'tests')
+jupyter_kernel_path = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', project)
 color = {
     DEVELOPMENT: ansi.GREEN,
     TEST: ansi.BLUE,
@@ -219,7 +222,12 @@ def reboot(*args):
         args[0] = bin_python
     elif args[0][-4:] == 'lore':
         args[0] = bin_lore
-    os.execv(args[0], args)
+    try:
+        os.execv(args[0], args)
+    except os.PermissionError as e:
+        if args[0] == bin_lore and args[1] == 'console':
+            print(ansi.error() + ' Your jupyter kernel may be corrupt. Please remove it so lore can reinstall:\n $ rm ' + jupyter_kernel_path)
+        raise e
 
 
 def check_version():

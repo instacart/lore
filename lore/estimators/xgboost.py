@@ -1,14 +1,16 @@
 from __future__ import absolute_import
+import inspect
 import logging
+import warnings
 
 from sklearn.base import BaseEstimator
 import xgboost
 from lore.util import timed
 
 
-class XGBoost(BaseEstimator):
+class Base(BaseEstimator):
     def __init__(self, **xgboost_train_params):
-        super(XGBoost, self).__init__()
+        super(Base, self).__init__()
         self.bst = None
         self.params = xgboost_train_params
 
@@ -26,3 +28,12 @@ class XGBoost(BaseEstimator):
     @timed(logging.INFO)
     def predict(self, dataframe):
         return self.bst.predict(xgboost.DMatrix(dataframe))
+
+
+class XGBoost(Base):
+    def __init__(self, **kwargs):
+        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
+        warnings.showwarning('Please import XGBoost with "from lore.estimators.xgboost import Base"',
+                             DeprecationWarning,
+                             filename, line_number)
+        super(XGBoost, self).__init__(**kwargs)

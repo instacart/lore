@@ -14,7 +14,7 @@ class Keras(lore.models.keras.Base):
     ):
         super(Keras, self).__init__(
             tests.mocks.pipelines.Xor(),
-            lore.estimators.keras.Keras(
+            lore.estimators.keras.Base(
                 batch_size=1024,
                 embed_size=embed_size,
                 hidden_layers=1,
@@ -30,7 +30,7 @@ class XGBoost(lore.models.xgboost.Base):
     def __init__(self):
         super(XGBoost, self).__init__(
             tests.mocks.pipelines.Xor(),
-            lore.estimators.xgboost.XGBoost(
+            lore.estimators.xgboost.Base(
                 silent=1,
                 objective='binary:logistic'
             )
@@ -41,7 +41,7 @@ class SVM(lore.models.sklearn.Base):
     def __init__(self):
         super(SVM, self).__init__(
             tests.mocks.pipelines.Xor(),
-            lore.estimators.sklearn.SKLearn(
+            lore.estimators.sklearn.Base(
                 svm.SVC()
             )
         )

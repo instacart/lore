@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 import atexit
+import inspect
 import logging
+import warnings
 
 import pandas
 import keras
@@ -31,7 +33,7 @@ logger = logging.getLogger(__name__)
 atexit.register(keras.backend.clear_session)
 
 
-class Keras(BaseEstimator):
+class Base(BaseEstimator):
     def __init__(
             self,
             model=None,
@@ -50,13 +52,17 @@ class Keras(BaseEstimator):
             hidden_activity_regularizer=None,
             hidden_bias_regularizer=None,
             hidden_kernel_regularizer=None,
-            monitor='val_acc',
-            loss='categorical_crossentropy',
+            output_activation=None,
+            monitor='val_loss',
+            loss=None,
             towers=1,
-            cudnn=True,
+            cudnn=False,
             multi_gpu_model=True,
     ):
-        super(Keras, self).__init__()
+        super(Base, self).__init__()
+        if output_activation == 'sigmoid' and loss in ['mse', 'mae', 'mean_squared_error', 'mean_absolute_error']:
+            logger.warning("Passing output_activation='sigmoid' restricts predictions between 0 and 1. If you have a binary classification problem, you should consider passing loss='binary_crossentropy'. Otherwise you should consider setting output_activation='linear'")
+            
         self.towers = towers
         self.embed_size = embed_size
         self.sequence_embed_size = 10
@@ -72,6 +78,7 @@ class Keras(BaseEstimator):
         self.hidden_activity_regularizer = hidden_activity_regularizer
         self.hidden_bias_regularizer = hidden_bias_regularizer
         self.hidden_kernel_regularizer = hidden_kernel_regularizer
+        self.output_activation = output_activation
         self.monitor = monitor
         self.loss = loss
         self.keras = None
@@ -84,7 +91,7 @@ class Keras(BaseEstimator):
         self.multi_gpu_model = multi_gpu_model
     
     def __getstate__(self):
-        state = super(Keras, self).__getstate__()
+        state = super(Base, self).__getstate__()
         # bloat can be restored via self.__init__() + self.build()
         for bloat in [
             'keras',
@@ -249,7 +256,7 @@ class Keras(BaseEstimator):
     
     @timed(logging.INFO)
     def build_output_layer(self, hidden_layers, tower):
-        return Dense(1, activation='sigmoid', name='%i_output' % tower)(hidden_layers)
+        return Dense(1, activation=self.output_activation, name='%i_output' % tower)(hidden_layers)
     
     @timed(logging.INFO)
     def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False, **keras_kwargs):
@@ -365,3 +372,143 @@ class Keras(BaseEstimator):
             x = x.to_dict(orient='series')
         with self.session.as_default():
             return 1 / self.keras.evaluate(x, y, batch_size=self.batch_size)
+
+
+class Keras(Base):
+
+    def __init__(
+        self,
+        model=None,
+        embed_size=10,
+        sequence_embedding='flatten',
+        sequence_embed_size=10,
+        hidden_width=1024,
+        hidden_layers=4,
+        layer_shrink=0.5,
+        dropout=0,
+        batch_size=32,
+        learning_rate=0.001,
+        decay=0.,
+        optimizer=None,
+        hidden_activation='relu',
+        hidden_activity_regularizer=None,
+        hidden_bias_regularizer=None,
+        hidden_kernel_regularizer=None,
+        output_activation=None,
+        monitor='val_loss',
+        loss=None,
+        towers=1,
+        cudnn=False,
+        multi_gpu_model=True,
+    ):
+        super(Keras, self).__init__(**locals())
+
+        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
+        warnings.showwarning('lore.estimators.keras.Keras is deprecated. Please use "from lore.estimators.keras import Base"',
+                             DeprecationWarning,
+                             filename, line_number)
+
+
+class Regression(Base):
+    def __init__(
+            self,
+            model=None,
+            embed_size=10,
+            sequence_embedding='flatten',
+            sequence_embed_size=10,
+            hidden_width=1024,
+            hidden_layers=4,
+            layer_shrink=0.5,
+            dropout=0,
+            batch_size=32,
+            learning_rate=0.001,
+            decay=0.,
+            optimizer=None,
+            hidden_activation='relu',
+            hidden_activity_regularizer=None,
+            hidden_bias_regularizer=None,
+            hidden_kernel_regularizer=None,
+            output_activation='linear',
+            monitor='val_loss',
+            loss='mean_squared_error',
+            towers=1,
+            cudnn=False,
+            multi_gpu_model=True,
+    ):
+        super(Regression, self).__init__(**locals())
+
+
+class BinaryClassifier(Base):
+    def __init__(
+            self,
+            model=None,
+            embed_size=10,
+            sequence_embedding='flatten',
+            sequence_embed_size=10,
+            hidden_width=1024,
+            hidden_layers=4,
+            layer_shrink=0.5,
+            dropout=0,
+            batch_size=32,
+            learning_rate=0.001,
+            decay=0.,
+            optimizer=None,
+            hidden_activation='relu',
+            hidden_activity_regularizer=None,
+            hidden_bias_regularizer=None,
+            hidden_kernel_regularizer=None,
+            output_activation='sigmoid',
+            monitor='val_loss',
+            loss='binary_crossentropy',
+            towers=1,
+            cudnn=False,
+            multi_gpu_model=True,
+    ):
+        super(BinaryClassifier, self).__init__(**locals())
+
+
+class MultiClassifier(Base):
+    def __init__(
+            self,
+            model=None,
+            embed_size=10,
+            sequence_embedding='flatten',
+            sequence_embed_size=10,
+            hidden_width=1024,
+            hidden_layers=4,
+            layer_shrink=0.5,
+            dropout=0,
+            batch_size=32,
+            learning_rate=0.001,
+            decay=0.,
+            optimizer=None,
+            hidden_activation='relu',
+            hidden_activity_regularizer=None,
+            hidden_bias_regularizer=None,
+            hidden_kernel_regularizer=None,
+            output_activation='softmax',
+            monitor='val_loss',
+            loss='categorical_crossentropy',
+            towers=1,
+            cudnn=False,
+            multi_gpu_model=True,
+    ):
+        super(MultiClassifier, self).__init__(**locals())
+
+    @timed(logging.INFO)
+    def build_output_layer(self, hidden_layers, tower):
+        return Dense(
+            self.model.pipeline.output_encoder.cardinality(),
+            activation=self.output_activation,
+            name='%i_output' % tower
+        )(hidden_layers)
+
+    @timed(logging.DEBUG)
+    def predict(self, dataframe):
+        result = super(MultiClassifier, self).predict(dataframe)
+        # map softmax to argmax
+        return self.softmax
+        if isinstance(dataframe, pandas.DataFrame):
+            dataframe = dataframe.to_dict(orient='series')
+        with self.session.as_default():
+            return self.keras.predict(dataframe, batch_size=self.batch_size)

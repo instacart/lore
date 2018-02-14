@@ -33,11 +33,11 @@ def main(args=None):
     parser.add_argument('--version', action='version',
                         version='lore %s' % lore.__version__)
 
-    commands = parser.add_subparsers( help='common commands')
+    commands = parser.add_subparsers(help='common commands')
     
     init_parser = commands.add_parser('init', help='create a new lore project')
     init_parser.set_defaults(func=init)
-    init_parser.add_argument('NAME', help='the name of the project')
+    init_parser.add_argument('name', metavar='NAME', help='the name of the project')
     init_parser.add_argument('--git-ignore', default=True)
     init_parser.add_argument('--python-version', default=None)
 
@@ -72,6 +72,61 @@ def main(args=None):
     install_parser.add_argument(
         '--upgrade',
         help='recalculate requirements.frozen.txt with current versions',
+        action='store_true'
+    )
+
+    generate_parser = commands.add_parser(
+        'generate',
+        help='create a new model'
+    )
+    generators = generate_parser.add_subparsers()
+    scaffold_parser = generators.add_parser(
+        'scaffold',
+    )
+    scaffold_parser.set_defaults(func=generate_scaffold)
+    scaffold_parser.add_argument('name', metavar='NAME', help='name of the project')
+    scaffold_parser.add_argument(
+        '--keras',
+        help='create a keras scaffold',
+        action='store_true'
+    )
+
+    scaffold_parser.add_argument(
+        '--holdout',
+        help='create a holdout pipeline',
+        action='store_true'
+    )
+
+    model_parser = generators.add_parser(
+        'model',
+    )
+    model_parser.set_defaults(func=generate_model)
+    model_parser.add_argument('name', metavar='NAME', help='name of the model')
+    model_parser.add_argument(
+        '--keras',
+        help='inherit from lore.models.keras.Base',
+        action='store_true'
+    )
+
+    estimator_parser = generators.add_parser(
+        'estimator',
+    )
+    estimator_parser.set_defaults(func=generate_estimator)
+    estimator_parser.add_argument('name', metavar='NAME', help='name of the estimator')
+    estimator_parser.add_argument(
+        '--keras',
+        help='inherit from lore.estimators.keras.Base',
+        action='store_true'
+    )
+
+    pipeline_parser = generators.add_parser(
+        'pipeline',
+    )
+    pipeline_parser.set_defaults(func=generate_pipeline)
+    pipeline_parser.add_argument('name', metavar='NAME', help='name of the pipeline')
+    pipeline_parser.add_argument(
+        '--holdout',
+        help='inherit from lore.pipelines.holdout.Base',
         action='store_true'
     )
 
@@ -186,20 +241,23 @@ def execute(parsed, unknown):
 def init(parsed, unknown):
     template = os.path.join(os.path.dirname(__file__), 'template')
     
-    if os.path.exists(parsed.NAME):
-        sys.exit(ansi.error() + ' "' + parsed.NAME + '" already exists in this directoy!')
+    if os.path.exists(parsed.name):
+        sys.exit(ansi.error() + ' "' + parsed.name + '" already exists in this directoy! Lore can not create a new project with this name.')
         
-    shutil.copytree(template, parsed.NAME, symlinks=False, ignore=None)
-    os.chdir(parsed.NAME)
-    shutil.move('app', parsed.NAME)
-
+    shutil.copytree(template, parsed.name, symlinks=False, ignore=None)
+    os.chdir(parsed.name)
+    shutil.move('app', parsed.name)
+    
+    requirements = '-e /Users/montanalow/repos/lore'
+    if unknown:
+        requirements += '[' + ','.join([r[2:] for r in unknown]) + ']'
     with open('requirements.txt', 'wt') as file:
-        file.write('lore\n')
+        file.write(requirements)
     
     if parsed.python_version:
         python_version = parsed.python_version
     else:
-        python_version = '3.6.3'
+        python_version = '3.6.4'
 
     with open('runtime.txt', 'wt') as file:
         file.write('python-' + python_version + '\n')
@@ -233,6 +291,32 @@ def install(parsed, unknown):
     
     if hasattr(parsed, 'native') and parsed.native:
         install_tensorflow()
+
+
+def generate_scaffold(parsed, unknown):
+    generate_model(parsed, unknown)
+    generate_estimator(parsed, unknown)
+    generate_pipeline(parsed, unknown)
+    generate_notebooks(parsed, unknown)
+
+
+def generate_model(parsed, unknown):
+    pass
+    
+
+def generate_estimator(parsed, unknown):
+    pass
+
+
+def generate_pipeline(parsed, unknown):
+    template = '''
+    
+    '''
+    pass
+
+
+def generate_notebooks(parsed, unknown):
+    pass
 
 
 def task(parsed, unknown):
@@ -560,8 +644,7 @@ def install_requirements(args):
     
     
 def install_jupyter_kernel():
-    import jupyter_core.paths
-    if os.path.exists(os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', env.project)):
+    if os.path.exists(env.jupyter_kernel_path):
         return
 
     print(ansi.success('INSTALL') + ' jupyter kernel')
@@ -597,6 +680,7 @@ def freeze_requirements():
     needed = [m.group(1).lower() for l in missing for m in [regex.search(l)] if m]
 
     added_index = present.index('## The following requirements were added by pip freeze:')
+    unsafe = None
     if added_index:
         added = present[added_index + 1:-1]
         present = set(present[0:added_index])

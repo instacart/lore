@@ -229,13 +229,18 @@ class Continuous(Base):
 
 
 class Pass(Continuous):
-    """This encoder performs a noop on the input series. It's only useful
-    to efficiently pass a pre-encoded value directly as an input to the
-    model.
-    """
+    
+    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[]):
+        super(Pass, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale, tags=tags)
+        self.missing_value = 0
+        
+    def fit(self, data):
+        with timer(('fit %s:' % self.name), logging.DEBUG):
+            self.dtype = self.series(data).dtype
+
     def transform(self, data):
-        """ :return: the series exactly as it is"""
-        return self.series(data).values
+        """ :return: the series with nans filled"""
+        return self.fillna(self.series(data))
     
     def reverse_transform(self, array):
         return array
@@ -284,7 +289,7 @@ class Norm(Continuous):
     exceeds the fit range will be capped at the fit range.
     """
 
-    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[]):
+    def __init__(self, column, name=None, dtype=numpy.float32, embed_scale=1, tags=[]):
         super(Norm, self).__init__(column, name, dtype, embed_scale, tags=tags)
         self.__min = float('nan')
         self.__max = float('nan')
@@ -315,7 +320,7 @@ class Norm(Continuous):
 
     def reverse_transform(self, array):
         with timer('reverse_transform %s:' % self.name, logging.DEBUG):
-            return array * self.__std + self.__mean
+            return array.astype(self.dtype) * self.__std + self.__mean
 
 
 class Discrete(Base):
@@ -629,7 +634,7 @@ class Glove(Token):
                 Glove.map = {}
                 Glove.inverse = {}
     
-                path = os.path.join(lore.env.models_dir, 'encoders', 'glove.6B.%dd.txt.gz' % self.dimensions)
+                path = os.path.join('encoders', 'glove.6B.%dd.txt.gz' % self.dimensions)
                 local = lore.io.download(path)
                 for line in smart_open(local):
                     values = line.split()
