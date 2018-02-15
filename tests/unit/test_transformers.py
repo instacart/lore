@@ -97,7 +97,7 @@ class TestNameAge(unittest.TestCase):
         data = pandas.DataFrame({'test': ['bob', 'Bob']})
         transformed = transformer.transform(data)
         self.assertTrue(transformed.iloc[0] > 0)
-        self.assertEquals(transformed.iloc[0], transformed.iloc[1])
+        self.assertEqual(transformed.iloc[0], transformed.iloc[1])
 
 
 class TestNameSex(unittest.TestCase):
@@ -107,7 +107,7 @@ class TestNameSex(unittest.TestCase):
         data = pandas.DataFrame({'test': ['bob', 'Bob']})
         transformed = transformer.transform(data)
         self.assertTrue(transformed.iloc[0] > 0)
-        self.assertEquals(transformed.iloc[0], transformed.iloc[1])
+        self.assertEqual(transformed.iloc[0], transformed.iloc[1])
 
 
 class TestNamePopulation(unittest.TestCase):
@@ -117,7 +117,7 @@ class TestNamePopulation(unittest.TestCase):
         data = pandas.DataFrame({'test': ['bob', 'Bob']})
         transformed = transformer.transform(data)
         self.assertTrue(transformed.iloc[0] > 0)
-        self.assertEquals(transformed.iloc[0], transformed.iloc[1])
+        self.assertEqual(transformed.iloc[0], transformed.iloc[1])
 
 
 class TestStringLower(unittest.TestCase):

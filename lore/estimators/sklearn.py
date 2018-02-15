@@ -24,6 +24,17 @@ class Base(BaseEstimator):
     def predict(self, dataframe):
         return self.sklearn.predict(dataframe)
 
+    @timed(logging.INFO)
+    def evaluate(self, x, y):
+        # TODO
+        return 0
+
+    @timed(logging.INFO)
+    def score(self, x, y):
+        # TODO
+        return 0
+
+
 
 class SKLearn(Base):
     def __init__(self, estimator):

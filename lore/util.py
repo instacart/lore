@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 import atexit
 import inspect
@@ -9,7 +9,6 @@ import logging.handlers
 import os
 import re
 import sys
-import six
 import time
 import threading
 import traceback
@@ -36,9 +35,10 @@ class SecretFilter(logging.Filter):
     )
     
     def filter(self, record):
-        if record is None:
+        if record is None or record.msg is None:
             return True
-        record.msg = str(record.msg)
+        if not isinstance(record.msg, str):
+            record.msg = record.msg.__repr__()
         record.msg = re.sub(SecretFilter.PASSWORD_MATCH, r'\1XXX', record.msg)
         record.msg = re.sub(SecretFilter.URL_MATCH, r'://XXX:XXX\3', record.msg)
         return True

@@ -29,6 +29,16 @@ class Base(BaseEstimator):
     def predict(self, dataframe):
         return self.bst.predict(xgboost.DMatrix(dataframe))
 
+    @timed(logging.INFO)
+    def evaluate(self, x, y):
+        # TODO
+        return 0
+
+    @timed(logging.INFO)
+    def score(self, x, y):
+        # TODO
+        return 0
+
 
 class XGBoost(Base):
     def __init__(self, **kwargs):

@@ -42,7 +42,7 @@ class Base(object):
         if hasattr(self._estimator, 'model'):
             self._estimator.model = self
 
-    def fit(self, score=True, **estimator_kwargs):
+    def fit(self, test=True, score=True, **estimator_kwargs):
         self.fitting = self.__class__.last_fitting() + 1
 
         self.stats = self.estimator.fit(
@@ -51,19 +51,35 @@ class Base(object):
             **estimator_kwargs
         )
 
-        if score:
-            print(lore.ansi.success('SCORING') + ' %i samples' % len(self.pipeline.test_data))
+        if test:
             self.stats['test'] = self.evaluate(self.pipeline.test_data)
-            self.stats['score'] = 1 / self.stats['test']
+
+        if score:
+            self.stats['score'] = self.score(self.pipeline.test_data)
 
         self.save(stats=self.stats)
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
-    
+        
+    @timed(logging.INFO)
     def predict(self, dataframe):
         predictions = self.estimator.predict(self.pipeline.encode_x(dataframe))
         return self.pipeline.output_encoder.reverse_transform(predictions)
-    
+
+    @timed(logging.INFO)
+    def evaluate(self, dataframe):
+        return self.estimator.evaluate(
+            self.pipeline.encode_x(dataframe),
+            self.pipeline.encode_y(dataframe)
+        )
+
+    @timed(logging.INFO)
+    def score(self, dataframe):
+        return self.estimator.score(
+            self.pipeline.encode_x(dataframe),
+            self.pipeline.encode_y(dataframe)
+        )
+
     def hyper_parameter_search(
             self,
             param_distributions,
@@ -106,17 +122,6 @@ class Base(object):
         self.estimator = result.best_estimator_
         
         return result
-
-    @timed(logging.INFO)
-    def score(self, x, y):
-        return 1 / self.evaluate(x, y)
-
-    @timed(logging.INFO)
-    def evaluate(self, dataframe):
-        return self.estimator.evaluate(
-            self.pipeline.encode_x(dataframe),
-            self.pipeline.encode_y(dataframe)
-        )
 
     @classmethod
     def local_path(cls):

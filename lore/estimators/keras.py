@@ -369,8 +369,20 @@ class Base(BaseEstimator):
     def evaluate(self, x, y):
         if isinstance(x, pandas.DataFrame):
             x = x.to_dict(orient='series')
+        
+        if self.towers > 1:
+            y = [y] * self.towers
+            
         with self.session.as_default():
-            return self.keras.evaluate(x, y, batch_size=self.batch_size)
+            result = self.keras.evaluate(x, y, batch_size=self.batch_size, verbose=0)
+        
+        if self.towers > 1:
+            result = sum(result) / float(len(result))
+    
+        return result
+    
+    def score(self, x, y):
+        return 1 / self.evaluate(x, y)
 
 
 class Keras(Base):
