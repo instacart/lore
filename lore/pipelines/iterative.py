@@ -101,7 +101,7 @@ class Base(lore.pipelines.holdout.Base):
     @property
     def encoders(self):
         if self._encoders is None:
-            with timer('fit encoders:'):
+            with timer('fit encoders'):
                 self._encoders = self.get_encoders()
                 for encoder in self._encoders:
                     encoder.fit(self.read_column(self.table_training, encoder.source_column))
@@ -111,7 +111,7 @@ class Base(lore.pipelines.holdout.Base):
     @property
     def output_encoder(self):
         if self._output_encoder is None:
-            with timer('fit output encoder:'):
+            with timer('fit output encoder'):
                 self._output_encoder = self.get_output_encoder()
                 self._output_encoder.fit(self.read_column(self.table_training, self._output_encoder.source_column))
     

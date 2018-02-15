@@ -353,10 +353,9 @@ class Base(BaseEstimator):
                 f.write(Timeline(step_stats=run_metadata.step_stats).generate_chrome_trace_format())
 
         return {
-            'epochs': len(self.history),
+            'epochs': len(self.history['loss']),
             'train': reload_best.train_loss,
             'validate': reload_best.validate_loss,
-            'timeline': timeline,
         }
 
     @timed(logging.DEBUG)
@@ -367,11 +366,11 @@ class Base(BaseEstimator):
             return self.keras.predict(dataframe, batch_size=self.batch_size)
     
     @timed(logging.INFO)
-    def score(self, x, y):
+    def evaluate(self, x, y):
         if isinstance(x, pandas.DataFrame):
             x = x.to_dict(orient='series')
         with self.session.as_default():
-            return 1 / self.keras.evaluate(x, y, batch_size=self.batch_size)
+            return self.keras.evaluate(x, y, batch_size=self.batch_size)
 
 
 class Keras(Base):
@@ -435,7 +434,10 @@ class Regression(Base):
             cudnn=False,
             multi_gpu_model=True,
     ):
-        super(Regression, self).__init__(**locals())
+        args = locals()
+        args.pop('self')
+        args.pop('__class__')
+        super(Regression, self).__init__(**args)
 
 
 class BinaryClassifier(Base):

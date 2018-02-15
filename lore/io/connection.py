@@ -275,7 +275,7 @@ class Connection(object):
     @query_cached
     def load(self, key, columns):
         result = [columns]
-        with timer('load:'):
+        with timer('load'):
             for entry in lore.io.bucket.objects.filter(
                 Prefix=os.path.join(self.UNLOAD_PREFIX, key)
             ):
@@ -288,7 +288,7 @@ class Connection(object):
     
     @query_cached
     def load_dataframe(self, key, columns):
-        with timer('load_dataframe:'):
+        with timer('load_dataframe'):
             frames = []
             for entry in lore.io.bucket.objects.filter(
                 Prefix=os.path.join(self.UNLOAD_PREFIX, key)

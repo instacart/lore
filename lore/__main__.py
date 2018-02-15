@@ -5,19 +5,27 @@ from __future__ import absolute_import, unicode_literals
 from builtins import input
 
 import argparse
+import datetime
+import dateutil
 import glob
+from io import open
+import importlib
+import inspect
+import json
+import logging
 import os
-import sys
 import platform
 import re
 import shutil
 import subprocess
-import logging
-from io import open
+import sys
 
 import lore
 from lore import ansi, env, util
 from lore.util import timer, which
+
+if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
+    ModuleNotFoundError = ImportError
 
 logger = logging.getLogger(__name__)
 
@@ -130,11 +138,25 @@ def main(args=None):
         action='store_true'
     )
 
-    task_parser = commands.add_parser(
-        'task',
-        help='run a task from the command line'
+    fit_parser = commands.add_parser(
+        'fit',
+        help="train models"
     )
-    task_parser.set_defaults(func=task)
+    fit_parser.set_defaults(func=fit)
+    fit_parser.add_argument(
+        'model',
+        metavar='MODEL',
+        help='fully qualified model including module name. e.g. app.models.project.Model'
+    )
+    fit_parser.add_argument(
+        '--score',
+        help='calculate the loss on the prediction against the test set',
+        action='store_true'
+    )
+    fit_parser.add_argument(
+        '--upload',
+        help='upload model to store after fitting'
+    )
 
     pip_parser = commands.add_parser(
         'pip',
@@ -219,6 +241,95 @@ def api(parsed, unknown):
     ).start()
 
 
+def fit(parsed, unknown):
+    module, klass = parsed.model.rsplit('.', 1)
+    try:
+        module = importlib.import_module('.', module)
+        Model = getattr(module, klass)
+    except (AttributeError, ModuleNotFoundError):
+        sys.exit(ansi.error() + ' "' + parsed.model + '" does not exist in this directoy! Are you sure you typed the fully qualified module.Class name correctly?')
+    print(ansi.success('FITTING ') + parsed.model)
+
+    model = Model()
+
+    def get_valid_args(method):
+        if hasattr(method, '__wrapped__'):
+            return get_valid_args(method.__wrapped__)
+        return inspect.getargspec(method)
+    valid_model_fit_args = get_valid_args(model.fit)
+    valid_estimator_fit_args = get_valid_args(model.estimator.fit)
+    valid_fit_args = valid_model_fit_args.args[1:] + valid_estimator_fit_args.args[1:]
+    
+    def filter_private_attributes(dict):
+        return {k: v for k, v in dict.items() if k[0] != '_'}
+    model_attrs = filter_private_attributes(model.__dict__)
+    pipeline_attrs = filter_private_attributes(model.pipeline.__dict__)
+    estimator_attrs = filter_private_attributes(model.estimator.__dict__)
+    estimator_attrs.pop('model', None)
+
+    def cast_attr(value, default):
+        if isinstance(default, int):
+            return int(value)
+        elif isinstance(default, float):
+            return float(value)
+        elif isinstance(default, datetime.date):
+            return dateutil.parse(value).date()
+        elif isinstance(default, datetime.datetime):
+            return dateutil.parse(value)
+        else:
+            return value
+
+    # handle args passed with ' ' or '=' between name and value
+    attrs = [arg[2:] if arg[0:2] == '--' else arg for arg in unknown]  # strip --
+    attrs = [attr.split('=') for attr in attrs]  # split
+    attrs = [attr for sublist in attrs for attr in sublist]  # flatten
+    grouped = list(zip(*[iter(attrs)] * 2))  # pair up
+
+    # assign args to their receivers
+    fit_args = {}
+    unknown_args = []
+    for name, value in grouped:
+        if name in model_attrs:
+            value = cast_attr(value, getattr(model, name))
+            setattr(model, name, value)
+        elif name in pipeline_attrs:
+            value = cast_attr(value, getattr(model.pipeline, name))
+            setattr(model.pipeline, name, value)
+        elif name in estimator_attrs:
+            value = cast_attr(value, getattr(model.estimator, name))
+            setattr(model.estimator, name, value)
+        elif name in valid_model_fit_args.args:
+            index = valid_model_fit_args.args.index(name)
+            from_end = index - len(valid_model_fit_args.args)
+            default = None
+            if from_end < len(valid_model_fit_args.defaults):
+                default = valid_model_fit_args.defaults[from_end]
+            fit_args[name] = cast_attr(value, default)
+        elif name in valid_estimator_fit_args.args:
+            index = valid_estimator_fit_args.args.index(name)
+            from_end = index - len(valid_estimator_fit_args.args)
+            default = None
+            if from_end < len(valid_estimator_fit_args.defaults):
+                default = valid_estimator_fit_args.defaults[from_end]
+            fit_args[name] = cast_attr(value, default)
+        else:
+            unknown_args.append(name)
+            
+    if len(attrs) % 2 != 0:
+        unknown_args.append(attrs[-1])
+
+    if unknown_args:
+        msg = ansi.bold("Valid model attributes") + ": %s\n" % ', '.join(sorted(model_attrs.keys()))
+        msg += ansi.bold("Valid estimator attributes") + ": %s\n" % ', '.join(sorted(estimator_attrs.keys()))
+        msg += ansi.bold("Valid pipeline attributes") + ": %s\n" % ', '.join(sorted(pipeline_attrs.keys()))
+        msg += ansi.bold("Valid fit arguments") + ": %s\n" % ', '.join(sorted(valid_fit_args))
+    
+        sys.exit(ansi.error() + ' Unknown arguments: %s\n%s' % (unknown_args, msg))
+
+    model.fit(score=parsed.score, **fit_args)
+    print(ansi.success('FINISHED') + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
+
+
 def console(parsed, unknown):
     install_jupyter_kernel()
     sys.argv[0] = env.bin_jupyter
@@ -261,11 +372,7 @@ def init(parsed, unknown):
 
     with open('runtime.txt', 'wt') as file:
         file.write('python-' + python_version + '\n')
-    if sys.version_info[0] == 2:
-        reload(lore.env)
-    else:
-        import importlib
-        importlib.reload(lore.env)
+    importlib.reload(lore.env)
     install(parsed, unknown)
 
 

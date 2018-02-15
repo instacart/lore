@@ -196,7 +196,7 @@ def style(effect, content):
     :param content: string
     :return: string
     """
-    return encode(effect) + content + encode(effect + 20)
+    return encode(effect) + content + encode(RESET)
 
 
 def encode(code, readline=False):

@@ -8,9 +8,10 @@ import pickle
 import re
 
 from tabulate import tabulate
+import lore.ansi
 import lore.estimators
 import lore.serializers
-from lore.util import timer
+from lore.util import timer, timed
 
 from sklearn.model_selection import RandomizedSearchCV
 
@@ -41,7 +42,7 @@ class Base(object):
         if hasattr(self._estimator, 'model'):
             self._estimator.model = self
 
-    def fit(self, **estimator_kwargs):
+    def fit(self, score=True, **estimator_kwargs):
         self.fitting = self.__class__.last_fitting() + 1
 
         self.stats = self.estimator.fit(
@@ -49,6 +50,12 @@ class Base(object):
             y=self.pipeline.encoded_training_data.y,
             **estimator_kwargs
         )
+
+        if score:
+            print(lore.ansi.success('SCORING') + ' %i samples' % len(self.pipeline.test_data))
+            self.stats['test'] = self.evaluate(self.pipeline.test_data)
+            self.stats['score'] = 1 / self.stats['test']
+
         self.save(stats=self.stats)
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
@@ -99,7 +106,18 @@ class Base(object):
         self.estimator = result.best_estimator_
         
         return result
-    
+
+    @timed(logging.INFO)
+    def score(self, x, y):
+        return 1 / self.evaluate(x, y)
+
+    @timed(logging.INFO)
+    def evaluate(self, dataframe):
+        return self.estimator.evaluate(
+            self.pipeline.encode_x(dataframe),
+            self.pipeline.encode_y(dataframe)
+        )
+
     @classmethod
     def local_path(cls):
         return join(lore.env.models_dir, cls.remote_path())
@@ -138,7 +156,7 @@ class Base(object):
         if not os.path.exists(self.fitting_path()):
             os.makedirs(self.fitting_path())
 
-        with timer('pickle model:'):
+        with timer('pickle model'):
             with open(self.model_path(), 'wb') as f:
                 pickle.dump(self, f)
         
@@ -164,7 +182,7 @@ class Base(object):
         else:
             model.fitting = int(fitting)
         
-        with timer('unpickle model:'):
+        with timer('unpickle model'):
             with open(model.model_path(), 'rb') as f:
                 loaded = pickle.load(f)
                 loaded.fitting = model.fitting

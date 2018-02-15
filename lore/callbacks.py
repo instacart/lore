@@ -43,7 +43,7 @@ class ReloadBest(keras.callbacks.ModelCheckpoint):
         logger.info('=============================================')
         if self.best_epoch is not None:
             logger.debug('best epoch: %i' % self.best_epoch)
-            with timer('load best epoch:'):
+            with timer('load best epoch'):
                 self.model.load_weights(
                     self.filepath.format(epoch=self.best_epoch)
                 )

@@ -80,7 +80,7 @@ class Base(object):
     @property
     def encoders(self):
         if self._encoders is None:
-            with timer('fit encoders:'):
+            with timer('fit encoders'):
                 self._encoders = self.get_encoders()
                 if self.multiprocessing:
                     pool = multiprocessing.Pool(self.workers)
@@ -98,7 +98,7 @@ class Base(object):
     @property
     def output_encoder(self):
         if self._output_encoder is None:
-            with timer('fit output encoder:'):
+            with timer('fit output encoder'):
                 self._output_encoder = self.get_output_encoder()
                 self._output_encoder.fit(self.training_data)
         
@@ -128,7 +128,7 @@ class Base(object):
     @property
     def encoded_training_data(self):
         if not self._encoded_training_data:
-            with timer('encode training data:'):
+            with timer('encode training data'):
                 self._encoded_training_data = self.observations(self.training_data)
         
         return self._encoded_training_data
@@ -136,7 +136,7 @@ class Base(object):
     @property
     def encoded_validation_data(self):
         if not self._encoded_validation_data:
-            with timer('encode validation data:'):
+            with timer('encode validation data'):
                 self._encoded_validation_data = self.observations(self.validation_data)
         
         return self._encoded_validation_data
@@ -144,7 +144,7 @@ class Base(object):
     @property
     def encoded_test_data(self):
         if not self._encoded_test_data:
-            with timer('encode test data:'):
+            with timer('encode test data'):
                 self._encoded_test_data = self.observations(self.test_data)
         
         return self._encoded_test_data

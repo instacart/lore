@@ -158,7 +158,7 @@ class Boolean(Base):
         self.missing_value = 2
         
     def transform(self, data):
-        with timer('transform %s:' % (self.name), logging.DEBUG):
+        with timer('transform %s' % (self.name), logging.DEBUG):
             series = self.series(data).astype(numpy.float16)
             null = series.isnull()
             series[series != 0] = 1
@@ -192,7 +192,7 @@ class Equals(Base):
         self.other = other
 
     def transform(self, data):
-        with timer('transform %s:' % self.name, logging.DEBUG):
+        with timer('transform %s' % self.name, logging.DEBUG):
             return numpy.equal(self.series(data), self.other_series(data)).astype(numpy.uint8).values
     
     def reverse_transform(self, array):
@@ -235,7 +235,7 @@ class Pass(Continuous):
         self.missing_value = 0
         
     def fit(self, data):
-        with timer(('fit %s:' % self.name), logging.DEBUG):
+        with timer(('fit %s' % self.name), logging.DEBUG):
             self.dtype = self.series(data).dtype
 
     def transform(self, data):
@@ -260,13 +260,13 @@ class Uniform(Continuous):
         self.missing_value = 0
 
     def fit(self, data):
-        with timer(('fit %s:' % self.name), logging.DEBUG):
+        with timer(('fit %s' % self.name), logging.DEBUG):
             series = self.series(data)
             self.__min = float(series.min())
             self.__range = series.max() - self.__min
 
     def transform(self, data):
-        with timer('transform %s:' % self.name, logging.DEBUG):
+        with timer('transform %s' % self.name, logging.DEBUG):
             if self.__range > 0:
                 series = self.series(data)
                 difference = numpy.maximum(0, series - self.__min)
@@ -278,7 +278,7 @@ class Uniform(Continuous):
             return result
 
     def reverse_transform(self, array):
-        with timer('reverse_transform %s:' % self.name, logging.DEBUG):
+        with timer('reverse_transform %s' % self.name, logging.DEBUG):
             return array * self.__range + self.__min
 
 
@@ -298,7 +298,7 @@ class Norm(Continuous):
         self.missing_value = 0.0
 
     def fit(self, data):
-        with timer(('fit %s:' % self.name), logging.DEBUG):
+        with timer(('fit %s' % self.name), logging.DEBUG):
             series = self.series(data)
             self.__min = float(series.min())
             self.__max = float(series.max())
@@ -306,7 +306,7 @@ class Norm(Continuous):
             self.__std = numpy.std(series)
 
     def transform(self, data):
-        with timer('transform %s:' % self.name, logging.DEBUG):
+        with timer('transform %s' % self.name, logging.DEBUG):
             if self.__std > 0:
                 series = self.series(data).astype(self.dtype)
                 capped = numpy.maximum(series, self.__min)
@@ -319,7 +319,7 @@ class Norm(Continuous):
             return result
 
     def reverse_transform(self, array):
-        with timer('reverse_transform %s:' % self.name, logging.DEBUG):
+        with timer('reverse_transform %s' % self.name, logging.DEBUG):
             return array.astype(self.dtype) * self.__std + self.__mean
 
 
@@ -341,7 +341,7 @@ class Discrete(Base):
         self.dtype = self._type_from_cardinality()
 
     def fit(self, data):
-        with timer(('fit %s:' % self.name), logging.DEBUG):
+        with timer(('fit %s' % self.name), logging.DEBUG):
             series = self.series(data)
             self.__min = series.min()
             self.__range = series.max() - self.__min
@@ -351,7 +351,7 @@ class Discrete(Base):
                 self.__range = self.__range.total_seconds() * 1000000000
 
     def transform(self, data):
-        with timer('transform %s:' % self.name, logging.DEBUG):
+        with timer('transform %s' % self.name, logging.DEBUG):
             if self.__range > self.zero:
                 series = self.series(data)
                 difference = series - self.__min
@@ -367,7 +367,7 @@ class Discrete(Base):
             return result
         
     def reverse_transform(self, array):
-        with timer('reverse_transform %s:' % self.name, logging.DEBUG):
+        with timer('reverse_transform %s' % self.name, logging.DEBUG):
             series = pandas.Series(array)
             series[series >= self.missing_value] = float('nan')
             return (series / self.__norm * self.__range) + self.__min
@@ -390,7 +390,7 @@ class Enum(Base):
         self.dtype = numpy.uint8
 
     def fit(self, data):
-        with timer(('fit %s:' % self.name), logging.DEBUG):
+        with timer(('fit %s' % self.name), logging.DEBUG):
             self.__max = self.series(data).max()
             if numpy.isnan(self.__max):
                 logger.warning('nan for max value in %s' % self.name)
@@ -402,7 +402,7 @@ class Enum(Base):
             self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
-        with timer('transform %s:' % self.name, logging.DEBUG):
+        with timer('transform %s' % self.name, logging.DEBUG):
             series = self.series(data)
             result = pandas.Series(series, copy=True)
             result[(series > self.__max) | (series < 0)] = self.unfit_value
@@ -410,7 +410,7 @@ class Enum(Base):
             return result.astype(self.dtype).values
             
     def reverse_transform(self, array):
-        with timer('reverse_transform %s:' % self.name, logging.DEBUG):
+        with timer('reverse_transform %s' % self.name, logging.DEBUG):
             series = pandas.Series(array)
             series[series >= self.missing_value] = float('nan')
             return series.values
@@ -439,7 +439,7 @@ class Quantile(Base):
         self.bins = None
     
     def fit(self, data):
-        with timer(('fit %s:' % self.name), logging.DEBUG):
+        with timer(('fit %s' % self.name), logging.DEBUG):
             series = self.series(data)
             series_cut, self.bins = pandas.qcut(series, self.quantiles, retbins=True, labels=False, duplicates='drop')
             self.quantiles = len(self.bins) - 1
@@ -449,7 +449,7 @@ class Quantile(Base):
             self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
-        with timer('transform %s:' % (self.name), logging.DEBUG):
+        with timer('transform %s' % (self.name), logging.DEBUG):
             series = self.series(data)
             cut = pandas.cut(series, bins=self.bins, labels=False, include_lowest=True)
             cut[series < self.lower_bound] = self.quantiles
@@ -498,7 +498,7 @@ class Unique(Base):
         self.dtype = numpy.uint32
     
     def fit(self, data):
-        with timer(('fit unique %s:' % self.name), logging.DEBUG):
+        with timer(('fit unique %s' % self.name), logging.DEBUG):
             if self.stratify:
                 ids = pandas.DataFrame({
                     'id': self.series(data),
@@ -518,14 +518,14 @@ class Unique(Base):
             self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
-        with timer('transform unique %s:' % self.name, logging.DEBUG):
+        with timer('transform unique %s' % self.name, logging.DEBUG):
             result = self.series(data).map(self.map, na_action='ignore')
             result[result == 0] = self.tail_value
             result[result.isnull()] = self.missing_value
             return result.astype(self.dtype).values
     
     def reverse_transform(self, array):
-        with timer('reverse_transform unique %s:' % self.name, logging.DEBUG):
+        with timer('reverse_transform unique %s' % self.name, logging.DEBUG):
             series = pandas.Series(array)
             result = series.map(self.inverse, na_action=None)
             result[result.isnull()] = 'MISSING_VALUE'
@@ -558,7 +558,7 @@ class Token(Unique):
         self.sequence_length = sequence_length
     
     def fit(self, data):
-        with timer(('fit token %s:' % self.name), logging.DEBUG):
+        with timer(('fit token %s' % self.name), logging.DEBUG):
             super(Token, self).fit(self.tokenize(data, fit=True))
     
     def transform(self, data):
@@ -570,7 +570,7 @@ class Token(Unique):
         return transformed.reshape((len(data), self.sequence_length))
         
     def reverse_transform(self, array):
-        with timer('reverse_transform token %s:' % self.name, logging.DEBUG):
+        with timer('reverse_transform token %s' % self.name, logging.DEBUG):
             data = pandas.DataFrame(array)
             for column in data:
                 data[column] = super(Token, self).reverse_transform(data[column])
@@ -627,7 +627,7 @@ class Glove(Token):
         self.fit(None)
 
     def fit(self, data):
-        with timer('fit %s:' % self.name, logging.DEBUG):
+        with timer('fit %s' % self.name, logging.DEBUG):
             self.missing_value = numpy.asarray([0.0] * self.dimensions, dtype=numpy.float32)
 
             if not Glove.map:
@@ -674,7 +674,7 @@ class MiddleOut(Base):
         self.dtype = self._type_from_cardinality()
         
     def transform(self, data):
-        with timer('transform %s:' % self.name, logging.DEBUG):
+        with timer('transform %s' % self.name, logging.DEBUG):
             series = self.series(data)
             max_seq = len(series)
             depth = min(self.depth, max_seq // 2)

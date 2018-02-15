@@ -3,6 +3,7 @@ from __future__ import absolute_import
 
 import atexit
 import inspect
+import functools
 import logging
 import logging.handlers
 import os
@@ -142,10 +143,12 @@ def strip_one_off_handlers():
 
 strip_one_off_handlers()
 
-
+_nested_timers = 0
+_previous_timer_level = 0
+_ascii_pipes = '  '
 @contextmanager
 def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True):
-    global _librato
+    global _librato, _nested_timers, _previous_timer_level, _ascii_pipes
     
     if logger is None:
         logger = logging.getLogger()
@@ -153,7 +156,7 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
     if level < logger.level:
         yield
         return
-    
+    _nested_timers += 1
     start = datetime.now()
     try:
         yield
@@ -164,29 +167,33 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
             librato_name = librato_name.split(':')[0]
             librato_name = re.sub(r'[^A-Za-z0-9\.\-_]', '', librato_name)[0:255]
             librato_record(librato_name, time.total_seconds())
-            
-        logger.log(level, '%s %s' % (message, time))
-
-
-def parametrized(decorator):
-    def layer(*args, **kwargs):
-        def repl(f):
-            return decorator(f, *args, **kwargs)
-        return repl
-    return layer
-
-
-@parametrized
-def timed(func, level):
-    def wrapper(*args, **kwargs):
-        with timer('.'.join([func.__module__, func.__name__]), level=level, caller_level=4):
-            return func(*args, **kwargs)
     
-    return wrapper
+        _nested_timers -= 1
+        if _nested_timers == 0:
+            _ascii_pipes = ''
+        else:
+            delta = (_nested_timers - _previous_timer_level)
+            length = _nested_timers * 2
+            if delta < 0:
+                _ascii_pipes = _ascii_pipes[0:length]
+                join = '┌' if _ascii_pipes[-2] == ' ' else '├'
+                _ascii_pipes = _ascii_pipes[0:-2] + join + '─'
+            else:
+                _ascii_pipes = re.sub(r'[├┌]', '│', _ascii_pipes).replace('─', ' ')
+                if delta == 0:
+                    _ascii_pipes = _ascii_pipes[:-2] + '├─'
+                else:
+                    gap = length - len(_ascii_pipes) - 2
+                    _ascii_pipes = _ascii_pipes + ' ' * gap + '┌─'
+
+        _previous_timer_level = _nested_timers
+        logger.log(level, '%s%s%s' % (ansi.bold(_ascii_pipes + '['), message, ansi.bold('] ' + str(time))))
+        
 
 
 def parametrized(decorator):
     def layer(*args, **kwargs):
+        @functools.wraps(decorator)
         def repl(f):
             return decorator(f, *args, **kwargs)
         return repl
@@ -195,6 +202,7 @@ def parametrized(decorator):
 
 @parametrized
 def timed(func, level):
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         with timer('.'.join([func.__module__, func.__name__]), level=level):
             return func(*args, **kwargs)
