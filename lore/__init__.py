@@ -39,7 +39,7 @@ lore_no_env = False
 if hasattr(sys, 'lore_no_env'):
     lore_no_env = sys.lore_no_env
 
-if len(sys.argv) > 1 and sys.argv[0][-4:] == 'lore' and sys.argv[1] in ['install', 'init']:
+if len(sys.argv) > 1 and sys.argv[0][-4:] == 'lore' and sys.argv[1] in ['install', 'init', 'server']:
     lore_no_env = True
 
 if not lore_no_env:

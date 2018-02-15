@@ -56,8 +56,10 @@ setup(
         'lore.models',
         'lore.pipelines',
         'lore.stores',
+        'lore.www'
     ],
     install_requires=[
+        'flask>=0.12.2, <0.12.99'
         'future>=0.15, <0.16.99',
         'inflection>=0.3, <0.3.99',
         'jupyter>=1.0, <1.0.99',

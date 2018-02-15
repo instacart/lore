@@ -110,6 +110,7 @@ prefix = None
 bin_python = None
 bin_lore = None
 bin_jupyter = None
+bin_flask = None
 requirements = os.path.join(root, 'requirements.txt')
 requirements_vcs = os.path.join(root, 'requirements.vcs.txt')
 
@@ -127,6 +128,7 @@ def set_python_version(version):
     global bin_python
     global bin_lore
     global bin_jupyter
+    global bin_flask
     
     python_version = version
     if python_version:
@@ -149,6 +151,7 @@ def set_python_version(version):
             bin_python = os.path.join(prefix, 'bin', 'python')
         bin_lore = os.path.join(prefix, 'bin', 'lore')
         bin_jupyter = os.path.join(prefix, 'bin', 'jupyter')
+        bin_flask = os.path.join(prefix, 'bin', 'flask')
     else:
         python_version_info = []
         prefix = None

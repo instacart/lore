@@ -149,14 +149,25 @@ def main(args=None):
         help='fully qualified model including module name. e.g. app.models.project.Model'
     )
     fit_parser.add_argument(
-        '--score',
+        '--test',
         help='calculate the loss on the prediction against the test set',
+        action='store_true'
+    )
+    fit_parser.add_argument(
+        '--score',
+        help='score the model, typically inverse of loss',
         action='store_true'
     )
     fit_parser.add_argument(
         '--upload',
         help='upload model to store after fitting'
     )
+
+    server_parser = commands.add_parser(
+        'server',
+        help='launch the flask server to provide an api to your models'
+    )
+    server_parser.set_defaults(func=server)
 
     pip_parser = commands.add_parser(
         'pip',
@@ -326,8 +337,14 @@ def fit(parsed, unknown):
     
         sys.exit(ansi.error() + ' Unknown arguments: %s\n%s' % (unknown_args, msg))
 
-    model.fit(score=parsed.score, **fit_args)
-    print(ansi.success('FINISHED') + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
+    model.fit(score=parsed.score, test=parsed.test, **fit_args)
+    print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
+
+
+def server(parsed, unknown):
+    args = [env.bin_flask, 'run'] + unknown
+    os.environ['FLASK_APP'] = os.path.join(os.path.dirname(__file__), 'www', '__init__.py')
+    os.execv(env.bin_flask, args)
 
 
 def console(parsed, unknown):
