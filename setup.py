@@ -63,6 +63,7 @@ setup(
         'future>=0.15, <0.16.99',
         'inflection>=0.3, <0.3.99',
         'jupyter>=1.0, <1.0.99',
+        'jupyter-core>=4.4.0, <4.4.99',
         'numpy>=1.14, <1.14.99',
         'pandas>=0.20, <0.22.99',
         'python-dotenv>=0.6, <0.7.99',

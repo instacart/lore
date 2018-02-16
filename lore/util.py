@@ -146,12 +146,14 @@ strip_one_off_handlers()
 _nested_timers = 0
 _previous_timer_level = 0
 _ascii_pipes = '  '
+_timer_logger = logging.getLogger('lore.util.timer')
+
 @contextmanager
 def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True):
-    global _librato, _nested_timers, _previous_timer_level, _ascii_pipes
+    global _librato, _nested_timers, _previous_timer_level, _ascii_pipes, _timer_logger
     
     if logger is None:
-        logger = logging.getLogger()
+        logger = _timer_logger
     
     if level < logger.level:
         yield
