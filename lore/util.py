@@ -148,6 +148,7 @@ _previous_timer_level = 0
 _ascii_pipes = '  '
 _timer_logger = logging.getLogger('lore.util.timer')
 
+
 @contextmanager
 def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True):
     global _librato, _nested_timers, _previous_timer_level, _ascii_pipes, _timer_logger
@@ -189,9 +190,8 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
                     _ascii_pipes = _ascii_pipes + ' ' * gap + '┌─'
 
         _previous_timer_level = _nested_timers
-        logger.log(level, '%s%s%s' % (ansi.bold(_ascii_pipes + '['), message, ansi.bold('] ' + str(time))))
+        logger.log(level, (ansi.bold(_ascii_pipes + '[' + str(time) + '] ') + message))
         
-
 
 def parametrized(decorator):
     def layer(*args, **kwargs):

@@ -163,6 +163,32 @@ def main(args=None):
         help='upload model to store after fitting'
     )
 
+    hyper_fit_parser = commands.add_parser(
+        'hyper_fit',
+        help="search model hyper parameters"
+    )
+    hyper_fit_parser.set_defaults(func=hyper_fit)
+    hyper_fit_parser.add_argument(
+        'model',
+        metavar='MODEL',
+        help='fully qualified model including module name. e.g. app.models.project.Model'
+    )
+    hyper_fit_parser.add_argument(
+        '--test',
+        help='calculate the loss on the prediction against the test set',
+        action='store_true'
+    )
+    hyper_fit_parser.add_argument(
+        '--score',
+        help='score the model, typically inverse of loss',
+        action='store_true'
+    )
+    hyper_fit_parser.add_argument(
+        '--upload',
+        help='upload model to store after fitting'
+    )
+
+
     server_parser = commands.add_parser(
         'server',
         help='launch the flask server to provide an api to your models'
@@ -252,62 +278,81 @@ def api(parsed, unknown):
     ).start()
 
 
-def fit(parsed, unknown):
-    module, klass = parsed.model.rsplit('.', 1)
+def _get_valid_fit_args(method):
+        if hasattr(method, '__wrapped__'):
+            return _get_valid_fit_args(method.__wrapped__)
+        return inspect.getargspec(method)
+
+
+def _filter_private_attributes(dict):
+    return {k: v for k, v in dict.items() if k[0] != '_'}
+
+
+def _cast_attr(value, default):
+    if isinstance(default, int):
+        return int(value)
+    elif isinstance(default, float):
+        return float(value)
+    elif isinstance(default, datetime.date):
+        return dateutil.parse(value).date()
+    elif isinstance(default, datetime.datetime):
+        return dateutil.parse(value)
+    else:
+        return value
+
+
+def _get_model(name):
+    module, klass = name.rsplit('.', 1)
     try:
         module = importlib.import_module('.', module)
         Model = getattr(module, klass)
     except (AttributeError, ModuleNotFoundError):
-        sys.exit(ansi.error() + ' "' + parsed.model + '" does not exist in this directoy! Are you sure you typed the fully qualified module.Class name correctly?')
-    print(ansi.success('FITTING ') + parsed.model)
+        sys.exit(
+            ansi.error() + ' "' + name + '" does not exist in this directoy! Are you sure you typed the fully qualified module.Class name correctly?')
 
-    model = Model()
+    return Model
 
-    def get_valid_args(method):
-        if hasattr(method, '__wrapped__'):
-            return get_valid_args(method.__wrapped__)
-        return inspect.getargspec(method)
-    valid_model_fit_args = get_valid_args(model.fit)
-    valid_estimator_fit_args = get_valid_args(model.estimator.fit)
-    valid_fit_args = valid_model_fit_args.args[1:] + valid_estimator_fit_args.args[1:]
-    
-    def filter_private_attributes(dict):
-        return {k: v for k, v in dict.items() if k[0] != '_'}
-    model_attrs = filter_private_attributes(model.__dict__)
-    pipeline_attrs = filter_private_attributes(model.pipeline.__dict__)
-    estimator_attrs = filter_private_attributes(model.estimator.__dict__)
-    estimator_attrs.pop('model', None)
-
-    def cast_attr(value, default):
-        if isinstance(default, int):
-            return int(value)
-        elif isinstance(default, float):
-            return float(value)
-        elif isinstance(default, datetime.date):
-            return dateutil.parse(value).date()
-        elif isinstance(default, datetime.datetime):
-            return dateutil.parse(value)
-        else:
-            return value
-
+def _pair_args(unknown):
     # handle args passed with ' ' or '=' between name and value
     attrs = [arg[2:] if arg[0:2] == '--' else arg for arg in unknown]  # strip --
     attrs = [attr.split('=') for attr in attrs]  # split
     attrs = [attr for sublist in attrs for attr in sublist]  # flatten
     grouped = list(zip(*[iter(attrs)] * 2))  # pair up
+    unpaired = []
+    if len(attrs) % 2 != 0:
+        unpaired.append(attrs[-1])
+    return grouped, unpaired
+
+
+
+def fit(parsed, unknown):
+    print(ansi.success('FITTING ') + parsed.model)
+    Model = _get_model(parsed.model)
+    model = Model()
+
+    valid_model_fit_args = _get_valid_fit_args(model.fit)
+    valid_estimator_fit_args = _get_valid_fit_args(model.estimator.fit)
+    valid_fit_args = valid_model_fit_args.args[1:] + valid_estimator_fit_args.args[1:]
+
+    model_attrs = _filter_private_attributes(model.__dict__)
+    pipeline_attrs = _filter_private_attributes(model.pipeline.__dict__)
+    estimator_attrs = _filter_private_attributes(model.estimator.__dict__)
+    estimator_attrs.pop('model', None)
+
+    grouped, unpaired = _pair_args(unknown)
 
     # assign args to their receivers
     fit_args = {}
     unknown_args = []
     for name, value in grouped:
         if name in model_attrs:
-            value = cast_attr(value, getattr(model, name))
+            value = _cast_attr(value, getattr(model, name))
             setattr(model, name, value)
         elif name in pipeline_attrs:
-            value = cast_attr(value, getattr(model.pipeline, name))
+            value = _cast_attr(value, getattr(model.pipeline, name))
             setattr(model.pipeline, name, value)
         elif name in estimator_attrs:
-            value = cast_attr(value, getattr(model.estimator, name))
+            value = _cast_attr(value, getattr(model.estimator, name))
             setattr(model.estimator, name, value)
         elif name in valid_model_fit_args.args:
             index = valid_model_fit_args.args.index(name)
@@ -315,19 +360,18 @@ def fit(parsed, unknown):
             default = None
             if from_end < len(valid_model_fit_args.defaults):
                 default = valid_model_fit_args.defaults[from_end]
-            fit_args[name] = cast_attr(value, default)
+            fit_args[name] = _cast_attr(value, default)
         elif name in valid_estimator_fit_args.args:
             index = valid_estimator_fit_args.args.index(name)
             from_end = index - len(valid_estimator_fit_args.args)
             default = None
             if from_end < len(valid_estimator_fit_args.defaults):
                 default = valid_estimator_fit_args.defaults[from_end]
-            fit_args[name] = cast_attr(value, default)
+            fit_args[name] = _cast_attr(value, default)
         else:
             unknown_args.append(name)
-            
-    if len(attrs) % 2 != 0:
-        unknown_args.append(attrs[-1])
+
+    unknown_args += unpaired
 
     if unknown_args:
         msg = ansi.bold("Valid model attributes") + ": %s\n" % ', '.join(sorted(model_attrs.keys()))
@@ -339,6 +383,26 @@ def fit(parsed, unknown):
 
     model.fit(score=parsed.score, test=parsed.test, **fit_args)
     print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
+    
+    
+def hyper_fit(parsed, unknown):
+    print(ansi.success('HYPER PARAM FITTING ') + parsed.model)
+#     Model = _get_model(parsed.model)
+#     model = Model()
+#     valid_estimator_fit_args = _get_valid_fit_args(model.estimator.fit)
+#
+#     grouped, unpaired = _pair_args(unknown)
+#
+#     result = model.hyper_parameter_search(
+#
+#         {'embed_size': scipy.stats.randint(low=1, high=10)},
+#         n_iter=2,
+#         fit_params={'epochs': 2}
+#     )
+#
+#     model.hyperF fit(score=parsed.score, test=parsed.test, **fit_args)
+#     print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
+
 
 
 def server(parsed, unknown):
