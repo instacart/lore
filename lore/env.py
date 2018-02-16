@@ -5,11 +5,6 @@ Key attributes and paths for this project
 """
 from __future__ import absolute_import
 
-try:
-    import configparser
-except ImportError:
-    configparser = None
-    
 import glob
 import os
 import re
@@ -19,7 +14,18 @@ import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 import socket
 
-import jupyter_core.paths
+if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
+    ModuleNotFoundError = ImportError
+
+try:
+    import configparser
+except ModuleNotFoundError:
+    configparser = None
+
+try:
+    import jupyter_core.paths
+except ModuleNotFoundError:
+    jupyter_core = False
 
 from lore import ansi
 
@@ -90,7 +96,11 @@ models_dir = os.path.join(work_dir, 'models')
 data_dir = os.path.join(work_dir, 'data')
 log_dir = os.path.join(root if name == TEST else work_dir, 'logs')
 tests_dir = os.path.join(root, 'tests')
-jupyter_kernel_path = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', project)
+if jupyter_core:
+    jupyter_kernel_path = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', project)
+else:
+    jupyter_kernel_path = '[UNKNOWN] (upgrade jupyter-core)'
+    
 color = {
     DEVELOPMENT: ansi.GREEN,
     TEST: ansi.BLUE,
