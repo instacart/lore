@@ -21,8 +21,7 @@ class TestFeatures(unittest.TestCase):
         user_warehouse_feature = UserWarehouseSearchesFeature()
         user_warehouse_feature.publish()
 
-        temp_file, temp_path = tempfile.mkstemp()
-        download(temp_path, user_warehouse_feature.data_path(), cache=False)
+        temp_path = download(user_warehouse_feature.data_path(), cache=False)
 
         fetched_data = pandas.read_csv(temp_path)
         self.assertTrue(len(user_warehouse_feature.get_data()) == 3)

@@ -12,17 +12,22 @@ import gzip
 import math
 from datetime import datetime
 
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
-from sqlalchemy.schema import DropTable
-from sqlalchemy.ext.compiler import compiles
-
 import pandas
-import sqlalchemy
 
 import lore
 from lore.util import timer
 from lore.stores import query_cached
+
+if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
+    ModuleNotFoundError = ImportError
+try:
+    import sqlalchemy
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.schema import DropTable
+    from sqlalchemy.ext.compiler import compiles
+except ModuleNotFoundError as e:
+    sqlalchemy = False
 
 try:
     import jinja2
@@ -33,55 +38,55 @@ try:
         trim_blocks=True,
         lstrip_blocks=True
     )
-except ImportError as ex:
+except ModuleNotFoundError as ex:
     jinja2_env = False
 
 logger = logging.getLogger(__name__)
 
-
-@compiles(DropTable, 'postgresql')
-def _compile_drop_table(element, compiler, **kwargs):
-    return compiler.visit_drop_table(element) + ' CASCADE'
-
-
-_after_replace_callbacks = []
-def after_replace(func):
-    global _after_replace_callbacks
-    _after_replace_callbacks.append(func)
-
-
-@event.listens_for(Engine, "before_cursor_execute", retval=True)
-def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
-    conn.info.setdefault('query_start_time', []).append(datetime.now())
+if sqlalchemy:
+    @compiles(DropTable, 'postgresql')
+    def _compile_drop_table(element, compiler, **kwargs):
+        return compiler.visit_drop_table(element) + ' CASCADE'
     
-    stack = inspect.stack()[1:-1]
-    if sys.version_info.major == 3:
-        stack = [(x.filename, x.lineno, x.function) for x in stack]
-    else:
-        stack = [(x[1], x[2], x[3]) for x in stack]
     
-    paths = [x[0] for x in stack]
-    origin = next((x for x in paths if lore.env.project in x), None)
-    if origin is None:
-        origin = next((x for x in paths if 'sqlalchemy' not in x), None)
-    if origin is None:
-        origin = paths[0]
-    caller = next(x for x in stack if x[0] == origin)
+    _after_replace_callbacks = []
+    def after_replace(func):
+        global _after_replace_callbacks
+        _after_replace_callbacks.append(func)
     
-    statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
-    logger.debug(statement)
-    return statement, parameters
-
-
-@event.listens_for(Engine, "after_cursor_execute")
-def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
-    total = datetime.now() - conn.info['query_start_time'].pop(-1)
-    logger.info("SQL: %s" % total)
-
-
-@event.listens_for(Engine, "connect")
-def receive_connect(dbapi_connection, connection_record):
-    logger.info("connect: %s" % dbapi_connection.get_dsn_parameters())
+    
+    @event.listens_for(Engine, "before_cursor_execute", retval=True)
+    def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
+        conn.info.setdefault('query_start_time', []).append(datetime.now())
+        
+        stack = inspect.stack()[1:-1]
+        if sys.version_info.major == 3:
+            stack = [(x.filename, x.lineno, x.function) for x in stack]
+        else:
+            stack = [(x[1], x[2], x[3]) for x in stack]
+        
+        paths = [x[0] for x in stack]
+        origin = next((x for x in paths if lore.env.project in x), None)
+        if origin is None:
+            origin = next((x for x in paths if 'sqlalchemy' not in x), None)
+        if origin is None:
+            origin = paths[0]
+        caller = next(x for x in stack if x[0] == origin)
+        
+        statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
+        logger.debug(statement)
+        return statement, parameters
+    
+    
+    @event.listens_for(Engine, "after_cursor_execute")
+    def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
+        total = datetime.now() - conn.info['query_start_time'].pop(-1)
+        logger.info("SQL: %s" % total)
+    
+    
+    @event.listens_for(Engine, "connect")
+    def receive_connect(dbapi_connection, connection_record):
+        logger.info("connect: %s" % dbapi_connection.get_dsn_parameters())
 
 
 class Connection(object):
@@ -270,7 +275,7 @@ class Connection(object):
     @query_cached
     def load(self, key, columns):
         result = [columns]
-        with timer('load:'):
+        with timer('load'):
             for entry in lore.io.bucket.objects.filter(
                 Prefix=os.path.join(self.UNLOAD_PREFIX, key)
             ):
@@ -283,7 +288,7 @@ class Connection(object):
     
     @query_cached
     def load_dataframe(self, key, columns):
-        with timer('load_dataframe:'):
+        with timer('load_dataframe'):
             frames = []
             for entry in lore.io.bucket.objects.filter(
                 Prefix=os.path.join(self.UNLOAD_PREFIX, key)

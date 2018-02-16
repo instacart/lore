@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-import inspect
 import json
 import logging
 import os.path
@@ -9,9 +8,10 @@ import pickle
 import re
 
 from tabulate import tabulate
+import lore.ansi
 import lore.estimators
 import lore.serializers
-from lore.util import timer
+from lore.util import timer, timed
 
 from sklearn.model_selection import RandomizedSearchCV
 
@@ -42,7 +42,7 @@ class Base(object):
         if hasattr(self._estimator, 'model'):
             self._estimator.model = self
 
-    def fit(self, **estimator_kwargs):
+    def fit(self, test=True, score=True, **estimator_kwargs):
         self.fitting = self.__class__.last_fitting() + 1
 
         self.stats = self.estimator.fit(
@@ -50,13 +50,36 @@ class Base(object):
             y=self.pipeline.encoded_training_data.y,
             **estimator_kwargs
         )
+
+        if test:
+            self.stats['test'] = self.evaluate(self.pipeline.test_data)
+
+        if score:
+            self.stats['score'] = self.score(self.pipeline.test_data)
+
         self.save(stats=self.stats)
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
-    
+        
+    @timed(logging.INFO)
     def predict(self, dataframe):
-        return self.estimator.predict(self.pipeline.encode_x(dataframe))
-    
+        predictions = self.estimator.predict(self.pipeline.encode_x(dataframe))
+        return self.pipeline.output_encoder.reverse_transform(predictions)
+
+    @timed(logging.INFO)
+    def evaluate(self, dataframe):
+        return self.estimator.evaluate(
+            self.pipeline.encode_x(dataframe),
+            self.pipeline.encode_y(dataframe)
+        )
+
+    @timed(logging.INFO)
+    def score(self, dataframe):
+        return self.estimator.score(
+            self.pipeline.encode_x(dataframe),
+            self.pipeline.encode_y(dataframe)
+        )
+
     def hyper_parameter_search(
             self,
             param_distributions,
@@ -99,7 +122,7 @@ class Base(object):
         self.estimator = result.best_estimator_
         
         return result
-    
+
     @classmethod
     def local_path(cls):
         return join(lore.env.models_dir, cls.remote_path())
@@ -138,7 +161,7 @@ class Base(object):
         if not os.path.exists(self.fitting_path()):
             os.makedirs(self.fitting_path())
 
-        with timer('pickle model:'):
+        with timer('pickle model'):
             with open(self.model_path(), 'wb') as f:
                 pickle.dump(self, f)
         
@@ -164,7 +187,7 @@ class Base(object):
         else:
             model.fitting = int(fitting)
         
-        with timer('unpickle model:'):
+        with timer('unpickle model'):
             with open(model.model_path(), 'rb') as f:
                 loaded = pickle.load(f)
                 loaded.fitting = model.fitting
@@ -173,11 +196,11 @@ class Base(object):
     def upload(self):
         self.fitting = 0
         self.save()
-        lore.io.upload(self.model_path(), self.remote_model_path())
+        lore.io.upload(self.remote_model_path(), self.model_path())
      
     @classmethod
     def download(cls, fitting=0):
         model = cls(None, None)
         model.fitting = int(fitting)
-        lore.io.download(model.model_path(), model.remote_model_path())
+        lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         return cls.load(fitting)

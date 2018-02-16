@@ -42,7 +42,7 @@ class Base(lore.models.base.Base):
     def save(self, stats=None):
         super(Base, self).save(stats)
         
-        with timer('save weights:'):
+        with timer('save weights'):
             # Only save weights, because saving named layers that have shared
             # weights causes an error on reload
             self.estimator.keras.save_weights(self.weights_path())
@@ -67,22 +67,22 @@ class Base(lore.models.base.Base):
             # https://github.com/fchollet/keras/issues/5442
             model.estimator.build()
             
-            with timer('load weights %i:' % model.fitting):
+            with timer('load weights %i' % model.fitting):
                 model.estimator.keras.load_weights(model.weights_path())
         else:
             model.build()
-            with timer('load weights:'):
+            with timer('load weights'):
                 model.keras.load_weights(model.weights_path())
         
         return model
     
     def upload(self):
         super(Base, self).upload()
-        lore.io.upload(self.weights_path(), self.remote_weights_path())
+        lore.io.upload(self.remote_weights_path(), self.weights_path())
     
     @classmethod
     def download(cls, fitting=0):
         model = cls(None, None)
         model.fitting = fitting
-        lore.io.download(model.weights_path(), model.remote_weights_path())
+        lore.io.download(model.remote_weights_path(), model.weights_path())
         return super(Base, cls).download(fitting)

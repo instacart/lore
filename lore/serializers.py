@@ -60,7 +60,7 @@ class Base(object):
             os.makedirs(self.fitting_path)
 
     def save(self, stats=None):
-        with timer('pickle model:'):
+        with timer('pickle model'):
             with open(self.model_path, 'wb') as f:
                 pickle.dump(self.model, f)
 
@@ -82,7 +82,7 @@ class Base(object):
         if fitting:
             self.fitting = fitting
         
-        with timer('unpickle model:'):
+        with timer('unpickle model'):
             with open(self.model_path, 'rb') as f:
                 self.model = pickle.load(f)
 
@@ -124,7 +124,7 @@ class Keras(Base):
     def save(self, stats=None):
         super(Keras, self).save(stats)
         
-        with timer('save weights:'):
+        with timer('save weights'):
             # Only save weights, because saving named layers that have shared
             # weights causes an error on reload
             self.model.estimator.keras.save_weights(self.weights_path)
@@ -148,11 +148,11 @@ class Keras(Base):
             # https://github.com/fchollet/keras/issues/5442
             self.model.estimator.build()
             
-            with timer('load weights:'):
+            with timer('load weights'):
                 self.model.estimator.keras.load_weights(self.weights_path)
         else:
             self.model.build()
-            with timer('load weights:'):
+            with timer('load weights'):
                 self.model.keras.load_weights(self.weights_path)
 
         return self.model

@@ -5,11 +5,6 @@ Key attributes and paths for this project
 """
 from __future__ import absolute_import
 
-try:
-    import configparser
-except ImportError:
-    configparser = None
-    
 import glob
 import os
 import re
@@ -18,6 +13,19 @@ from io import open
 import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 import socket
+
+if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
+    ModuleNotFoundError = ImportError
+
+try:
+    import configparser
+except ModuleNotFoundError:
+    configparser = None
+
+try:
+    import jupyter_core.paths
+except ModuleNotFoundError:
+    jupyter_core = False
 
 from lore import ansi
 
@@ -88,6 +96,11 @@ models_dir = os.path.join(work_dir, 'models')
 data_dir = os.path.join(work_dir, 'data')
 log_dir = os.path.join(root if name == TEST else work_dir, 'logs')
 tests_dir = os.path.join(root, 'tests')
+if jupyter_core:
+    jupyter_kernel_path = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', project)
+else:
+    jupyter_kernel_path = '[UNKNOWN] (upgrade jupyter-core)'
+    
 color = {
     DEVELOPMENT: ansi.GREEN,
     TEST: ansi.BLUE,
@@ -107,6 +120,7 @@ prefix = None
 bin_python = None
 bin_lore = None
 bin_jupyter = None
+bin_flask = None
 requirements = os.path.join(root, 'requirements.txt')
 requirements_vcs = os.path.join(root, 'requirements.vcs.txt')
 
@@ -124,6 +138,7 @@ def set_python_version(version):
     global bin_python
     global bin_lore
     global bin_jupyter
+    global bin_flask
     
     python_version = version
     if python_version:
@@ -146,6 +161,7 @@ def set_python_version(version):
             bin_python = os.path.join(prefix, 'bin', 'python')
         bin_lore = os.path.join(prefix, 'bin', 'lore')
         bin_jupyter = os.path.join(prefix, 'bin', 'jupyter')
+        bin_flask = os.path.join(prefix, 'bin', 'flask')
     else:
         python_version_info = []
         prefix = None
@@ -219,7 +235,12 @@ def reboot(*args):
         args[0] = bin_python
     elif args[0][-4:] == 'lore':
         args[0] = bin_lore
-    os.execv(args[0], args)
+    try:
+        os.execv(args[0], args)
+    except os.PermissionError as e:
+        if args[0] == bin_lore and args[1] == 'console':
+            print(ansi.error() + ' Your jupyter kernel may be corrupt. Please remove it so lore can reinstall:\n $ rm ' + jupyter_kernel_path)
+        raise e
 
 
 def check_version():

@@ -16,13 +16,13 @@ class Disk(Base):
     
     def __getitem__(self, key):
         if key in self:
-            with timer('read %s:' % key):
+            with timer('read %s' % key):
                 with open(self._path(key), 'rb') as f:
                     return pickle.load(f)
         return None
     
     def __setitem__(self, key, value):
-        with timer('write %s:' % key):
+        with timer('write %s' % key):
             with open(self._path(key), 'wb') as f:
                 pickle.dump(value, f, pickle.HIGHEST_PROTOCOL)
 
@@ -30,7 +30,7 @@ class Disk(Base):
             if os.path.getsize(self._path(key)) > self.limit:
                 raise MemoryError('disk cache limit exceeded by single key: %s' % key)
     
-            with timer('evict: %s' % key):
+            with timer('evict %s' % key):
                 while self.size() > self.limit:
                     del self[self.lru()]
     

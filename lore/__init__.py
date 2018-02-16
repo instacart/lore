@@ -15,7 +15,7 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2017, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay']
 __license__ = 'MIT'
-__version__ = '0.4.87'
+__version__ = '0.4.88'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
 __status__ = 'Development Status :: 3 - Alpha'
@@ -28,8 +28,10 @@ def banner():
     return '%s in %s on %s' % (
         ansi.foreground(ansi.GREEN, env.project),
         ansi.foreground(env.color, env.name),
-        ansi.foreground(ansi.CYAN,
-                        getpass.getuser() + '@' + socket.gethostname())
+        ansi.foreground(
+            ansi.CYAN,
+            getpass.getuser() + '@' + socket.gethostname()
+        )
     )
 
 
@@ -37,7 +39,7 @@ lore_no_env = False
 if hasattr(sys, 'lore_no_env'):
     lore_no_env = sys.lore_no_env
 
-if len(sys.argv) > 1 and sys.argv[0][-4:] == 'lore' and sys.argv[1] in ['install', 'init']:
+if len(sys.argv) > 1 and sys.argv[0][-4:] == 'lore' and sys.argv[1] in ['install', 'init', 'server']:
     lore_no_env = True
 
 if not lore_no_env:
