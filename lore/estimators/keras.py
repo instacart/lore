@@ -4,12 +4,13 @@ import inspect
 import logging
 import warnings
 
-import pandas
 import keras
 import keras.backend
 from keras.callbacks import EarlyStopping, TensorBoard, TerminateOnNaN
 from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, SimpleRNN, Flatten, LSTM, GRU
 from keras.optimizers import Adam
+import numpy
+import pandas
 from sklearn.base import BaseEstimator
 import tensorflow
 from tensorflow.python.client.timeline import Timeline
@@ -108,6 +109,7 @@ class Base(BaseEstimator):
             'towers': 1,
             'cudnn': False,
             'multi_gpu_model': None,
+            'output_activation': 'sigmoid',
         }
         for key, default in backward_compatible_defaults.items():
             if key not in self.__dict__.keys():
@@ -117,11 +119,12 @@ class Base(BaseEstimator):
     def description(self):
         return '\n'.join([
             '\n  %s' % self.__module__ + '.' + self.__class__.__name__,
-            '==========================================================',
-            '| embed | hidden | layer | layer  |         | model      |',
-            '| size  | layers | width | shrink | dropout | parameters |',
-            '----------------------------------------------------------',
-            '| %5i | %6i | %5i | %6.4f | %7.5f | %10i |' % (
+            '===================================================================',
+            '| towers | embed | hidden | layer | layer  |         | model      |',
+            '|        | size  | layers | width | shrink | dropout | parameters |',
+            '-------------------------------------------------------------------',
+            '| %6i | %5i | %6i | %5i | %6.4f | %7.5f | %10i |' % (
+                self.towers,
                 self.embed_size,
                 self.hidden_layers,
                 self.hidden_width,
@@ -129,7 +132,7 @@ class Base(BaseEstimator):
                 self.dropout,
                 self.keras.count_params()
             ),
-            '=========================================================='
+            '==================================================================='
         ])
     
     def callbacks(self):
@@ -362,8 +365,14 @@ class Base(BaseEstimator):
     def predict(self, dataframe):
         if isinstance(dataframe, pandas.DataFrame):
             dataframe = dataframe.to_dict(orient='series')
+
         with self.session.as_default():
-            return self.keras.predict(dataframe, batch_size=self.batch_size)
+            result = self.keras.predict(dataframe, batch_size=self.batch_size)
+
+        if self.towers > 1:
+            result = numpy.mean(result, axis=0)
+            
+        return result.squeeze()
     
     @timed(logging.INFO)
     def evaluate(self, x, y):
@@ -377,9 +386,9 @@ class Base(BaseEstimator):
             result = self.keras.evaluate(x, y, batch_size=self.batch_size, verbose=0)
         
         if self.towers > 1:
-            result = sum(result) / float(len(result))
+            result = numpy.mean(result, axis=0)
     
-        return result
+        return result.squeeze()
     
     def score(self, x, y):
         return 1 / self.evaluate(x, y)
@@ -412,7 +421,11 @@ class Keras(Base):
         cudnn=False,
         multi_gpu_model=True,
     ):
-        super(Keras, self).__init__(**locals())
+        kwargs = locals()
+        kwargs.pop('self')
+        kwargs.pop('__class__')
+
+        super(Keras, self).__init__(**kwargs)
 
         frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
         warnings.showwarning('lore.estimators.keras.Keras is deprecated. Please use "from lore.estimators.keras import Base"',
@@ -446,10 +459,10 @@ class Regression(Base):
             cudnn=False,
             multi_gpu_model=True,
     ):
-        args = locals()
-        args.pop('self')
-        args.pop('__class__')
-        super(Regression, self).__init__(**args)
+        kwargs = locals()
+        kwargs.pop('self')
+        kwargs.pop('__class__')
+        super(Regression, self).__init__(**kwargs)
 
 
 class BinaryClassifier(Base):
@@ -478,7 +491,10 @@ class BinaryClassifier(Base):
             cudnn=False,
             multi_gpu_model=True,
     ):
-        super(BinaryClassifier, self).__init__(**locals())
+        kwargs = locals()
+        kwargs.pop('self')
+        kwargs.pop('__class__')
+        super(BinaryClassifier, self).__init__(**kwargs)
 
 
 class MultiClassifier(Base):
@@ -507,7 +523,10 @@ class MultiClassifier(Base):
             cudnn=False,
             multi_gpu_model=True,
     ):
-        super(MultiClassifier, self).__init__(**locals())
+        kwargs = locals()
+        kwargs.pop('self')
+        kwargs.pop('__class__')
+        super(MultiClassifier, self).__init__(**kwargs)
 
     @timed(logging.INFO)
     def build_output_layer(self, hidden_layers, tower):
