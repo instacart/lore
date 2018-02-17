@@ -367,7 +367,7 @@ Commands
     :alt: Documentation Status
     :scale: 100%
     :target: https://docs.readthedocs.io/en/latest/?badge=latest
-.. |pypi| image:: [![PyPI version](https://badge.fury.io/py/lore.svg)](https://badge.fury.io/py/lore)
+.. |pypi| image:: https://badge.fury.io/py/lore.svg
     :alt: Pip Package Status
     :scale: 100%
     :target: https://pypi.python.org/pypi/lore
