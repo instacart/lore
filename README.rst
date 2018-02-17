@@ -375,6 +375,10 @@ Commands
     :alt: Build Status
     :scale: 100%
     :target: https://circleci.com/gh/instacart/lore
+.. |mit| image:: https://img.shields.io/badge/License-MIT-blue.svg
+    :alt: MIT License
+    :scale: 100%
+    :target: https://opensource.org/licenses/MIT
 
 .. _Heroku: https://heroku.com/
 .. _CircleCI: https://circleci.com/
