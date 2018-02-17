@@ -18,6 +18,9 @@ import shutil
 import subprocess
 import sys
 
+if sys.version_info[0] == 2:
+    from builtins import input
+
 import lore
 from lore import ansi, env, util
 from lore.util import timer, which
