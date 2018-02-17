@@ -1,0 +1,31 @@
+import logging
+
+import lore.pipelines
+from lore.util import timed
+import pandas
+
+
+logger = logging.getLogger(__name__)
+
+
+class Holdout(lore.pipelines.holdout.Base):
+    @timed(logging.INFO)
+    def get_data(self):
+        """
+        
+        :return: pandas.DataFrame of raw data to be split into train/validation/tess sets
+        """
+        # TODO return the full data set as a dataframe, one column per encoder
+        return pandas.DataFrame()
+    
+    @timed(logging.INFO)
+    def get_encoders(self):
+        # TODO return a tuple of instances from lore.encoders
+        return (None,)
+
+
+    @timed(logging.INFO)
+    def get_output_encoder(self):
+        # TODO return a single instance from lore.encoders
+        return None
+

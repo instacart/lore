@@ -196,7 +196,7 @@ class Base(object):
     def upload(self):
         self.fitting = 0
         self.save()
-        lore.io.upload(self.remote_model_path(), self.model_path())
+        lore.io.upload(self.model_path(), self.remote_model_path())
      
     @classmethod
     def download(cls, fitting=0):

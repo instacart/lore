@@ -47,3 +47,15 @@ class XGBoost(Base):
                              DeprecationWarning,
                              filename, line_number)
         super(XGBoost, self).__init__(**kwargs)
+
+
+class Regression(Base):
+    pass
+
+
+class BinaryClassifier(Base):
+    pass
+
+
+class MutliClassifier(Base):
+    pass
