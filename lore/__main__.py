@@ -18,13 +18,6 @@ import shutil
 import subprocess
 import sys
 
-
-try:
-    from builtins import input
-except ImportError:
-    import __builtin__ as builtins
-    from builtins import input
-
 import lore
 from lore import ansi, env, util
 from lore.util import timer, which
