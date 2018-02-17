@@ -18,7 +18,11 @@ import shutil
 import subprocess
 import sys
 
-if sys.version_info[0] == 2:
+
+try:
+    from builtins import input
+except ImportError:
+    import __builtin__ as builtins
     from builtins import input
 
 import lore
