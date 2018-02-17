@@ -8,7 +8,7 @@
  Lore
 ======
 
-|circleci_badge|
+|docs| |pypi| |circleci|
 
 
 Lore is a python data science framework to design, fit, and exploit machine learning models from development to production. It codifies best practices to simplify collaborating and deploying models developed on a laptop with Jupyter notebook, into high availability distributed production data centers.
@@ -363,7 +363,19 @@ Commands
   $ lore notebook  # launch jupyter notebook in your virtual env
 
 
-.. |circleci_badge| image:: https://circleci.com/gh/instacart/lore.png?style=shield&circle-token=54008e55ae13a0fa354203d13e7874c5efcb19a2
+.. |docs| image:: https://readthedocs.org/projects/docs/badge/?version=latest
+    :alt: Documentation Status
+    :scale: 100%
+    :target: https://docs.readthedocs.io/en/latest/?badge=latest
+.. |pypi| image:: https://badge.fury.io/py/lore.svg
+    :alt: Pip Package Status
+    :scale: 100%
+    :target: https://pypi.python.org/pypi/lore
+.. |circleci| image:: https://circleci.com/gh/instacart/lore.png?style=shield&circle-token=54008e55ae13a0fa354203d13e7874c5efcb19a2
+    :alt: Build Status
+    :scale: 100%
+    :target: https://circleci.com/gh/instacart/lore
+
 .. _Heroku: https://heroku.com/
 .. _CircleCI: https://circleci.com/
 .. _Domino: https://www.dominodatalab.com/

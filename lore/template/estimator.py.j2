@@ -1,0 +1,31 @@
+import logging
+
+{% if keras %}
+import lore.estimators.keras
+{% endif %}
+{% if xgboost %}
+import lore.estimators.xgboost
+{% endif %}
+{% if sklearn %}
+import lore.estimators.sklearn
+{% endif %}
+
+logger = logging.getLogger(__name__)
+{% if keras %}
+
+
+class Keras(lore.estimators.keras.{{base}}):
+    pass
+{% endif %}
+{% if xgboost %}
+
+
+class XGBoost(lore.estimators.xgboost.{{base}}):
+    pass
+{% endif %}
+{% if sklearn %}
+
+
+class SKLearn(lore.estimators.sklearn.{{base}}):
+    pass
+{% endif %}

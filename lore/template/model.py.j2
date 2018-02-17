@@ -1,0 +1,37 @@
+import logging
+
+import {{app_name}}.pipelines.{{module_name}}
+import {{app_name}}.estimators.{{module_name}}
+
+
+logger = logging.getLogger(__name__)
+{% if keras %}
+
+
+class Keras(lore.models.keras.Base):
+    def __init__(self, pipeline=None, estimator=None):
+        super(Keras, self).__init__(
+            {{app_name}}.pipelines.{{module_name}}.Holdout(),
+            {{app_name}}.estimators.{{module_name}}.Keras()
+        )
+{% endif %}
+{% if xgboost %}
+
+
+class XGBoost(lore.models.xgboost.Base):
+    def __init__(self, pipeline=None, estimator=None):
+        super(Keras, self).__init__(
+            {{app_name}}.pipelines.{{module_name}}.Holdout(),
+            {{app_name}}.estimators.{{module_name}}.XGBoost()
+        )
+{% endif %}
+{% if sklearn %}
+
+
+class SKLearn(lore.models.sklearn.Base):
+    def __init__(self, pipeline=None, estimator=None):
+        super(Keras, self).__init__(
+            {{app_name}}.pipelines.{{module_name}}.Holdout(),
+            {{app_name}}.estimators.{{module_name}}.SKLearn()
+        )
+{% endif %}

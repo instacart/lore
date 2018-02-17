@@ -414,11 +414,11 @@ class Keras(Base):
         hidden_activity_regularizer=None,
         hidden_bias_regularizer=None,
         hidden_kernel_regularizer=None,
-        output_activation=None,
+        output_activation='sigmoid',
         monitor='val_loss',
-        loss=None,
+        loss='categorical_crossentropy',
         towers=1,
-        cudnn=False,
+        cudnn=True,
         multi_gpu_model=True,
     ):
         kwargs = locals()
@@ -431,6 +431,20 @@ class Keras(Base):
         warnings.showwarning('lore.estimators.keras.Keras is deprecated. Please use "from lore.estimators.keras import Base"',
                              DeprecationWarning,
                              filename, line_number)
+
+    @timed(logging.DEBUG)
+    def predict(self, dataframe):
+        if isinstance(dataframe, pandas.DataFrame):
+            dataframe = dataframe.to_dict(orient='series')
+        with self.session.as_default():
+            return self.keras.predict(dataframe, batch_size=self.batch_size)
+
+    @timed(logging.INFO)
+    def score(self, x, y):
+        if isinstance(x, pandas.DataFrame):
+            x = x.to_dict(orient='series')
+        with self.session.as_default():
+            return 1 / self.keras.evaluate(x, y, batch_size=self.batch_size)
 
 
 class Regression(Base):

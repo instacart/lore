@@ -2,8 +2,6 @@
 
 from __future__ import absolute_import, unicode_literals
 
-from builtins import input
-
 import argparse
 import datetime
 import dateutil
@@ -35,12 +33,12 @@ class HelpfulParser(argparse.ArgumentParser):
         self.print_help(sys.stderr)
         self.exit(2, '%s: error: %s\n' % (self.prog, message))
 
-    
+
 def main(args=None):
     parser = HelpfulParser(prog='lore')
     parser.add_argument('--version', action='version',
                         version='lore %s' % lore.__version__)
-
+    
     commands = parser.add_subparsers(help='common commands')
     
     init_parser = commands.add_parser('init', help='create a new lore project')
@@ -48,25 +46,25 @@ def main(args=None):
     init_parser.add_argument('name', metavar='NAME', help='the name of the project')
     init_parser.add_argument('--git-ignore', default=True)
     init_parser.add_argument('--python-version', default=None)
-
+    
     api_parser = commands.add_parser(
         'api',
         help='serve the api'
     )
     api_parser.set_defaults(func=api)
-
+    
     console_parser = commands.add_parser(
         'console',
         help='launch an interactive python shell'
     )
     console_parser.set_defaults(func=console)
-
+    
     exec_parser = commands.add_parser(
         'exec',
         help='run a shell command in this project\'s virtual env'
     )
     exec_parser.set_defaults(func=execute)
-
+    
     install_parser = commands.add_parser(
         'install',
         help='install dependencies in a virtualenv'
@@ -82,7 +80,7 @@ def main(args=None):
         help='recalculate requirements.frozen.txt with current versions',
         action='store_true'
     )
-
+    
     generate_parser = commands.add_parser(
         'generate',
         help='create a new model'
@@ -98,10 +96,34 @@ def main(args=None):
         help='create a keras scaffold',
         action='store_true'
     )
-
+    scaffold_parser.add_argument(
+        '--xgboost',
+        help='create a xgboost scaffold',
+        action='store_true'
+    )
+    scaffold_parser.add_argument(
+        '--sklearn',
+        help='create a sklearn scaffold',
+        action='store_true'
+    )
     scaffold_parser.add_argument(
         '--holdout',
         help='create a holdout pipeline',
+        action='store_true'
+    )
+    scaffold_parser.add_argument(
+        '--regression',
+        help='inherit from lore.estimators.keras.Regression',
+        action='store_true'
+    )
+    scaffold_parser.add_argument(
+        '--binary_classifier',
+        help='inherit from lore.estimators.keras.BinaryClassifier',
+        action='store_true'
+    )
+    scaffold_parser.add_argument(
+        '--multi_classifier',
+        help='inherit from lore.estimators.keras.MultiClassifier',
         action='store_true'
     )
 
@@ -115,6 +137,16 @@ def main(args=None):
         help='inherit from lore.models.keras.Base',
         action='store_true'
     )
+    model_parser.add_argument(
+        '--xgboost',
+        help='create a xgboost scaffold',
+        action='store_true'
+    )
+    model_parser.add_argument(
+        '--sklearn',
+        help='create a sklearn scaffold',
+        action='store_true'
+    )
 
     estimator_parser = generators.add_parser(
         'estimator',
@@ -124,6 +156,31 @@ def main(args=None):
     estimator_parser.add_argument(
         '--keras',
         help='inherit from lore.estimators.keras.Base',
+        action='store_true'
+    )
+    estimator_parser.add_argument(
+        '--xgboost',
+        help='create a xgboost scaffold',
+        action='store_true'
+    )
+    estimator_parser.add_argument(
+        '--sklearn',
+        help='create a sklearn scaffold',
+        action='store_true'
+    )
+    estimator_parser.add_argument(
+        '--regression',
+        help='inherit from lore.estimators.keras.Regression',
+        action='store_true'
+    )
+    estimator_parser.add_argument(
+        '--binary_classifier',
+        help='inherit from lore.estimators.keras.BinaryClassifier',
+        action='store_true'
+    )
+    estimator_parser.add_argument(
+        '--multi_classifier',
+        help='inherit from lore.estimators.keras.MultiClassifier',
         action='store_true'
     )
 
@@ -137,7 +194,7 @@ def main(args=None):
         help='inherit from lore.pipelines.holdout.Base',
         action='store_true'
     )
-
+    
     fit_parser = commands.add_parser(
         'fit',
         help="train models"
@@ -162,31 +219,56 @@ def main(args=None):
         '--upload',
         help='upload model to store after fitting'
     )
-
+    
+    hyper_fit_parser = commands.add_parser(
+        'hyper_fit',
+        help="search model hyper parameters"
+    )
+    hyper_fit_parser.set_defaults(func=hyper_fit)
+    hyper_fit_parser.add_argument(
+        'model',
+        metavar='MODEL',
+        help='fully qualified model including module name. e.g. app.models.project.Model'
+    )
+    hyper_fit_parser.add_argument(
+        '--test',
+        help='calculate the loss on the prediction against the test set',
+        action='store_true'
+    )
+    hyper_fit_parser.add_argument(
+        '--score',
+        help='score the model, typically inverse of loss',
+        action='store_true'
+    )
+    hyper_fit_parser.add_argument(
+        '--upload',
+        help='upload model to store after fitting'
+    )
+    
     server_parser = commands.add_parser(
         'server',
         help='launch the flask server to provide an api to your models'
     )
     server_parser.set_defaults(func=server)
-
+    
     pip_parser = commands.add_parser(
         'pip',
         help='pass a command to this project\'s virtual env pip'
     )
     pip_parser.set_defaults(func=pip)
-
+    
     python_parser = commands.add_parser(
         'python',
         help='pass a command to this project\'s virtual env python'
     )
     python_parser.set_defaults(func=python)
-
+    
     python_parser = commands.add_parser(
         'notebook',
         help='pass a command to this project\'s virtual env jupyter notebook'
     )
     python_parser.set_defaults(func=notebook)
-
+    
     test_parser = commands.add_parser(
         'test',
         help='run tests'
@@ -197,14 +279,14 @@ def main(args=None):
         help='test only certain modules, e.g. tests.unit.test_foo,tests.unit.test_bar'
     )
     test_parser.set_defaults(func=test)
-
+    
     (known, unknown) = parser.parse_known_args(args)
     if '--env-launched' in unknown:
         unknown.remove('--env-launched')
     if '--env-checked' in unknown:
         unknown.remove('--env-checked')
     known.func(known, unknown)
-    
+
 
 def api(parsed, unknown):
     api_path = os.path.join(env.root, env.project, 'api')
@@ -219,11 +301,12 @@ def api(parsed, unknown):
             elif os.path.exists(consumer):
                 consumer_paths.append(consumer)
             else:
-                raise IOError('No file found for listener "%s". The following paths were checked:\n  %s\n  %s' % (name, consumer, endpoint))
+                raise IOError('No file found for listener "%s". The following paths were checked:\n  %s\n  %s' % (
+                    name, consumer, endpoint))
     else:
         endpoint_paths = glob.glob(os.path.join(api_path, '*_endpoint.py'))
         consumer_paths = glob.glob(os.path.join(api_path, '*_consumer.py'))
-     
+    
     for path in endpoint_paths + consumer_paths:
         module = os.path.basename(path)[:-3]
         if sys.version_info.major == 2:
@@ -235,7 +318,7 @@ def api(parsed, unknown):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
     util.strip_one_off_handlers()
-
+    
     if len(endpoint_paths) > 0 and len(consumer_paths) > 0:
         from hub.listeners.combined import CombinedListener as Listener
     elif len(endpoint_paths) > 0:
@@ -248,66 +331,85 @@ def api(parsed, unknown):
     Listener(
         os.environ.get('HUB_APP_NAME', env.project),
         concurrency=os.environ.get("HUB_CONCURRENCY", 4),
-        host_index = os.environ.get("RABBIT_HOST_INDEX")
+        host_index=os.environ.get("RABBIT_HOST_INDEX")
     ).start()
 
 
-def fit(parsed, unknown):
-    module, klass = parsed.model.rsplit('.', 1)
+def _get_valid_fit_args(method):
+    if hasattr(method, '__wrapped__'):
+        return _get_valid_fit_args(method.__wrapped__)
+    return inspect.getargspec(method)
+
+
+def _filter_private_attributes(dict):
+    return {k: v for k, v in dict.items() if k[0] != '_'}
+
+
+def _cast_attr(value, default):
+    if isinstance(default, int):
+        return int(value)
+    elif isinstance(default, float):
+        return float(value)
+    elif isinstance(default, datetime.date):
+        return dateutil.parse(value).date()
+    elif isinstance(default, datetime.datetime):
+        return dateutil.parse(value)
+    else:
+        return value
+
+
+def _get_model(name):
+    module, klass = name.rsplit('.', 1)
     try:
         module = importlib.import_module('.', module)
         Model = getattr(module, klass)
     except (AttributeError, ModuleNotFoundError):
-        sys.exit(ansi.error() + ' "' + parsed.model + '" does not exist in this directoy! Are you sure you typed the fully qualified module.Class name correctly?')
-    print(ansi.success('FITTING ') + parsed.model)
-
-    model = Model()
-
-    def get_valid_args(method):
-        if hasattr(method, '__wrapped__'):
-            return get_valid_args(method.__wrapped__)
-        return inspect.getargspec(method)
-    valid_model_fit_args = get_valid_args(model.fit)
-    valid_estimator_fit_args = get_valid_args(model.estimator.fit)
-    valid_fit_args = valid_model_fit_args.args[1:] + valid_estimator_fit_args.args[1:]
+        sys.exit(
+            ansi.error() + ' "' + name + '" does not exist in this directoy! Are you sure you typed the fully qualified module.Class name correctly?')
     
-    def filter_private_attributes(dict):
-        return {k: v for k, v in dict.items() if k[0] != '_'}
-    model_attrs = filter_private_attributes(model.__dict__)
-    pipeline_attrs = filter_private_attributes(model.pipeline.__dict__)
-    estimator_attrs = filter_private_attributes(model.estimator.__dict__)
-    estimator_attrs.pop('model', None)
+    return Model
 
-    def cast_attr(value, default):
-        if isinstance(default, int):
-            return int(value)
-        elif isinstance(default, float):
-            return float(value)
-        elif isinstance(default, datetime.date):
-            return dateutil.parse(value).date()
-        elif isinstance(default, datetime.datetime):
-            return dateutil.parse(value)
-        else:
-            return value
 
+def _pair_args(unknown):
     # handle args passed with ' ' or '=' between name and value
     attrs = [arg[2:] if arg[0:2] == '--' else arg for arg in unknown]  # strip --
     attrs = [attr.split('=') for attr in attrs]  # split
     attrs = [attr for sublist in attrs for attr in sublist]  # flatten
     grouped = list(zip(*[iter(attrs)] * 2))  # pair up
+    unpaired = []
+    if len(attrs) % 2 != 0:
+        unpaired.append(attrs[-1])
+    return grouped, unpaired
 
+
+def fit(parsed, unknown):
+    print(ansi.success('FITTING ') + parsed.model)
+    Model = _get_model(parsed.model)
+    model = Model()
+    
+    valid_model_fit_args = _get_valid_fit_args(model.fit)
+    valid_estimator_fit_args = _get_valid_fit_args(model.estimator.fit)
+    valid_fit_args = valid_model_fit_args.args[1:] + valid_estimator_fit_args.args[1:]
+    
+    model_attrs = _filter_private_attributes(model.__dict__)
+    pipeline_attrs = _filter_private_attributes(model.pipeline.__dict__)
+    estimator_attrs = _filter_private_attributes(model.estimator.__dict__)
+    estimator_attrs.pop('model', None)
+    
+    grouped, unpaired = _pair_args(unknown)
+    
     # assign args to their receivers
     fit_args = {}
     unknown_args = []
     for name, value in grouped:
         if name in model_attrs:
-            value = cast_attr(value, getattr(model, name))
+            value = _cast_attr(value, getattr(model, name))
             setattr(model, name, value)
         elif name in pipeline_attrs:
-            value = cast_attr(value, getattr(model.pipeline, name))
+            value = _cast_attr(value, getattr(model.pipeline, name))
             setattr(model.pipeline, name, value)
         elif name in estimator_attrs:
-            value = cast_attr(value, getattr(model.estimator, name))
+            value = _cast_attr(value, getattr(model.estimator, name))
             setattr(model.estimator, name, value)
         elif name in valid_model_fit_args.args:
             index = valid_model_fit_args.args.index(name)
@@ -315,30 +417,51 @@ def fit(parsed, unknown):
             default = None
             if from_end < len(valid_model_fit_args.defaults):
                 default = valid_model_fit_args.defaults[from_end]
-            fit_args[name] = cast_attr(value, default)
+            fit_args[name] = _cast_attr(value, default)
         elif name in valid_estimator_fit_args.args:
             index = valid_estimator_fit_args.args.index(name)
             from_end = index - len(valid_estimator_fit_args.args)
             default = None
             if from_end < len(valid_estimator_fit_args.defaults):
                 default = valid_estimator_fit_args.defaults[from_end]
-            fit_args[name] = cast_attr(value, default)
+            fit_args[name] = _cast_attr(value, default)
         else:
             unknown_args.append(name)
-            
-    if len(attrs) % 2 != 0:
-        unknown_args.append(attrs[-1])
-
+    
+    unknown_args += unpaired
+    
     if unknown_args:
         msg = ansi.bold("Valid model attributes") + ": %s\n" % ', '.join(sorted(model_attrs.keys()))
         msg += ansi.bold("Valid estimator attributes") + ": %s\n" % ', '.join(sorted(estimator_attrs.keys()))
         msg += ansi.bold("Valid pipeline attributes") + ": %s\n" % ', '.join(sorted(pipeline_attrs.keys()))
         msg += ansi.bold("Valid fit arguments") + ": %s\n" % ', '.join(sorted(valid_fit_args))
-    
+        
         sys.exit(ansi.error() + ' Unknown arguments: %s\n%s' % (unknown_args, msg))
-
+    
     model.fit(score=parsed.score, test=parsed.test, **fit_args)
     print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
+
+
+def hyper_fit(parsed, unknown):
+    print(ansi.success('HYPER PARAM FITTING ') + parsed.model)
+
+
+#     Model = _get_model(parsed.model)
+#     model = Model()
+#     valid_estimator_fit_args = _get_valid_fit_args(model.estimator.fit)
+#
+#     grouped, unpaired = _pair_args(unknown)
+#
+#     result = model.hyper_parameter_search(
+#
+#         {'embed_size': scipy.stats.randint(low=1, high=10)},
+#         n_iter=2,
+#         fit_params={'epochs': 2}
+#     )
+#
+#     model.hyperF fit(score=parsed.score, test=parsed.test, **fit_args)
+#     print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
+
 
 
 def server(parsed, unknown):
@@ -367,11 +490,12 @@ def execute(parsed, unknown):
 
 
 def init(parsed, unknown):
-    template = os.path.join(os.path.dirname(__file__), 'template')
+    template = os.path.join(os.path.dirname(__file__), 'template', 'init')
     
     if os.path.exists(parsed.name):
-        sys.exit(ansi.error() + ' "' + parsed.name + '" already exists in this directoy! Lore can not create a new project with this name.')
-        
+        sys.exit(
+            ansi.error() + ' "' + parsed.name + '" already exists in this directoy! Lore can not create a new project with this name.')
+    
     shutil.copytree(template, parsed.name, symlinks=False, ignore=None)
     os.chdir(parsed.name)
     shutil.move('app', parsed.name)
@@ -386,7 +510,7 @@ def init(parsed, unknown):
         python_version = parsed.python_version
     else:
         python_version = '3.6.4'
-
+    
     with open('runtime.txt', 'wt') as file:
         file.write('python-' + python_version + '\n')
     importlib.reload(lore.env)
@@ -408,13 +532,31 @@ def install(parsed, unknown):
         return
     else:
         raise KeyError('unknown system: ' % platform.system())
-
+    
     install_python_version()
     create_virtual_env()
     install_requirements(parsed)
     
     if hasattr(parsed, 'native') and parsed.native:
         install_tensorflow()
+
+
+_jinja2_env = None
+
+
+def _render_template(name, **kwargs):
+    global _jinja2_env
+    if _jinja2_env is None:
+        import jinja2
+        
+        _jinja2_env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(
+                os.path.join(os.path.dirname(__file__), 'template')
+            ),
+            trim_blocks=True,
+            lstrip_blocks=True
+        )
+    return _jinja2_env.get_template(name).render(**kwargs)
 
 
 def generate_scaffold(parsed, unknown):
@@ -424,30 +566,61 @@ def generate_scaffold(parsed, unknown):
     generate_notebooks(parsed, unknown)
 
 
+def _generate_generic(type, name, **kwargs):
+    import inflection
+    name = inflection.underscore(name)
+    destination = os.path.join(lore.env.project, inflection.pluralize(type), name + '.py')
+    if os.path.exists(destination):
+        sys.exit(ansi.error() + ' %s already exists' % destination)
+    kwargs['app_name'] = lore.env.project
+    kwargs['module_name'] = name
+    code = _render_template(type + '.py.j2', **kwargs)
+    
+    with open(destination, 'w+') as file:
+        file.write(code)
+    
+    print(ansi.success('CREATED ') + ' ' + type + ': ' + destination)
+
+
 def generate_model(parsed, unknown):
-    pass
+    kwargs = {
+        'keras': parsed.keras,
+        'xgboost': parsed.xgboost,
+        'sklearn': parsed.sklearn,
+    }
+
+    _generate_generic('model', parsed.name, **kwargs)
     
 
 def generate_estimator(parsed, unknown):
-    pass
+    kwargs = {
+        'keras': parsed.keras,
+        'xgboost': parsed.xgboost,
+        'sklearn': parsed.sklearn,
+    }
 
+    base = 'Base'
+    if parsed.regression:
+        base = 'Regression'
+    elif parsed.binary_classifier:
+        base = 'BinaryClassifier'
+    elif parsed.multi_classifier:
+        base = 'MultiClassifier'
+
+    _generate_generic('estimator', parsed.name, base=base, **kwargs)
+    
 
 def generate_pipeline(parsed, unknown):
-    template = '''
-    
-    '''
-    pass
+    if not parsed.holdout:
+        sys.exit(ansi.error() + ' unknown pipeline type; try --holdout')
+
+    _generate_generic('pipeline', parsed.name)
 
 
 def generate_notebooks(parsed, unknown):
     pass
 
 
-def task(parsed, unknown):
-    task = unknown[0]
-    print(ansi.error() + 'not implemented')
-    
-    
 def pip(parsed, unknown):
     args = [env.bin_python, '-m', 'pip'] + unknown
     print(ansi.success('EXECUTE ') + ' '.join(args))
@@ -474,13 +647,13 @@ def test(parsed, unknown):
         else:
             print(ansi.success('RUNNING ') + 'all tests')
             suite = unittest.defaultTestLoader.discover(env.tests_dir)
-
+    
     result = unittest.TextTestRunner().run(suite)
     if not result.wasSuccessful():
         sys.exit(1)
     else:
         sys.exit(0)
-    
+
 
 def notebook(parsed, unknown):
     install_jupyter_kernel()
@@ -501,7 +674,7 @@ def install_linux():
 def install_homebrew():
     if which('brew'):
         return
-        
+    
     print(ansi.success('INSTALL') + ' homebrew')
     subprocess.check_call((
         '/usr/bin/ruby',
@@ -514,13 +687,13 @@ def install_pyenv():
     home = os.environ.get('HOME')
     if not home:
         return
-
+    
     pyenv = os.path.join(home, '.pyenv')
     bin_pyenv = os.path.join(pyenv, 'bin', 'pyenv')
     virtualenv = os.path.join(pyenv, 'plugins', 'pyenv-virtualenv')
     if os.path.exists(bin_pyenv) and os.path.exists(virtualenv):
         return
-
+    
     if os.path.exists(pyenv) and not os.path.isfile(bin_pyenv):
         print(ansi.warning() + ' pyenv executable is not present at %s' % bin_pyenv)
         while True:
@@ -532,7 +705,7 @@ def install_pyenv():
                 sys.exit(ansi.error() + ' please fix pyenv before continuing')
             else:
                 print('please enter Y or N')
-                
+    
     if not os.path.exists(pyenv):
         print(ansi.success('INSTALLING') + ' pyenv')
         subprocess.check_call((
@@ -546,7 +719,7 @@ def install_pyenv():
     env.pyenv = pyenv
     env.bin_pyenv = bin_pyenv
     env.set_python_version(env.python_version)
-
+    
     if not os.path.exists(virtualenv):
         print(ansi.success('INSTALLING') + ' pyenv virtualenv')
         subprocess.check_call((
@@ -557,7 +730,7 @@ def install_pyenv():
         ))
     else:
         print(ansi.success('CHECK') + ' existing virtualenv installation')
-    
+
 
 def install_xcode():
     result = subprocess.call(('xcode-select', '--install'), stderr=subprocess.PIPE)
@@ -570,7 +743,7 @@ def install_xcode():
 def install_gcc_5():
     if which('gcc-5'):
         return
-
+    
     install_homebrew()
     print(ansi.success('INSTALL') + ' gcc 5 for xgboost')
     subprocess.check_call(('brew', 'install', 'gcc@5'))
@@ -579,7 +752,7 @@ def install_gcc_5():
 def install_bazel():
     if which('bazel'):
         return
-
+    
     install_homebrew()
     print(ansi.success('INSTALL') + ' bazel for tensorflow')
     subprocess.check_call(('brew', 'install', 'bazel'))
@@ -596,7 +769,7 @@ def install_tensorflow():
         sys.exit(ansi.error() + ' tensorflow is not in requirements.txt')
     
     print(ansi.success('NATIVE') + ' tensorflow ' + version)
-
+    
     python_version = ''.join(env.python_version.split('.')[0:2])
     cached = os.path.join(
         env.pyenv,
@@ -610,7 +783,7 @@ def install_tensorflow():
     if not paths:
         build_tensorflow(version)
         paths = glob.glob(cached)
-
+    
     path = paths[0]
     
     subprocess.check_call((env.bin_python, '-m', 'pip', 'uninstall', '-y', 'tensorflow'))
@@ -690,7 +863,7 @@ def build_tensorflow(version):
     )
     (stdout, stderr) = pip.communicate()
     pip.wait()
-
+    
     subprocess.check_call((
         'bazel',
         'build',
@@ -719,7 +892,7 @@ def install_python_version():
     if not env.pyenv:
         sys.exit(
             ansi.error() + ' pyenv is not installed. Lore is broken. try:\n'
-            ' $ pip uninstall lore && pip install lore\n'
+                           ' $ pip uninstall lore && pip install lore\n'
         )
     
     versions = subprocess.check_output(
@@ -743,7 +916,7 @@ def create_virtual_env():
     
     if os.path.exists(env.bin_python):
         return
-
+    
     print(ansi.success('CREATE') + ' virtualenv: %s' % env.project)
     subprocess.check_call((
         env.bin_pyenv,
@@ -759,18 +932,18 @@ def install_requirements(args):
     if not os.path.exists(source):
         sys.exit(
             ansi.error() + ' %s is missing. You should check it in to version '
-                             'control.' % ansi.underline(source)
+                           'control.' % ansi.underline(source)
         )
     
     pip_install(source, args)
     freeze_requirements()
     install_jupyter_kernel()
-    
-    
+
+
 def install_jupyter_kernel():
     if os.path.exists(env.jupyter_kernel_path):
         return
-
+    
     print(ansi.success('INSTALL') + ' jupyter kernel')
     subprocess.check_call((
         env.bin_python,
@@ -796,13 +969,13 @@ def freeze_requirements():
     pip.wait()
     
     restore_vcs_lines(vcs)
-
+    
     present = stdout.decode('utf-8').split(os.linesep)
     errors = stderr.decode('utf-8').split(os.linesep)
     missing = [line for line in errors if 'package is not installed' in line]
     regex = re.compile(r'contains ([\w\-\_]+)')
     needed = [m.group(1).lower() for l in missing for m in [regex.search(l)] if m]
-
+    
     added_index = present.index('## The following requirements were added by pip freeze:')
     unsafe = None
     if added_index:
@@ -812,7 +985,7 @@ def freeze_requirements():
         unsafe = set()
         for package in added:
             name = package.split('==')[0]
-
+            
             for bad in vcs:
                 if name in bad:
                     unsafe.add(package)
@@ -830,27 +1003,27 @@ def freeze_requirements():
         print(ansi.success('EXECUTE ') + ' '.join(args))
         subprocess.check_call(args)
         return freeze_requirements()
-
+    
     if unsafe:
         if vcs:
             print(
                 ansi.warning() + ' Non pypi packages were detected in your ' +
                 ansi.underline('requirements.txt') + ' that can not be '
-                'completely frozen by pip. ' + os.linesep + os.linesep +
+                                                     'completely frozen by pip. ' + os.linesep + os.linesep +
                 os.linesep.join(vcs)
             )
-    
+        
         print(
             ansi.info() + ' You should check the following packages in to ' +
             ansi.underline('requirements.txt') + ' or `lore pip uninstall` them'
         )
         if vcs:
             print(ansi.warning('unless') + ' they are covered by the previously listed packages'
-            ' that pip can not freeze.')
+                                           ' that pip can not freeze.')
         print(
             os.linesep + os.linesep.join(unsafe) + os.linesep
         )
-
+    
     with open(source, 'w', encoding='utf-8') as f:
         f.write(os.linesep.join(sorted(present, key=lambda s: s.lower())).strip() + os.linesep)
         if vcs:
@@ -909,11 +1082,4 @@ def pip_install(path, args):
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except:
-        e = sys.exc_info()
-        for i in e:
-            print(i)
-        import traceback
-        traceback.print_tb(e[2])
+    main()

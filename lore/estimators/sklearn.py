@@ -43,3 +43,15 @@ class SKLearn(Base):
                              DeprecationWarning,
                              filename, line_number)
         super(SKLearn, self).__init__(estimator)
+
+
+class Regression(Base):
+    pass
+
+
+class BinaryClassifier(Base):
+    pass
+
+
+class MutliClassifier(Base):
+    pass

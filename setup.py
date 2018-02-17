@@ -22,7 +22,7 @@ xgboost = ['xgboost>=0.6a2, <0.6.99']
 scikit = ['scikit-learn>=0.19, <0.19.99']
 
 all = list(set(keras + xgboost + scikit + postgres + redshift + redis + s3))
-devel = all + ['moto>=1.1, <1.1.99']
+devel = all + ['moto>=1.1, <1.1.99', 'sphinx', 'sphinx-autobuild', 'sphinx_rtd_theme']
 
 setup(
     name='lore',
