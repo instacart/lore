@@ -363,10 +363,10 @@ Commands
   $ lore notebook  # launch jupyter notebook in your virtual env
 
 
-.. |docs| image:: https://readthedocs.org/projects/docs/badge/?version=latest
+.. |docs| image:: https://readthedocs.org/projects/lore-machine-learning/badge/?version=latest
     :alt: Documentation Status
     :scale: 100%
-    :target: https://docs.readthedocs.io/en/latest/?badge=latest
+    :target: http://lore-machine-learning.readthedocs.io/en/latest/?badge=latest
 .. |pypi| image:: https://badge.fury.io/py/lore.svg
     :alt: Pip Package Status
     :scale: 100%
