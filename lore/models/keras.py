@@ -78,7 +78,7 @@ class Base(lore.models.base.Base):
     
     def upload(self):
         super(Base, self).upload()
-        lore.io.upload(self.remote_weights_path(), self.weights_path())
+        lore.io.upload(self.weights_path(), self.remote_weights_path())
     
     @classmethod
     def download(cls, fitting=0):
