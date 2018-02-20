@@ -40,7 +40,7 @@ class Base(BaseEstimator):
             model=None,
             embed_size=10,
             sequence_embedding='flatten',
-            sequence_embed_size=10,
+            sequence_embed_size=None,
             hidden_width=1024,
             hidden_layers=4,
             layer_shrink=0.5,
@@ -66,7 +66,6 @@ class Base(BaseEstimator):
             
         self.towers = towers
         self.embed_size = embed_size
-        self.sequence_embed_size = 10
         self.hidden_width = hidden_width
         self.hidden_layers = hidden_layers
         self.layer_shrink = layer_shrink
@@ -87,7 +86,7 @@ class Base(BaseEstimator):
         self.session = None
         self.model = model
         self.sequence_embedding = sequence_embedding
-        self.sequence_embed_size = sequence_embed_size
+        self.sequence_embed_size = sequence_embed_size or embed_size
         self.cudnn = cudnn
         self.multi_gpu_model = multi_gpu_model
     
