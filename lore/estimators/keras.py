@@ -86,7 +86,7 @@ class Base(BaseEstimator):
         self.session = None
         self.model = model
         self.sequence_embedding = sequence_embedding
-        self.sequence_embed_size = sequence_embed_size or self.embed_size
+        self.sequence_embed_size = sequence_embed_size or embed_size
         self.cudnn = cudnn
         self.multi_gpu_model = multi_gpu_model
     
