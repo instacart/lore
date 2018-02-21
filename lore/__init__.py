@@ -15,10 +15,10 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2017, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay']
 __license__ = 'MIT'
-__version__ = '0.4.89'
+__version__ = '0.5.0'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
-__status__ = 'Development Status :: 3 - Alpha'
+__status__ = 'Development Status :: 4 - Beta'
 
 
 def banner():
@@ -39,7 +39,7 @@ lore_no_env = False
 if hasattr(sys, 'lore_no_env'):
     lore_no_env = sys.lore_no_env
 
-if len(sys.argv) > 1 and sys.argv[0][-4:] == 'lore' and sys.argv[1] in ['install', 'init', 'server']:
+if len(sys.argv) > 1 and sys.argv[0][-4:] == 'lore' and sys.argv[1] in ['install', 'init', 'server', 'console', 'notebook']:
     lore_no_env = True
 
 if not lore_no_env:

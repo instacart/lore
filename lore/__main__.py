@@ -127,9 +127,7 @@ def main(args=None):
         action='store_true'
     )
 
-    model_parser = generators.add_parser(
-        'model',
-    )
+    model_parser = generators.add_parser('model')
     model_parser.set_defaults(func=generate_model)
     model_parser.add_argument('name', metavar='NAME', help='name of the model')
     model_parser.add_argument(
@@ -139,18 +137,16 @@ def main(args=None):
     )
     model_parser.add_argument(
         '--xgboost',
-        help='create a xgboost scaffold',
+        help='inherit from lore.models.xgboost.Base',
         action='store_true'
     )
     model_parser.add_argument(
         '--sklearn',
-        help='create a sklearn scaffold',
+        help='inherit from lore.models.sklearn.Base',
         action='store_true'
     )
 
-    estimator_parser = generators.add_parser(
-        'estimator',
-    )
+    estimator_parser = generators.add_parser('estimator')
     estimator_parser.set_defaults(func=generate_estimator)
     estimator_parser.add_argument('name', metavar='NAME', help='name of the estimator')
     estimator_parser.add_argument(
@@ -184,9 +180,7 @@ def main(args=None):
         action='store_true'
     )
 
-    pipeline_parser = generators.add_parser(
-        'pipeline',
-    )
+    pipeline_parser = generators.add_parser('pipeline')
     pipeline_parser.set_defaults(func=generate_pipeline)
     pipeline_parser.add_argument('name', metavar='NAME', help='name of the pipeline')
     pipeline_parser.add_argument(
@@ -194,7 +188,45 @@ def main(args=None):
         help='inherit from lore.pipelines.holdout.Base',
         action='store_true'
     )
-    
+
+    generate_test_parser = generators.add_parser('test')
+    generate_test_parser.set_defaults(func=generate_test)
+    generate_test_parser.add_argument('name', metavar='NAME', help='name of the model')
+    generate_test_parser.add_argument(
+        '--keras',
+        help='create a keras test',
+        action='store_true'
+    )
+    generate_test_parser.add_argument(
+        '--xgboost',
+        help='create a xgboost test',
+        action='store_true'
+    )
+    generate_test_parser.add_argument(
+        '--sklearn',
+        help='create a sklearn test',
+        action='store_true'
+    )
+
+    generate_notebooks_parser = generators.add_parser('notebooks')
+    generate_notebooks_parser.set_defaults(func=generate_notebooks)
+    generate_notebooks_parser.add_argument('name', metavar='NAME', help='name of the model')
+    generate_notebooks_parser.add_argument(
+        '--keras',
+        help='create a keras notebook',
+        action='store_true'
+    )
+    generate_notebooks_parser.add_argument(
+        '--xgboost',
+        help='create a xgboost notebook',
+        action='store_true'
+    )
+    generate_notebooks_parser.add_argument(
+        '--sklearn',
+        help='create a sklearn notebook',
+        action='store_true'
+    )
+
     fit_parser = commands.add_parser(
         'fit',
         help="train models"
@@ -217,7 +249,8 @@ def main(args=None):
     )
     fit_parser.add_argument(
         '--upload',
-        help='upload model to store after fitting'
+        help='upload model to store after fitting',
+        action='store_true'
     )
 
     hyper_fit_parser = commands.add_parser(
@@ -242,7 +275,8 @@ def main(args=None):
     )
     hyper_fit_parser.add_argument(
         '--upload',
-        help='upload model to store after fitting'
+        help='upload model to store after fitting',
+        action='store_true'
     )
 
     server_parser = commands.add_parser(
@@ -250,7 +284,16 @@ def main(args=None):
         help='launch the flask server to provide an api to your models'
     )
     server_parser.set_defaults(func=server)
-    
+    server_parser.add_argument(
+        '--host',
+        help='listen on host',
+    )
+    server_parser.add_argument(
+        '-p',
+        '--port',
+        help='listen on port'
+    )
+
     pip_parser = commands.add_parser(
         'pip',
         help='pass a command to this project\'s virtual env pip'
@@ -443,48 +486,13 @@ def fit(parsed, unknown):
     
 def hyper_fit(parsed, unknown):
     print(ansi.success('HYPER PARAM FITTING ') + parsed.model)
-#     Model = _get_model(parsed.model)
-#     model = Model()
-#     valid_estimator_fit_args = _get_valid_fit_args(model.estimator.fit)
-#
-#     grouped, unpaired = _pair_args(unknown)
-#
-#     result = model.hyper_parameter_search(
-#
-#         {'embed_size': scipy.stats.randint(low=1, high=10)},
-#         n_iter=2,
-#         fit_params={'epochs': 2}
-#     )
-#
-#     model.hyperF fit(score=parsed.score, test=parsed.test, **fit_args)
-#     print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
-
-
-
-def hyper_fit(parsed, unknown):
-    print(ansi.success('HYPER PARAM FITTING ') + parsed.model)
-
-
-#     Model = _get_model(parsed.model)
-#     model = Model()
-#     valid_estimator_fit_args = _get_valid_fit_args(model.estimator.fit)
-#
-#     grouped, unpaired = _pair_args(unknown)
-#
-#     result = model.hyper_parameter_search(
-#
-#         {'embed_size': scipy.stats.randint(low=1, high=10)},
-#         n_iter=2,
-#         fit_params={'epochs': 2}
-#     )
-#
-#     model.hyperF fit(score=parsed.score, test=parsed.test, **fit_args)
-#     print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
-
-
+    # TODO
+    
 
 def server(parsed, unknown):
-    args = [env.bin_flask, 'run'] + unknown
+    host = parsed.host or os.environ.get('HOST') or '0.0.0.0'
+    port = parsed.port or os.environ.get('PORT') or '5000'
+    args = [env.bin_flask, 'run', '--port', port, '--host', host] + unknown
     os.environ['FLASK_APP'] = os.path.join(os.path.dirname(__file__), 'www', '__init__.py')
     os.execv(env.bin_flask, args)
 
@@ -493,7 +501,13 @@ def console(parsed, unknown):
     install_jupyter_kernel()
     sys.argv[0] = env.bin_jupyter
     args = [env.bin_jupyter, 'console', '--kernel', env.project] + unknown
+    startup = '.ipython'
+    if not os.path.exists(startup):
+        with open(startup, 'w+') as file:
+            file.write('import lore\n')
+
     print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
+    os.environ['PYTHONSTARTUP'] = startup
     os.execv(env.bin_jupyter, args)
 
 
@@ -532,7 +546,10 @@ def init(parsed, unknown):
     
     with open('runtime.txt', 'wt') as file:
         file.write('python-' + python_version + '\n')
-    importlib.reload(lore.env)
+    if sys.version_info[0] == 2:
+        reload(lore.env)
+    else:
+        importlib.reload(lore.env)
     install(parsed, unknown)
 
 
@@ -582,42 +599,58 @@ def generate_scaffold(parsed, unknown):
     generate_model(parsed, unknown)
     generate_estimator(parsed, unknown)
     generate_pipeline(parsed, unknown)
+    generate_test(parsed, unknown)
     generate_notebooks(parsed, unknown)
 
 
-def _generate_generic(type, name, **kwargs):
+def _generate_template(type, parsed, **kwargs):
     import inflection
+    name = parsed.name
+    kwargs = kwargs or {}
+    kwargs['keras'] = parsed.keras
+    kwargs['xgboost'] = parsed.xgboost
+    kwargs['sklearn'] = parsed.sklearn
+    kwargs['major_version'] = sys.version_info[0]
+    kwargs['full_version'] = lore.env.python_version
+    notebooks = ['features', 'architecture']
     name = inflection.underscore(name)
-    destination = os.path.join(lore.env.project, inflection.pluralize(type), name + '.py')
+    if type == 'notebooks':
+        for notebook in notebooks:
+            _generate_template(notebook, parsed, **kwargs)
+        return
+        
+    if type == 'test':
+        destination = os.path.join(inflection.pluralize(type), 'unit', 'test_' + name + '.py')
+    elif type in notebooks:
+        destination = os.path.join('notebooks', name, type + '.ipynb')
+    else:
+        destination = os.path.join(lore.env.project, inflection.pluralize(type), name + '.py')
+
     if os.path.exists(destination):
         sys.exit(ansi.error() + ' %s already exists' % destination)
+
+    dir = os.path.dirname(destination)
+    if not os.path.exists(dir):
+        os.makedirs(dir)
+        if type not in notebooks:
+            open(os.path.join(dir, '__init__.py'), 'w')
+        
     kwargs['app_name'] = lore.env.project
     kwargs['module_name'] = name
+    kwargs['class_name'] = inflection.camelize(name)
     code = _render_template(type + '.py.j2', **kwargs)
     
     with open(destination, 'w+') as file:
         file.write(code)
     
-    print(ansi.success('CREATED ') + ' ' + type + ': ' + destination)
+    print(ansi.success('CREATED ') + destination)
 
 
 def generate_model(parsed, unknown):
-    kwargs = {
-        'keras': parsed.keras,
-        'xgboost': parsed.xgboost,
-        'sklearn': parsed.sklearn,
-    }
-
-    _generate_generic('model', parsed.name, **kwargs)
+    _generate_template('model', parsed)
     
 
 def generate_estimator(parsed, unknown):
-    kwargs = {
-        'keras': parsed.keras,
-        'xgboost': parsed.xgboost,
-        'sklearn': parsed.sklearn,
-    }
-
     base = 'Base'
     if parsed.regression:
         base = 'Regression'
@@ -626,18 +659,22 @@ def generate_estimator(parsed, unknown):
     elif parsed.multi_classifier:
         base = 'MultiClassifier'
 
-    _generate_generic('estimator', parsed.name, base=base, **kwargs)
+    _generate_template('estimator', parsed, base=base)
     
 
 def generate_pipeline(parsed, unknown):
     if not parsed.holdout:
         sys.exit(ansi.error() + ' unknown pipeline type; try --holdout')
 
-    _generate_generic('pipeline', parsed.name)
+    _generate_template('pipeline', parsed)
+
+
+def generate_test(parsed, unknown):
+    _generate_template('test', parsed)
 
 
 def generate_notebooks(parsed, unknown):
-    pass
+    _generate_template('notebooks', parsed)
 
 
 def pip(parsed, unknown):

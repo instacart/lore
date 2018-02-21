@@ -12,7 +12,7 @@ build/
 .idea
 
 # Jupyter
-.ipynb_checkpoints/*
+notebooks/**/.ipynb_checkpoints/*
 
 # Lore local developement files
 .env
@@ -20,6 +20,3 @@ logs/*
 data/*
 models/*
 tests/models/*
-
-# Saved notebooks
-notebooks/saved/*

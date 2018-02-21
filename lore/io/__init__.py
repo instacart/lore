@@ -49,7 +49,10 @@ if config:
             continue
             
         options = config._sections[section]
-        vars()[section.lower()] = Connection(name=section.lower(), **options)
+        if options.get('url') == '$DATABASE_URL':
+            logger.error('$DATABASE_URL is not set, but is used in config/database.cfg. Skipping connection.')
+        else:
+            vars()[section.lower()] = Connection(name=section.lower(), **options)
 
 redis_config = lore.env.redis_config
 
@@ -121,8 +124,9 @@ def download(remote_url, local_path=None, cache=True, extract=False):
         os.rename(temp_path, local_path)
 
         if extract:
-            with tarfile.open(local_path, 'r:gz') as tar:
-                tar.extractall()
+            with timer('EXTRACT: %s' % local_path, logging.DEBUG):
+                with tarfile.open(local_path, 'r:gz') as tar:
+                    tar.extractall(os.path.dirname(local_path))
     else:
         local_path = temp_path
         
