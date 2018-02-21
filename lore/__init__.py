@@ -15,10 +15,10 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2017, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay']
 __license__ = 'MIT'
-__version__ = '0.5.0.alpha1'
+__version__ = '0.5.0'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
-__status__ = 'Development Status :: 3 - Alpha'
+__status__ = 'Development Status :: 4 - Beta'
 
 
 def banner():
