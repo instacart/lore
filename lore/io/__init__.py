@@ -98,8 +98,8 @@ def download(remote_url, local_path=None, cache=True, extract=False):
                 filename = remote_url
             local_path = os.path.join(lore.env.data_dir, filename)
         
-        # if os.path.exists(local_path):
-        #     return local_path
+        if os.path.exists(local_path):
+            return local_path
     elif local_path:
         raise ValueError("You can't pass lore.io.download(local_path=X), unless you also pass cache=True")
     elif extract:
