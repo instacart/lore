@@ -1,0 +1,30 @@
+import unittest
+
+import {{app_name}}.models.{{module_name}}
+
+class Test{{class_name}}(unittest.TestCase):
+
+    def test_fit(self):
+        {% if keras %}
+        
+        model = {{app_name}}.models.{{module_name}}.Keras()
+        model.pipeline.subsample = 1000
+        model.fit(epochs=1)
+        self.assertTrue(True)
+        {% endif %}
+        {% if xgboost %}
+        
+        model = {{app_name}}.models.{{module_name}}.XGBoost()
+        model.pipeline.subsample = 1000
+        model.fit()
+        self.assertTrue(True)
+        {% endif %}
+        {% if sklearn %}
+        
+        model = {{app_name}}.models.{{module_name}}.SKLearn()
+        model.pipeline.subsample = 1000
+        model.fit()
+        self.assertTrue(True)
+        {% endif %}
+
+        

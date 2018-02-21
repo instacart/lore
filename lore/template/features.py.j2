@@ -1,0 +1,83 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "%load_ext autoreload\n",
+    "%autoreload 2"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import matplotlib.pyplot\n",
+    "import matplotlib\n",
+    "matplotlib.style.use('seaborn')\n",
+    "matplotlib.rc('axes', grid=True)\n",
+    "%matplotlib inline\n",
+    "%config InlineBackend.figure_format = 'retina'\n",
+    "\n",
+    "import lore\n",
+    "from {{app_name}}.models.{{module_name}} import Keras\n",
+    "model = Keras.load()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "test = model.pipeline.encoded_test_data.x.copy()\n",
+    "test['response'] = model.pipeline.test_data[model.pipeline.output_encoder.column]\n",
+    "test['color'] = 'gold'\n",
+    "\n",
+    "predict = model.pipeline.encoded_test_data.x.copy()\n",
+    "predict['response'] = model.predict(model.pipeline.test_data)\n",
+    "predict['color'] = 'blue'\n",
+    "\n",
+    "data = test.append(predict)\n",
+    "\n",
+    "def plot_encoder(name):\n",
+    "    stats = data.groupby(['color', name]).agg({'response': ['mean', 'size']}).reset_index()\n",
+    "    stats.columns = ['color', name, 'response', 'population']\n",
+    "    stats['population'] = (stats['population'] / stats['population'].max() * 1000).clip(lower=3)\n",
+    "    stats.plot.scatter(x=name, y='response', s=stats['population'], figsize=(16, 9), c=stats['color'], alpha=0.75)    \n",
+    "\n",
+    "for encoder in model.pipeline.encoders:\n",
+    "    if hasattr(encoder, 'sequence_length'):\n",
+    "        for i in range(encoder.sequence_length):\n",
+    "            plot_encoder(encoder.sequence_name(i))\n",
+    "    else:\n",
+    "        plot_encoder(encoder.name)"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "{{app_name}}",
+   "language": "python",
+   "name": "{{app_name}}"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": {{major_version}}
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "{{full_version}}"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
