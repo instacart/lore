@@ -36,8 +36,11 @@ class HelpfulParser(argparse.ArgumentParser):
 
 def main(args=None):
     parser = HelpfulParser(prog='lore')
-    parser.add_argument('--version', action='version',
-                        version='lore %s' % lore.__version__)
+    parser.add_argument(
+        '--version',
+        action='version',
+        version='lore %s' % lore.__version__
+    )
     
     commands = parser.add_subparsers(help='common commands')
     
@@ -328,7 +331,10 @@ def main(args=None):
         unknown.remove('--env-launched')
     if '--env-checked' in unknown:
         unknown.remove('--env-checked')
-    known.func(known, unknown)
+    if hasattr(known, 'func'):
+        known.func(known, unknown)
+    else:
+        parser.print_help(sys.stderr)
 
 
 def api(parsed, unknown):
@@ -404,7 +410,7 @@ def _cast_attr(value, default):
 def _get_model(name):
     module, klass = name.rsplit('.', 1)
     try:
-        module = importlib.import_module('.', module)
+        module = importlib.import_module(module)
         Model = getattr(module, klass)
     except (AttributeError, ModuleNotFoundError):
         sys.exit(
@@ -493,7 +499,7 @@ def server(parsed, unknown):
     host = parsed.host or os.environ.get('HOST') or '0.0.0.0'
     port = parsed.port or os.environ.get('PORT') or '5000'
     args = [env.bin_flask, 'run', '--port', port, '--host', host] + unknown
-    os.environ['FLASK_APP'] = os.path.join(os.path.dirname(__file__), 'www', '__init__.py')
+    os.environ['FLASK_APP'] = lore.env.flask_app
     os.execv(env.bin_flask, args)
 
 
@@ -533,7 +539,7 @@ def init(parsed, unknown):
     os.chdir(parsed.name)
     shutil.move('app', parsed.name)
     
-    requirements = '-e /Users/montanalow/repos/lore'
+    requirements = 'lore'
     if unknown:
         requirements += '[' + ','.join([r[2:] for r in unknown]) + ']'
     with open('requirements.txt', 'wt') as file:
@@ -980,7 +986,6 @@ def create_virtual_env():
         env.python_version,
         env.project
     ))
-    subprocess.check_call([env.bin_python, '-m', 'pip', 'install', 'six'])
 
 
 def install_requirements(args):
