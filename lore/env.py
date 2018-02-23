@@ -14,6 +14,15 @@ import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
 import socket
 
+# WORKAROUND HACK
+# Python3 inserts __PYVENV_LAUNCHER__, that breaks pyenv virtualenv
+# by changing the venv python symlink to the current python, rather
+# than the correct pyenv version, among other problems. We pop it
+# in our process space, since python has already made it's use of it.
+#
+# see https://bugs.python.org/issue22490
+os.environ.pop('__PYVENV_LAUNCHER__', None)
+
 if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
     ModuleNotFoundError = ImportError
 
@@ -121,6 +130,7 @@ bin_python = None
 bin_lore = None
 bin_jupyter = None
 bin_flask = None
+flask_app = None
 requirements = os.path.join(root, 'requirements.txt')
 requirements_vcs = os.path.join(root, 'requirements.vcs.txt')
 
@@ -139,6 +149,7 @@ def set_python_version(version):
     global bin_lore
     global bin_jupyter
     global bin_flask
+    global flask_app
     
     python_version = version
     if python_version:
@@ -154,14 +165,21 @@ def set_python_version(version):
         else:
             prefix = os.path.realpath(sys.prefix)
             
-        bin_python = os.path.join(prefix, 'bin', 'python' + '.'.join([str(i) for i in python_version_info[0:2]]))
+        python_major = 'python' + str(python_version_info[0])
+        python_minor = python_major + '.' + str(python_version_info[1])
+        python_patch = python_minor + '.' + str(python_version_info[2])
+        
+        bin_python = os.path.join(prefix, 'bin', python_patch)
         if not os.path.exists(bin_python):
-            bin_python = os.path.join(prefix, 'bin', 'python' + str(python_version_info[0]))
+            bin_python = os.path.join(prefix, 'bin', python_minor)
+        if not os.path.exists(bin_python):
+            bin_python = os.path.join(prefix, 'bin', python_major)
         if not os.path.exists(bin_python):
             bin_python = os.path.join(prefix, 'bin', 'python')
         bin_lore = os.path.join(prefix, 'bin', 'lore')
         bin_jupyter = os.path.join(prefix, 'bin', 'jupyter')
         bin_flask = os.path.join(prefix, 'bin', 'flask')
+        flask_app = os.path.join(prefix, 'lib', python_minor, 'site-packages', 'lore', 'www', '__init__.py')
     else:
         python_version_info = []
         prefix = None
@@ -237,7 +255,7 @@ def reboot(*args):
         args[0] = bin_lore
     try:
         os.execv(args[0], args)
-    except os.PermissionError as e:
+    except Exception as e:
         if args[0] == bin_lore and args[1] == 'console':
             print(ansi.error() + ' Your jupyter kernel may be corrupt. Please remove it so lore can reinstall:\n $ rm ' + jupyter_kernel_path)
         raise e

@@ -1,4 +1,4 @@
-{NAME}
+{{app_name}}
 ==========
 
 System Setup
@@ -20,17 +20,16 @@ System Setup
 Running
 -------
 
-The service runs on {DOMAIN}, to run locally:
+To run locally:
 
 .. code::
 
-  $ lore console
-  $ lore api
+  $ lore server
 
 Testing
 -------
 
-CircleCI_ runs on push, to run locally:
+To test locally:
 
 .. code::
 
@@ -39,18 +38,15 @@ CircleCI_ runs on push, to run locally:
 Training
 --------
 
-Nightly training runs are scheduled on Domino_, to train locally:
+To train locally:
 
 .. code::
 
-  $ lore notebook
+  $ lore fit MODEL
 
 Deploying
 ---------
 
 .. code::
 
-  $ isc launch {DOMAIN} {NAME}@master --follow
-
-.. _CircleCI: https://circleci.com/
-.. _Domino: https://domino.io/
+  $ git push heroku master

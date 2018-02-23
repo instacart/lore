@@ -1,5 +1,15 @@
 import logging
 
+{% if keras %}
+import lore.models.keras
+{% endif %}
+{% if xgboost %}
+import lore.models.xgboost
+{% endif %}
+{% if sklearn %}
+import lore.models.sklearn
+{% endif %}
+
 import {{app_name}}.pipelines.{{module_name}}
 import {{app_name}}.estimators.{{module_name}}
 

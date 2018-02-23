@@ -474,7 +474,7 @@ class Regression(Base):
     ):
         kwargs = locals()
         kwargs.pop('self')
-        kwargs.pop('__class__')
+        kwargs.pop('__class__', None)
         super(Regression, self).__init__(**kwargs)
 
 
@@ -506,7 +506,7 @@ class BinaryClassifier(Base):
     ):
         kwargs = locals()
         kwargs.pop('self')
-        kwargs.pop('__class__')
+        kwargs.pop('__class__', None)
         super(BinaryClassifier, self).__init__(**kwargs)
 
 
@@ -538,7 +538,7 @@ class MultiClassifier(Base):
     ):
         kwargs = locals()
         kwargs.pop('self')
-        kwargs.pop('__class__')
+        kwargs.pop('__class__', None)
         super(MultiClassifier, self).__init__(**kwargs)
 
     @timed(logging.INFO)

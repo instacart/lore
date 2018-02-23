@@ -64,7 +64,12 @@ setup(
         'lore.models',
         'lore.pipelines',
         'lore.stores',
-        'lore.www'
+        'lore.www',
+        'lore.template.init.app',
+        'lore.template.init.app.estimators',
+        'lore.template.init.app.models',
+        'lore.template.init.app.pipelines',
+        'lore.template.init.tests.unit',
     ],
     install_requires=[
         'flask>=0.12.2, <0.12.99'
@@ -96,6 +101,10 @@ setup(
     package_data={
         '': [
             'data/names.csv',
+            'template/init/app/extracts/*',
+            'template/init/config/*',
+            'template/init/notebooks/*',
+            'template/*',
             'template/.*',
             'template/**/*',
             'template/**/.*',
