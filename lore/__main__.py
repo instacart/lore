@@ -377,11 +377,14 @@ def api(parsed, unknown):
     else:
         raise IOError('No hub listeners found in %s' % api_path)
     
-    Listener(
-        os.environ.get('HUB_APP_NAME', env.project),
-        concurrency=os.environ.get("HUB_CONCURRENCY", 4),
-        host_index=os.environ.get("RABBIT_HOST_INDEX")
-    ).start()
+    try:
+        Listener(
+            os.environ.get('HUB_APP_NAME', env.project),
+            concurrency=os.environ.get("HUB_CONCURRENCY", 4),
+            host_index=os.environ.get("RABBIT_HOST_INDEX")
+        ).start()
+    except KeyboardInterrupt:
+        exit(ansi.error('INTERRUPT') + ' Shutting down...')
 
 
 def _get_valid_fit_args(method):

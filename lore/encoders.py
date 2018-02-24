@@ -52,7 +52,16 @@ class Base(object):
         
     def __repr__(self):
         return self.name
-    
+
+    def __setstate__(self, dict):
+        self.__dict__ = dict
+        backward_compatible_defaults = {
+            'missing_value': 0
+        }
+        for key, default in backward_compatible_defaults.items():
+            if key not in self.__dict__.keys():
+                self.__dict__[key] = default
+
     def fit(self, data):
         """
         Establishes the encoding for a data set
