@@ -43,14 +43,14 @@ TEST = 'test'
 DEVELOPMENT = 'development'
 PRODUCTION = 'production'
 
-ascii_locale = False
-ascii_upgraded = False
-if 'ascii' in locale.getpreferredencoding().lower():
+unicode_locale = True
+unicode_upgraded = False
+if 'utf' not in locale.getpreferredencoding().lower():
     if os.environ.get('LANG', None):
-        ascii_locale = True
+        unicode_locale = False
     else:
         locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-        ascii_upgraded = True
+        unicode_upgraded = True
 
 
 def read_version(path):

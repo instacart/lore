@@ -144,8 +144,8 @@ def strip_one_off_handlers():
 strip_one_off_handlers()
 
 
-if env.ascii_upgraded:
-    logger.warning('Default python locale is US-ASCII, upgrading to en_US.UTF-8 for unicode support. Set $LANG if you really mean it.')
+if env.unicode_upgraded:
+    logger.warning('The default python locale does not support unicode. Lore has upgraded to en_US.UTF-8. Set $LANG if you really mean it.')
 
 
 _nested_timers = 0
