@@ -177,7 +177,7 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
             librato_record(librato_name, time.total_seconds())
     
         _nested_timers -= 1
-        if _nested_timers == 0 or env.ascii_locale:
+        if _nested_timers == 0 or not env.unicode_locale:
             _ascii_pipes = ''
         else:
             delta = (_nested_timers - _previous_timer_level)
