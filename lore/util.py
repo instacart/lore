@@ -143,6 +143,11 @@ def strip_one_off_handlers():
 
 strip_one_off_handlers()
 
+
+if env.ascii_upgraded:
+    logger.warning('Default python locale is US-ASCII, upgrading to en_US.UTF-8 for unicode support. Set $LANG if you really mean it.')
+
+
 _nested_timers = 0
 _previous_timer_level = 0
 _ascii_pipes = '  '
@@ -172,7 +177,7 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
             librato_record(librato_name, time.total_seconds())
     
         _nested_timers -= 1
-        if _nested_timers == 0:
+        if _nested_timers == 0 or env.ascii_locale:
             _ascii_pipes = ''
         else:
             delta = (_nested_timers - _previous_timer_level)

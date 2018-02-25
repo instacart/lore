@@ -6,6 +6,7 @@ Key attributes and paths for this project
 from __future__ import absolute_import
 
 import glob
+import locale
 import os
 import re
 import sys
@@ -41,6 +42,15 @@ from lore import ansi
 TEST = 'test'
 DEVELOPMENT = 'development'
 PRODUCTION = 'production'
+
+ascii_locale = False
+ascii_upgraded = False
+if 'ascii' in locale.getpreferredencoding().lower():
+    if os.environ.get('LANG', None):
+        ascii_locale = True
+    else:
+        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+        ascii_upgraded = True
 
 
 def read_version(path):
