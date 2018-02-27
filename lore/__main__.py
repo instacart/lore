@@ -309,12 +309,18 @@ def main(args=None):
     )
     python_parser.set_defaults(func=python)
     
-    python_parser = commands.add_parser(
+    notebook_parser = commands.add_parser(
         'notebook',
         help='pass a command to this project\'s virtual env jupyter notebook'
     )
-    python_parser.set_defaults(func=notebook)
-    
+    notebook_parser.set_defaults(func=notebook)
+
+    lab_parser = commands.add_parser(
+        'lab',
+        help='launch jupyter labs, with access to all envs'
+    )
+    lab_parser.set_defaults(func=lab)
+
     test_parser = commands.add_parser(
         'test',
         help='run tests'
@@ -723,6 +729,13 @@ def test(parsed, unknown):
 def notebook(parsed, unknown):
     install_jupyter_kernel()
     args = [env.bin_jupyter, 'notebook'] + unknown
+    print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
+    os.execv(env.bin_jupyter, args)
+
+
+def lab(parsed, unknown):
+    install_jupyter_kernel()
+    args = [env.bin_jupyter, 'lab'] + unknown
     print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
     os.execv(env.bin_jupyter, args)
 
