@@ -730,7 +730,8 @@ def notebook(parsed, unknown):
 def install_darwin():
     install_gcc_5()
     install_pyenv()
-
+    install_graphviz()
+    
 
 def install_linux():
     install_pyenv()
@@ -821,6 +822,17 @@ def install_bazel():
     install_homebrew()
     print(ansi.success('INSTALL') + ' bazel for tensorflow')
     subprocess.check_call(('brew', 'install', 'bazel'))
+
+
+def install_graphviz():
+    install_homebrew()
+    try:
+        if subprocess.check_output(('brew', 'ls', '--versions', 'graphviz')):
+            return
+    except:
+        pass
+    print(ansi.success('INSTALL') + ' graphviz')
+    subprocess.check_call(('brew', 'install', 'graphviz'))
 
 
 def install_tensorflow():
