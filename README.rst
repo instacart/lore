@@ -10,15 +10,23 @@
 
 |docs| |pypi| |circleci| |mit|
 
+Lore is a python framework to make machine learning approachable for Engineers and maintainable for Data Scientists.
 
-Lore is a python data science framework to design, fit, and exploit machine learning models from development to production. It codifies best practices to simplify collaborating and deploying models developed on a laptop with Jupyter notebook, into high availability distributed production data centers.
+Features
+--------
+
+- Models support hyper parameter search over estimators with a data pipeline. They will efficiently utilize multiple GPUs (if available) with a couple different strategies, and can be saved and distributed for horizontal scalability.
+- Estimators from multiple packages are supported: Keras, XGBoost and SciKit Learn. They can all be subclassed with build, fit or predict overridden to completely customize your algorithm and architecture, while still benefiting from everything else.
+- Pipelines avoid information leaks between train and test sets, and one pipeline allows experimentation with many different estimators. A disk based pipeline is available if you exceed your machines available RAM.
+- Transformers standardize advanced feature engineering. For example, convert an American first name to its statistical age or gender using US Census data. Extract the geographic area code from a free form phone number string. Common date, time and string operations are supported efficiently through pandas.
+- Encoders offer robust input to your estimators, and avoid common problems with missing and long tail values. They are well tested to save you from garbage in/garbage out.
+- IO connections are configured and pooled in a standard way across the app for popular (no)sql databases, with transaction management and read write optimizations for bulk data, rather than typical ORM single row operations. Connections share a configurable query cache, in addition to encrypted S3 buckets for distributing models and datasets.
+- Dependency Management for each individual app in development, that can be 100% replicated to production. No manual activation, or magic env vars, or hidden files that break python for everything else. No knowledge required of venv, pyenv, pyvenv, virtualenv, virtualenvwrapper, pipenv, conda. Ain’t nobody got time for that.
+- Tests for your models can be run in your Continuous Integration environment, allowing Continuous Deployment for code and training updates, without increased work for your infrastructure team.
+- Workflow Support whether you prefer the command line, a python console, jupyter notebook, or IDE. Every environment gets readable logging and timing statements configured for both production and development.
 
 
-Why?
-----
-Writing code with a fast feedback loop is fulfilling. With complex data, you can spend hours, days, then weeks iterating through more complex edge cases on larger samples until the last bits are smoothed over. Instead of spending time partially reimplementing common patterns, frequent challenges should be solved once, and thoroughly.
-
-
+![Lore Model](docs/images/model.png)
 
 Create a Lore project
 --------------------
@@ -26,7 +34,7 @@ Create a Lore project
 .. code-block:: bash
 
   $ pip install lore
-  $ lore init my_project --python_version=3.6.3
+  $ lore init my_project --python-version=3.6.4 --keras
 
   # fix up .env, config/database.cfg, circle.yml, README.rst
 
@@ -53,7 +61,7 @@ you can set environment variable for only the lore process with the .env file:
 
   # .env
 
-  DATABASE_URL=postgres://user:password@localhost:5432/main_development
+  DATABASE_URL=postgres://localhost:5432/development
 
 
 Create a sql file that specifies your data:
@@ -80,7 +88,7 @@ Pipelines are the unsexy, but essential component of most machine learning appli
   from lore.transformers import NameAge, NameSex, Log
 
 
-  class TrainTestSplit(lore.pipelines.TrainTestSplit):
+  class Holdout(lore.pipelines.holdout.Base):
 
       def get_data(self):
           # lore.io.main is a Connection created by config/database.cfg + DATABASE_URL
@@ -105,11 +113,11 @@ Pipelines are the unsexy, but essential component of most machine learning appli
           return Boolean('has_subscription')
 
 
-The superclass :python:`lore.pipelines.TrainTestSplit` will take care of:
+The superclass :python:`lore.pipelines.base.Holdout` will take care of:
 
-# splitting the data into training_data/validation_data/test_data dataframes
-# fitting the encoders to training_data
-# transforming training_data/validation_data/test_data for the model
+- splitting the data into training_data/validation_data/test_data dataframes
+- fitting the encoders to training_data
+- transforming training_data/validation_data/test_data for the model
 
 Define some models that will fit and predict the data. Base models are designed to be extended and overridden, but work with defaults out of the box.
 
@@ -118,20 +126,20 @@ Define some models that will fit and predict the data. Base models are designed 
   # app/models/subscribers.py
 
   import lore.models
-  from app.pipelines.subscribers import TrainTestSplit
+  from app.pipelines.subscribers import Holdout
 
-  class DeepName(lore.models.Keras):
+  class DeepName(lore.models.keras.Base):
       def __init__():
           super(DeepName, self).__init__(
-              pipeline=TrainTestSplit(),
-              estimator=lore.estimators.Keras() # a canned estimator for deep learning
+              pipeline=Holdout(),
+              estimator=lore.estimators.keras.Base() # a canned estimator for deep learning
           )
 
-  class BoostedName(lore.models.Base):
+  class BoostedName(lore.models.keras.Base):
       def __init__():
-          super(XGBoostedName, self).__init__(
-              pipeline=TrainTestSplit(),
-              estimator=lore.estimators.XGBoost() # a canned estimator for XGBoost
+          super(BoostedName, self).__init__(
+              pipeline=Holdout(),
+              estimator=lore.estimators.xgboost.Base() # a canned estimator for XGBoost
           )
 
 
@@ -139,7 +147,7 @@ Test the models predictive power:
 
 .. code-block:: python
 
-  # tests/unit/subscribers.py
+  # tests/unit/test_subscribers.py
 
   from app.models.subscribers import DeepName, BoostedName
 
@@ -191,19 +199,19 @@ Project Structure
   │   ├── __init__.py          <- loads the various components (makes this a module)
   │   │
   │   ├── api/                 <- external entry points to runtime models
-  │   │   └── my_endpoint.py   <- hub endpoint for predictions
+  │   │   └── my_project.py    <- hub endpoint for predictions
   │   │
   │   ├── extracts/            <- sql
-  │   │   └── my_sql.sql
+  │   │   └── my_project.sql
   │   │
   │   ├── estimators/          <- Code that make predictions
-  │   │   └── my_estimator.py  <- Keras/XGBoost implementations
+  │   │   └── my_project.py    <- Keras/XGBoost implementations
   │   │
   │   ├── models/              <- Combine estimator(s) w/ pipeline(s)
-  │   │   └── my_model.py
+  │   │   └── my_project.py
   │   │
   │   └── pipelines/           <- abstractions for processing data
-  │       └── my_pipeline.py   <- train/test/split data encoding
+  │       └── my_project.py    <- train/test/split data encoding
   │
   └── tests/
       ├── data/                <- cached queries for fixture data
@@ -351,16 +359,16 @@ Commands
 
 .. code-block:: bash
 
-  $ lore api  #  start an api process
-  $ lore console
+  $ lore server  #  start an api process
+  $ lore console  # launch a console in your virtual env
+  $ lore notebook  # launch jupyter notebook in your virtual env
   $ lore fit MODEL  #  train the model
-  $ lore generate [all, api, model, notebook, task] NAME
+  $ lore generate [scaffold, model, estimator, pipeline, notebook, test] NAME
   $ lore init [project]  #  create file structure
   $ lore install  #  setup dependencies in virtualenv
   $ lore test  #  make sure the project is in working order
   $ lore pip  #  launch pip in your virtual env
   $ lore python  # launch python in your virtual env
-  $ lore notebook  # launch jupyter notebook in your virtual env
 
 
 .. |docs| image:: https://readthedocs.org/projects/lore-machine-learning/badge/?version=latest
