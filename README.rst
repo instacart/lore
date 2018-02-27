@@ -26,7 +26,7 @@ Features
 - Workflow Support whether you prefer the command line, a python console, jupyter notebook, or IDE. Every environment gets readable logging and timing statements configured for both production and development.
 
 
-![Lore Model](docs/images/model.png)
+|model|
 
 Create a Lore project
 --------------------
@@ -387,7 +387,11 @@ Commands
     :alt: MIT License
     :scale: 100%
     :target: https://opensource.org/licenses/MIT
-
+.. |model| image:: https://raw.githubusercontent.com/instacart/lore/master/docs/images/model.png
+    :alt: Anatomy of a lore model throughout its lifecycle
+    :scale: 100%
+    :target: http://lore-machine-learning.readthedocs.io/en/latest/
+    
 .. _Heroku: https://heroku.com/
 .. _CircleCI: https://circleci.com/
 .. _Domino: https://www.dominodatalab.com/
