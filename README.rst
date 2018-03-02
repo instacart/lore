@@ -16,8 +16,7 @@ Features
 --------
 
 - Models support hyper parameter search over estimators with a data pipeline. They will efficiently utilize multiple GPUs (if available) with a couple different strategies, and can be saved and distributed for horizontal scalability.
-- Estimators from multiple packages are supported: `Keras <https://keras.io/>`_ (TensorFlow/Theano
-Theano/CNTK), `XGBoost <https://https://xgboost.readthedocs.io/>`_ and `SciKit Learn <http://scikit-learn.org/stable/>`_. They can all be subclassed with build, fit or predict overridden to completely customize your algorithm and architecture, while still benefiting from everything else.
+- Estimators from multiple packages are supported: `Keras <https://keras.io/>`_ (TensorFlow/Theano/CNTK), `XGBoost <https://https://xgboost.readthedocs.io/>`_ and `SciKit Learn <http://scikit-learn.org/stable/>`_. They can all be subclassed with build, fit or predict overridden to completely customize your algorithm and architecture, while still benefiting from everything else.
 - Pipelines avoid information leaks between train and test sets, and one pipeline allows experimentation with many different estimators. A disk based pipeline is available if you exceed your machines available RAM.
 - Transformers standardize advanced feature engineering. For example, convert an American first name to its statistical age or gender using US Census data. Extract the geographic area code from a free form phone number string. Common date, time and string operations are supported efficiently through pandas.
 - Encoders offer robust input to your estimators, and avoid common problems with missing and long tail values. They are well tested to save you from garbage in/garbage out.
@@ -226,8 +225,7 @@ Lore provides python modules to standardize Machine Learning techniques across m
 
 Core Functionality
 ------------------
-- **lore.models** are compatibility wrappers for your favorite library (`Keras <https://keras.io/>`_ (TensorFlow/Theano
-Theano/CNTK), `XGBoost <https://https://xgboost.readthedocs.io/>`_, `SciKit Learn <http://scikit-learn.org/stable/>`_)). They come with reasonable defaults for rough draft training out of the box.
+- **lore.models** are compatibility wrappers for your favorite library (`Keras <https://keras.io/>`_ (TensorFlow/Theano/CNTK), `XGBoost <https://https://xgboost.readthedocs.io/>`_, `SciKit Learn <http://scikit-learn.org/stable/>`_)). They come with reasonable defaults for rough draft training out of the box.
 - **lore.pipelines** fetch, encode, and split data into training/test sets for models. A single pipeline will have one Encoder per feature in the model.
 - **lore.encoders** operate within Pipelines to transform a single feature into an optimal representation for learning.
 - **lore.transformers** provide common operations, like extracting the area code from a free text phone number. They can be chained together inside encoders. They efficiently
@@ -250,8 +248,7 @@ Integrated Libraries
 --------------------
 Use your favorite library in a lore project, just like you'd use them in any other python project. They'll play nicely together.
 
-- `Keras <https://keras.io/>`_ (TensorFlow/Theano
-Theano/CNTK) + `Tensorboard <https://www.tensorflow.org/programmers_guide/summaries_and_tensorboard>`_
+- `Keras <https://keras.io/>`_ (TensorFlow/Theano/CNTK) + `Tensorboard <https://www.tensorflow.org/programmers_guide/summaries_and_tensorboard>`_
 - `XGBoost <https://https://xgboost.readthedocs.io/>`_
 - `SciKit-Learn <http://scikit-learn.org/stable/>`_
 - `Jupyter Notebook <http://jupyter.org/>`_
