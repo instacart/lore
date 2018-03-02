@@ -22,8 +22,15 @@ import lore
 from lore import ansi, env, util
 from lore.util import timer, which
 
-if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
+try:
+    ModuleNotFoundError
+except NameError:
     ModuleNotFoundError = ImportError
+
+try:
+    reload
+except NameError:
+    from importlib import reload
 
 logger = logging.getLogger(__name__)
 
@@ -553,18 +560,12 @@ def init(parsed, unknown):
         requirements += '[' + ','.join([r[2:] for r in unknown]) + ']'
     with open('requirements.txt', 'wt') as file:
         file.write(requirements)
-    
-    if parsed.python_version:
-        python_version = parsed.python_version
-    else:
-        python_version = '3.6.4'
+
+    python_version = parsed.python_version or '3.6.4'
     
     with open('runtime.txt', 'wt') as file:
         file.write('python-' + python_version + '\n')
-    if sys.version_info[0] == 2:
-        reload(lore.env)
-    else:
-        importlib.reload(lore.env)
+    reload(lore.env)
     install(parsed, unknown)
 
 
