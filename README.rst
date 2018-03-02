@@ -225,7 +225,7 @@ Lore provides python modules to standardize Machine Learning techniques across m
 
 Core Functionality
 ------------------
-- **lore.models** are compatibility wrappers for your favorite library — `Keras <https://keras.io/>`_, `XGBoost <https://https://xgboost.readthedocs.io/>`_, `SciKit Learn <http://scikit-learn.org/stable/>`_)). They come with reasonable defaults for rough draft training out of the box.
+- **lore.models** are compatibility wrappers for your favorite library — `Keras <https://keras.io/>`_, `XGBoost <https://https://xgboost.readthedocs.io/>`_, `SciKit Learn <http://scikit-learn.org/stable/>`_. They come with reasonable defaults for rough draft training out of the box.
 - **lore.pipelines** fetch, encode, and split data into training/test sets for models. A single pipeline will have one Encoder per feature in the model.
 - **lore.encoders** operate within Pipelines to transform a single feature into an optimal representation for learning.
 - **lore.transformers** provide common operations, like extracting the area code from a free text phone number. They can be chained together inside encoders. They efficiently
