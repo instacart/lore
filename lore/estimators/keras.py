@@ -19,7 +19,7 @@ import lore.io
 from lore.callbacks import ReloadBest
 from lore.encoders import Continuous
 from lore.pipelines import Observations
-from lore.util import timed
+from lore.util import timed, before_after_callbacks
 
 from tensorflow.python.client import device_lib
 available_gpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
@@ -36,29 +36,29 @@ atexit.register(keras.backend.clear_session)
 
 class Base(BaseEstimator):
     def __init__(
-            self,
-            model=None,
-            embed_size=10,
-            sequence_embedding='flatten',
-            sequence_embed_size=None,
-            hidden_width=1024,
-            hidden_layers=4,
-            layer_shrink=0.5,
-            dropout=0,
-            batch_size=32,
-            learning_rate=0.001,
-            decay=0.,
-            optimizer=None,
-            hidden_activation='relu',
-            hidden_activity_regularizer=None,
-            hidden_bias_regularizer=None,
-            hidden_kernel_regularizer=None,
-            output_activation=None,
-            monitor='val_loss',
-            loss=None,
-            towers=1,
-            cudnn=False,
-            multi_gpu_model=True,
+        self,
+        model=None,
+        embed_size=10,
+        sequence_embedding='flatten',
+        sequence_embed_size=None,
+        hidden_width=1024,
+        hidden_layers=4,
+        layer_shrink=0.5,
+        dropout=0,
+        batch_size=32,
+        learning_rate=0.001,
+        decay=0.,
+        optimizer=None,
+        hidden_activation='relu',
+        hidden_activity_regularizer=None,
+        hidden_bias_regularizer=None,
+        hidden_kernel_regularizer=None,
+        output_activation=None,
+        monitor='val_loss',
+        loss=None,
+        towers=1,
+        cudnn=False,
+        multi_gpu_model=True,
     ):
         super(Base, self).__init__()
         if output_activation == 'sigmoid' and loss in ['mse', 'mae', 'mean_squared_error', 'mean_absolute_error']:
@@ -137,6 +137,7 @@ class Base(BaseEstimator):
     def callbacks(self):
         return []
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def build(self, log_device_placement=False):
         keras.backend.clear_session()
@@ -260,6 +261,7 @@ class Base(BaseEstimator):
     def build_output_layer(self, hidden_layers, tower):
         return Dense(1, activation=self.output_activation, name='%i_output' % tower)(hidden_layers)
     
+    @before_after_callbacks
     @timed(logging.INFO)
     def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False, **keras_kwargs):
 
@@ -281,12 +283,14 @@ class Base(BaseEstimator):
         with self.session.as_default():
             if timeline:
                 run_metadata = tensorflow.RunMetadata()
+                options = tensorflow.RunOptions(trace_level=tensorflow.RunOptions.FULL_TRACE)
             else:
                 run_metadata = None
+                options = None
             self.keras.compile(
                 loss=self.loss,
                 optimizer=self.optimizer,
-                options=tensorflow.RunOptions(trace_level=tensorflow.RunOptions.FULL_TRACE),
+                options=options,
                 run_metadata=run_metadata
             )
         if verbose is None:
@@ -339,7 +343,7 @@ class Base(BaseEstimator):
             )]
         
         with self.session.as_default():
-            self.history = self.keras.fit(
+            self.history = self.keras_fit(
                 x=x,
                 y=[y] * self.towers,
                 validation_data=Observations(x=validation_data.x, y=[validation_data.y] * self.towers),
@@ -360,6 +364,11 @@ class Base(BaseEstimator):
             'validate': reload_best.validate_loss,
         }
 
+    def keras_fit(self, **kwargs):
+        with self.session.as_default():
+            return self.keras.fit(**kwargs)
+
+    @before_after_callbacks
     @timed(logging.DEBUG)
     def predict(self, dataframe):
         if isinstance(dataframe, pandas.DataFrame):
@@ -373,6 +382,7 @@ class Base(BaseEstimator):
             
         return result.squeeze()
     
+    @before_after_callbacks
     @timed(logging.INFO)
     def evaluate(self, x, y):
         if isinstance(x, pandas.DataFrame):
@@ -380,15 +390,19 @@ class Base(BaseEstimator):
         
         if self.towers > 1:
             y = [y] * self.towers
-            
-        with self.session.as_default():
-            result = self.keras.evaluate(x, y, batch_size=self.batch_size, verbose=0)
+
+        result = self.keras_evaluate(x, y)
         
         if self.towers > 1:
             result = numpy.mean(result, axis=0)
     
         return result.squeeze()
     
+    def keras_evaluate(self, x, y):
+        with self.session.as_default():
+            return self.keras.evaluate(x, y, batch_size=self.batch_size, verbose=0)
+
+    @before_after_callbacks
     def score(self, x, y):
         return 1 / self.evaluate(x, y)
 

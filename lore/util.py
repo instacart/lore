@@ -217,6 +217,29 @@ def timed(func, level):
     return wrapper
 
 
+class before_after_callbacks(object):
+    def __init__(self, func):
+        self.func = func
+        self.instance = None
+        self.__name__ = func.__name__
+        self.__module__ = func.__module__
+
+    def __get__(self, instance, owner):
+        self.instance = instance
+        return self.__call__
+    
+    def __call__(self, *args, **kwargs):
+        if hasattr(self.instance, 'before_' + self.func.__name__):
+            getattr(self.instance, 'before_' + self.func.__name__)(*args, **kwargs)
+        
+        result = self.func(self.instance, *args, **kwargs)
+
+        if hasattr(self.instance, 'after_' + self.func.__name__):
+            getattr(self.instance, 'after_' + self.func.__name__)(*args, **kwargs)
+
+        return result
+
+
 def which(command):
     if sys.version_info.major < 3:
         paths = os.environ['PATH'].split(os.pathsep)
