@@ -225,7 +225,7 @@ Lore provides python modules to standardize Machine Learning techniques across m
 
 Core Functionality
 ------------------
-- **lore.models** are compatibility wrappers for your favorite library (`Keras <https://keras.io/>`_ (TensorFlow/Theano/CNTK), `XGBoost <https://https://xgboost.readthedocs.io/>`_, `SciKit Learn <http://scikit-learn.org/stable/>`_)). They come with reasonable defaults for rough draft training out of the box.
+- **lore.models** are compatibility wrappers for your favorite library — `Keras <https://keras.io/>`_, `XGBoost <https://https://xgboost.readthedocs.io/>`_, `SciKit Learn <http://scikit-learn.org/stable/>`_)). They come with reasonable defaults for rough draft training out of the box.
 - **lore.pipelines** fetch, encode, and split data into training/test sets for models. A single pipeline will have one Encoder per feature in the model.
 - **lore.encoders** operate within Pipelines to transform a single feature into an optimal representation for learning.
 - **lore.transformers** provide common operations, like extracting the area code from a free text phone number. They can be chained together inside encoders. They efficiently
@@ -253,7 +253,7 @@ Use your favorite library in a lore project, just like you'd use them in any oth
 - `SciKit-Learn <http://scikit-learn.org/stable/>`_
 - `Jupyter Notebook <http://jupyter.org/>`_
 - `Pandas <https://pandas.pydata.org/>`_
-- `Numpy <http://www.numpy.org/`_
+- `Numpy <http://www.numpy.org/>`_
 - `Matplotlib <https://matplotlib.org/>`_, `ggplot <http://ggplot.yhathq.com/>`_, `plotnine <http://plotnine.readthedocs.io/en/stable/>`_
 - `SQLAlchemy <https://www.sqlalchemy.org/>`_, `Psycopg2 <http://initd.org/psycopg/docs/>`_
 - Hub
