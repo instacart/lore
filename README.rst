@@ -31,10 +31,12 @@ Features
 Create a Lore project
 --------------------
 
+This example demonstrates nested transformers and how to use lore.io with a postgres database `users` table that has feature `first_name` and response `has_subscription` columns. If you don't want to create the database, you can follow a database free example app on _medium.
+
 .. code-block:: bash
 
   $ pip install lore
-  $ lore init my_project --python-version=3.6.4 --keras
+  $ lore init my_app --python-version=3.6.4 --keras --xgboost --postgres
 
   # fix up .env, config/database.cfg, circle.yml, README.rst
 
@@ -42,7 +44,7 @@ Create a Lore project
 A Cute Little Example
 ---------------------
 
-We'll naively try to predict whether users are subscribers, given their first name.
+We'll naively try to predict whether users are subscribers, given their first name. 
 
 
 
@@ -60,7 +62,6 @@ you can set environment variable for only the lore process with the .env file:
 .. code-block:: bash
 
   # .env
-
   DATABASE_URL=postgres://localhost:5432/development
 
 
@@ -68,8 +69,7 @@ Create a sql file that specifies your data:
 
 .. code-block:: sql
 
-  -- app/extracts/subscribers.sql
-
+  -- my_app/extracts/subscribers.sql
   SELECT
     first_name,
     has_subscription
@@ -80,37 +80,36 @@ Pipelines are the unsexy, but essential component of most machine learning appli
 
 .. code-block:: python
 
-  # app/pipelines/subscribers.py
+   # my_app/pipelines/subscribers.py
+   import lore.io
+   import lore.pipelines
+   from lore.encoders import Norm, Discrete, Boolean, Unique
+   from lore.transformers import NameAge, NameSex, Log
 
-  import lore.io
-  import lore.pipelines
-  from lore.encoders import Norm, Discrete, Boolean, Unique
-  from lore.transformers import NameAge, NameSex, Log
 
+   class Holdout(lore.pipelines.holdout.Base):
 
-  class Holdout(lore.pipelines.holdout.Base):
+       def get_data(self):
+           # lore.io.main is a Connection created by config/database.cfg + DATABASE_URL
+           # dataframe() supports keyword args for interpolation (limit)
+           # subscribers is the name of the extract
+           # cache=True enables LRU query caching
+           return lore.io.main.dataframe(filename='subscribers', limit=100, cache=True)
 
-      def get_data(self):
-          # lore.io.main is a Connection created by config/database.cfg + DATABASE_URL
-          # dataframe() supports keyword args for interpolation (limit)
-          # subscribers is the name of the extract
-          # cache=True enables LRU query caching
-          return lore.io.main.dataframe('subscribers', limit=100, cache=True)
+       def get_encoders(self):
+           # An arbitrairily chosen set of encoders (w/ transformers)
+           # that reference sql columns in the extract by name.
+           # A fair bit of thought will probably go into expanding
+           # your list with features for your model.
+           return (
+               Unique('first_name', minimum_occurrences=100),
+               Norm(Log(NameAge('first_name'))),
+               Discrete(NameSex('first_name'), bins=10),
+           )
 
-      def get_encoders(self):
-          # An arbitrairily chosen set of encoders (w/ transformers)
-          # that reference sql columns in the extract by name.
-          # A fair bit of thought will probably go into expanding
-          # your list with features for your model.
-          return (
-              Unique('first_name', minimum_occurrences=100),
-              Norm(Log(NameAge('first_name'))),
-              Discrete(NameSex('first_name'), bins=10),
-          )
-
-      def get_output_encoder(self):
-          # A single encoder that references the predicted outcome
-          return Boolean('has_subscription')
+       def get_output_encoder(self):
+           # A single encoder that references the predicted outcome
+           return Boolean('has_subscription')
 
 
 The superclass :python:`lore.pipelines.base.Holdout` will take care of:
@@ -123,46 +122,53 @@ Define some models that will fit and predict the data. Base models are designed 
 
 .. code-block:: python
 
-  # app/models/subscribers.py
+   # my_app/models/subscribers.py
+   import lore.models.keras
+   import lore.models.xgboost
+   import lore.estimators.keras
+   import lore.estimators.xgboost
 
-  import lore.models
-  from app.pipelines.subscribers import Holdout
+   from my_app.pipelines.subscribers import Holdout
 
-  class DeepName(lore.models.keras.Base):
-      def __init__():
-          super(DeepName, self).__init__(
-              pipeline=Holdout(),
-              estimator=lore.estimators.keras.Base() # a canned estimator for deep learning
-          )
 
-  class BoostedName(lore.models.keras.Base):
-      def __init__():
-          super(BoostedName, self).__init__(
-              pipeline=Holdout(),
-              estimator=lore.estimators.xgboost.Base() # a canned estimator for XGBoost
-          )
+   class DeepName(lore.models.keras.Base):
+       def __init__(self):
+           super(DeepName, self).__init__(
+               pipeline=Holdout(),
+               estimator=lore.estimators.keras.BinaryClassifier() # a canned estimator for deep learning
+           )
+
+
+   class BoostedName(lore.models.xgboost.Base):
+       def __init__(self):
+           super(BoostedName, self).__init__(
+               pipeline=Holdout(),
+               estimator=lore.estimators.xgboost.Base() # a canned estimator for XGBoost
+           )
 
 
 Test the models predictive power:
 
 .. code-block:: python
 
-  # tests/unit/test_subscribers.py
+   # tests/unit/test_subscribers.py
+   import unittest
 
-  from app.models.subscribers import DeepName, BoostedName
+   from my_app.models.subscribers import DeepName, BoostedName
 
-  class TestSubscribers(unittest.TestCase):
-      def test_deep_name(self):
-          model = DeepName() # initialize a new model
-          model.fit(epochs=20) # fit to the pipeline's training_data
-          predictions = model.predict(model.pipeline.test_data.x) # predict the holdout
-          self.assertEqual(predictions, model.pipeline.test_data.y) # hah!
 
-      def test_xgboosted_name(self):
-          model = BoostedName()
-          model.fit()
-          predictions = model.predict(model.pipeline.test_data.x)
-          self.assertEqual(predictions, model.pipeline.test_data.y) # hah hah hah!
+   class TestSubscribers(unittest.TestCase):
+       def test_deep_name(self):
+           model = DeepName()  # initialize a new model
+           model.fit(epochs=20)  # fit to the pipeline's training_data
+           predictions = model.predict(model.pipeline.test_data)  # predict the holdout
+           self.assertEqual(list(predictions), list(model.pipeline.encoded_test_data.y))  # hah!
+
+       def test_xgboosted_name(self):
+           model = BoostedName()
+           model.fit()
+           predictions = model.predict(model.pipeline.test_data)
+           self.assertEqual(list(predictions), list(model.pipeline.encoded_test_data.y))  # hah hah hah!
 
 Run tests:
 
@@ -398,3 +404,4 @@ Commands
 .. _loggly: https://www.loggly.com/
 .. _librato: https://www.librato.com/
 .. _rollbar: https://rollbar.com/
+.. _medium: https://tech.instacart.com/how-to-build-a-deep-learning-model-in-15-minutes-a3684c6f71e
