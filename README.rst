@@ -31,7 +31,7 @@ Features
 Create a Lore project
 --------------------
 
-This example demonstrates nested transformers and how to use lore.io with a postgres database `users` table that has feature `first_name` and response `has_subscription` columns. If you don't want to create the database, you can follow a database free example app on _medium.
+This example demonstrates nested transformers and how to use lore.io with a postgres database `users` table that has feature `first_name` and response `has_subscription` columns. If you don't want to create the database, you can follow a database free example app on medium_.
 
 .. code-block:: bash
 
