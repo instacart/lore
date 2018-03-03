@@ -16,17 +16,31 @@ class Base(object):
     
     def __init__(self, column):
         self.column = column
-        self.name = self.column + '_' + inflection.underscore(self.__class__.__name__)
-    
+        if isinstance(self.column, Base):
+            self.name = self.column.name
+        else:
+            self.name = self.column
+        self.name += '_' + inflection.underscore(self.__class__.__name__)
+
     @abstractmethod
     def transform(self, data):
         pass
 
     def series(self, data):
-        if isinstance(data, pandas.Series):
-            return data
+        if isinstance(self.column, Base):
+            return self.column.transform(data)
         else:
-            return data[self.column]
+            if isinstance(data, pandas.Series):
+                return data
+            else:
+                return data[self.column]
+
+    @property
+    def source_column(self):
+        column = self.column
+        while isinstance(column, Base):
+            column = column.column
+        return column
 
 
 class Map(Base):
@@ -43,7 +57,7 @@ class DateTime(Base):
     def __init__(self, column, operator):
         super(DateTime, self).__init__(column)
         self.operator = operator
-        self.name = self.column + '_' + inflection.underscore(self.__class__.__name__) + '_' + self.operator
+        self.name += '_' + self.operator
 
     def transform(self, data):
         return getattr(self.series(data).dt, self.operator)
@@ -84,6 +98,7 @@ class String(Base):
         self.operator = operator
         self.args = args
         self.kwargs = kwargs
+        self.name += '_' + self.operator
 
     def transform(self, data):
         series = self.series(data).astype(object)
