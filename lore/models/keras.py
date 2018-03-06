@@ -1,9 +1,13 @@
 import os
 from os.path import join, dirname
 import h5py
+import logging
 
 import lore
 from lore.util import timer
+
+
+logger = logging.getLogger(__name__)
 
 
 class Base(lore.models.base.Base):
@@ -66,9 +70,18 @@ class Base(lore.models.base.Base):
             # deserialization issue) as of Keras 2.0.4:
             # https://github.com/fchollet/keras/issues/5442
             model.estimator.build()
-            
-            with timer('load weights %i' % model.fitting):
-                model.estimator.keras.load_weights(model.weights_path())
+
+            try:
+                with timer('load weights %i' % model.fitting):
+                    model.estimator.keras.load_weights(model.weights_path())
+            except ValueError as ex:
+                if model.estimator.multi_gpu_model and not lore.estimators.keras.available_gpus:
+                    error = "Trying to load a multi_gpu_model when no GPUs are present is not supported"
+                    logger.exception(error)
+                    raise NotImplementedError(error)
+                else:
+                    raise
+                
         else:
             model.build()
             with timer('load weights'):
