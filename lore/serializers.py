@@ -92,7 +92,7 @@ class Base(object):
 
     def download(self):
         self.fitting = 0
-        io.download(self.model_path, self.remote_model_path)
+        io.download(self.remote_model_path, self.model_path)
         return self.load()
 
 
@@ -163,5 +163,5 @@ class Keras(Base):
 
     def download(self):
         self.fitting = 0
-        io.download(self.weights_path, self.remote_weights_path)
+        io.download(self.remote_weights_path, self.weights_path)
         return super(Keras, self).download()
