@@ -170,7 +170,9 @@ class Base(object):
     
         else:
             for encoder in self.encoders:
-                self.merged_transformed(encoded, encoder, self.transform(encoder, data))
+                self.merged_transformed(encoded, encoder, self.transform(encoder, data), append_twin=False)
+                if encoder.twin:
+                    self.merged_transformed(encoded, encoder, self.transform(encoder, data, append_twin = True), append_twin=True)
 
         for column in self.index:
             encoded[column] = self.read_column(data, column)
@@ -187,19 +189,33 @@ class Base(object):
         encoder.fit(data)
         return encoder
 
-    def transform(self, encoder, data):
-        return encoder.transform(self.read_column(data, encoder.source_column))
+    def transform(self, encoder, data, append_twin=False):
+        if append_twin:
+            return encoder.transform(self.read_column(data, encoder.twin_column))
+        else:
+            return encoder.transform(self.read_column(data, encoder.source_column))
         
     @staticmethod
-    def merged_transformed(encoded, encoder, transformed):
+    def merged_transformed(encoded, encoder, transformed, append_twin=False):
         if hasattr(encoder, 'sequence_length'):
             for i in range(encoder.sequence_length):
                 if isinstance(transformed, pandas.DataFrame):
-                    encoded[encoder.sequence_name(i)] = transformed.iloc[:, i]
+                    if append_twin:
+                        encoded[encoder.sequence_name(i, suffix="_twin")] = transformed.iloc[:, i]
+                    else:
+                        encoded[encoder.sequence_name(i)] = transformed.iloc[:, i]
                 else:
-                    encoded[encoder.sequence_name(i)] = transformed[:, i]
+                    if append_twin:
+                        encoded[encoder.sequence_name(i, suffix="_twin")] = transformed[:, i]
+                    else:
+                        encoded[encoder.sequence_name(i)] = transformed[:, i]
+
         else:
-            encoded[encoder.name] = transformed
+            if append_twin:
+                encoded[encoder.twin_name] = transformed
+            else:
+                encoded[encoder.name] = transformed
+
         
     
     @timed(logging.INFO)
@@ -232,7 +248,7 @@ class Base(object):
         logger.debug('random seed set to: %i' % self.split_seed)
         
         self._data = self.get_data()
-        
+
         if self.subsample:
             
             if self.stratify:

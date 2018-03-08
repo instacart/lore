@@ -48,6 +48,28 @@ class MockData(lore.pipelines.time_series.Base):
     def get_output_encoder(self):
         return Pass('target')
 
+class MockData1(lore.pipelines.time_series.Base):
+    def get_data(self):
+        return pandas.DataFrame({
+            'a': [100, 200, 300],
+            'a_twin': [300, 500, 100],
+            'b': [500, 100, 700],
+            'b_twin': [100, 400, 500],
+            'c': ["orange", "orange juice", "organic orange juice"],
+            'c_twin': ["navel orange", "orange juice", "organic orange juice"],
+            'target': [1, 0, 1]
+        })
+
+    def get_encoders(self):
+        return (
+            Unique('a', twin=True),
+            Unique('b', twin=True),
+            Token('c', twin=True)
+        )
+
+    def get_output_encoder(self):
+        return Pass('target')
+
 
 class Users(lore.pipelines.iterative.Base):
     dataframe = pandas.DataFrame({

@@ -14,9 +14,9 @@ import lore
 import lore.transformers
 from lore.util import timer
 
-
+import traceback
 logger = logging.getLogger(__name__)
-
+logger.setLevel('DEBUG')
 
 class Base(object):
     """
@@ -26,7 +26,7 @@ class Base(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, column, name=None, dtype=numpy.uint32, embed_scale=1, tags=[]):
+    def __init__(self, column, name=None, dtype=numpy.uint32, embed_scale=1, tags=[], twin=False):
         """
         :param column: the index name of a column in a dataframe, or a Transformer
         :param name: an optional debugging hint, otherwise a default will be supplied
@@ -37,7 +37,7 @@ class Base(object):
         self.dtype = dtype
         self.embed_scale = embed_scale
         self.tags = tags
-        
+        self.twin = twin
         if name:
             self.name = name
         else:
@@ -46,6 +46,8 @@ class Base(object):
             else:
                 self.name = self.column
             self.name = inflection.underscore(self.__class__.__name__) + '_' + self.name
+        self.twin_name = self.name+"_twin"
+        self.twin_column = self.column+"_twin"
     
     def __str__(self):
         return self.name
@@ -129,12 +131,16 @@ class Base(object):
         return column
     
     def series(self, data):
+
         if isinstance(self.column, lore.transformers.Base):
             series = self.column.transform(data)
         elif isinstance(data, pandas.Series):
             series = data
         else:
             series = data[self.column]
+            print(data.head(1))
+            if self.twin and self.twin_column in data.columns:
+                series = series.append(data[self.twin_column])
 
         if self.infinite_warning and series.dtype in ['float32', 'float64'] and numpy.isinf(series).any():
             logger.warning('Infinite values are present for %s' % self.name)
@@ -492,12 +498,12 @@ class Unique(Base):
     the stratify column the encoded value appears with.
     """
     
-    def __init__(self, column, name=None, minimum_occurrences=1, stratify=None, embed_scale=1, tags=[]):
+    def __init__(self, column, name=None, minimum_occurrences=1, stratify=None, embed_scale=1, tags=[], twin=False):
         """
         :param minimum_occurrences: ignore ids with less than this many occurrences
         :param stratify: compute minimum occurrences over data column with this name
         """
-        super(Unique, self).__init__(column, name, embed_scale=embed_scale, tags=tags)
+        super(Unique, self).__init__(column, name, embed_scale=embed_scale, tags=tags, twin=twin)
         self.minimum_occurrences = minimum_occurrences
         self.map = None
         self.inverse = None
@@ -552,7 +558,7 @@ class Token(Unique):
     """
     PUNCTUATION_FILTER = re.compile(r'\W+\s\W+|\W+(\s|$)|(\s|^)\W+', re.UNICODE)
     
-    def __init__(self, column, name=None, sequence_length=None, minimum_occurrences=1, embed_scale=1, tags=[]):
+    def __init__(self, column, name=None, sequence_length=None, minimum_occurrences=1, embed_scale=1, tags=[], twin=False):
         """
         :param sequence_length: truncates tokens after sequence_length. None for unlimited.
         :param minimum_occurrences: ignore tokens with less than this many occurrences
@@ -562,7 +568,8 @@ class Token(Unique):
             name=name,
             minimum_occurrences=minimum_occurrences,
             embed_scale=embed_scale,
-            tags=tags
+            tags=tags,
+            twin=twin
         )
         self.sequence_length = sequence_length
     
