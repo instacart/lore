@@ -3,7 +3,7 @@ import datetime
 import pandas
 import sqlalchemy
 
-from lore.encoders import Unique, Pass, Token, Boolean, Enum
+from lore.encoders import Unique, Pass, Token, Boolean, Enum, Continuous
 from lore.transformers import DateTime
 import lore.io
 import lore.pipelines.holdout
@@ -48,7 +48,7 @@ class MockData(lore.pipelines.time_series.Base):
     def get_output_encoder(self):
         return Pass('target')
 
-class MockData1(lore.pipelines.time_series.Base):
+class TwinData(lore.pipelines.time_series.Base):
     def get_data(self):
         return pandas.DataFrame({
             'a': [100, 200, 300],
@@ -57,6 +57,8 @@ class MockData1(lore.pipelines.time_series.Base):
             'b_twin': [100, 400, 500],
             'c': ["orange", "orange juice", "organic orange juice"],
             'c_twin': ["navel orange", "orange juice", "organic orange juice"],
+            'user_id': [1,2,3],
+            'price': [1.99, 2.99, 3.99],
             'target': [1, 0, 1]
         })
 
@@ -64,7 +66,9 @@ class MockData1(lore.pipelines.time_series.Base):
         return (
             Unique('a', twin=True),
             Unique('b', twin=True),
-            Token('c', twin=True)
+            Token('c', twin=True, sequence_length=3),
+            Unique('user_id'),
+            Pass('price')
         )
 
     def get_output_encoder(self):

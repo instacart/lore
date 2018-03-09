@@ -14,9 +14,8 @@ import lore
 import lore.transformers
 from lore.util import timer
 
-import traceback
 logger = logging.getLogger(__name__)
-logger.setLevel('DEBUG')
+
 
 class Base(object):
     """
@@ -36,6 +35,7 @@ class Base(object):
         self.column = column
         self.dtype = dtype
         self.embed_scale = embed_scale
+
         self.tags = tags
         self.twin = twin
         if name:
@@ -46,8 +46,11 @@ class Base(object):
             else:
                 self.name = self.column
             self.name = inflection.underscore(self.__class__.__name__) + '_' + self.name
-        self.twin_name = self.name+"_twin"
-        self.twin_column = self.column+"_twin"
+
+        if self.twin:
+            self.twin_name = self.name+"_twin"
+            self.twin_column = self.column+"_twin"
+
     
     def __str__(self):
         return self.name
@@ -131,14 +134,12 @@ class Base(object):
         return column
     
     def series(self, data):
-
         if isinstance(self.column, lore.transformers.Base):
             series = self.column.transform(data)
         elif isinstance(data, pandas.Series):
             series = data
         else:
             series = data[self.column]
-            print(data.head(1))
             if self.twin and self.twin_column in data.columns:
                 series = series.append(data[self.twin_column])
 
@@ -168,8 +169,8 @@ class Boolean(Base):
     Transforms a series of booleans into floating points suitable for
     training.
     """
-    def __init__(self, column, name=None, dtype=numpy.bool, embed_scale=1, tags=[]):
-        super(Boolean, self).__init__(column, name, dtype, embed_scale, tags)
+    def __init__(self, column, name=None, dtype=numpy.bool, embed_scale=1, tags=[], twin=False):
+        super(Boolean, self).__init__(column, name, dtype, embed_scale, tags, twin)
         self.missing_value = 2
         
     def transform(self, data):
@@ -193,7 +194,7 @@ class Equals(Base):
     
     see also: numpy.equal
     """
-    def __init__(self, column, other, name=None, embed_scale=1, tags=[]):
+    def __init__(self, column, other, name=None, embed_scale=1, tags=[], twin=False):
         """
         :param column: the index name of a column in a DataFrame, or a Transformer
         :param other: the index name of a column in a DataFrame, or a Transformer
@@ -203,7 +204,7 @@ class Equals(Base):
             column_name = column.name if isinstance(column, lore.transformers.Base) else column
             other_name = other.name if isinstance(other, lore.transformers.Base) else other
             name = 'equals_' + column_name + '_and_' + other_name
-        super(Equals, self).__init__(column=column, name=name, embed_scale=embed_scale, tags=tags)
+        super(Equals, self).__init__(column=column, name=name, embed_scale=embed_scale, tags=tags, twin=twin)
         self.other = other
 
     def transform(self, data):
@@ -236,8 +237,8 @@ class Equals(Base):
 class Continuous(Base):
     """Abstract Base Class for encoders that return continuous values"""
     
-    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[]):
-        super(Continuous, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale, tags=tags)
+    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[], twin=False):
+        super(Continuous, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale, tags=tags, twin=twin)
 
     def cardinality(self):
         raise ValueError('Continous values have infinite cardinality')
@@ -245,8 +246,8 @@ class Continuous(Base):
 
 class Pass(Continuous):
     
-    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[]):
-        super(Pass, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale, tags=tags)
+    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[], twin=False):
+        super(Pass, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale, tags=tags, twin=twin)
         self.missing_value = 0
         
     def fit(self, data):
@@ -268,8 +269,8 @@ class Uniform(Continuous):
     range will be capped from 0 to 1.
     """
 
-    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[]):
-        super(Uniform, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale, tags=tags)
+    def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[], twin=False):
+        super(Uniform, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale, tags=tags, twin=twin)
         self.__min = float('nan')
         self.__range = float('nan')
         self.missing_value = 0
@@ -304,8 +305,8 @@ class Norm(Continuous):
     exceeds the fit range will be capped at the fit range.
     """
 
-    def __init__(self, column, name=None, dtype=numpy.float32, embed_scale=1, tags=[]):
-        super(Norm, self).__init__(column, name, dtype, embed_scale, tags=tags)
+    def __init__(self, column, name=None, dtype=numpy.float32, embed_scale=1, tags=[], twin=False):
+        super(Norm, self).__init__(column, name, dtype, embed_scale, tags=tags, twin=twin)
         self.__min = float('nan')
         self.__max = float('nan')
         self.__mean = float('nan')
@@ -346,8 +347,8 @@ class Discrete(Base):
     bins + 1.
     """
     
-    def __init__(self, column, name=None, bins=10, embed_scale=1, tags=[]):
-        super(Discrete, self).__init__(column, name, embed_scale=embed_scale, tags=tags)
+    def __init__(self, column, name=None, bins=10, embed_scale=1, tags=[], twin=False):
+        super(Discrete, self).__init__(column, name, embed_scale=embed_scale, tags=tags, twin=twin)
         self.__norm = bins - 1
         self.__min = float('nan')
         self.__range = float('nan')
@@ -397,8 +398,8 @@ class Enum(Base):
     exceed previously fit max are given a unique value. Missing values are
     also distinctly encoded.
     """
-    def __init__(self, column, name=None, embed_scale=1, tags=[]):
-        super(Enum, self).__init__(column, name, embed_scale=embed_scale, tags=tags)
+    def __init__(self, column, name=None, embed_scale=1, tags=[], twin=False):
+        super(Enum, self).__init__(column, name, embed_scale=embed_scale, tags=tags, twin=twin)
         self.__max = None
         self.unfit_value = None
         self.missing_value = None
@@ -442,11 +443,11 @@ class Quantile(Base):
     Values the excede the upper and lower bound fit, will be placed into
     distinct bins, as well nans.
     """
-    def __init__(self, column, name=None, quantiles=10, embed_scale=1, tags=[]):
+    def __init__(self, column, name=None, quantiles=10, embed_scale=1, tags=[], twin=False):
         """
         :param quantiles: the number of bins
         """
-        super(Quantile, self).__init__(column, name, embed_scale=embed_scale, tags=tags)
+        super(Quantile, self).__init__(column, name, embed_scale=embed_scale, tags=tags, twin=twin)
         self.quantiles = quantiles
         self.missing_value = self.quantiles + 2
         self.upper_bound = None
@@ -584,7 +585,7 @@ class Token(Unique):
         """
         transformed = super(Token, self).transform(self.tokenize(data))
         return transformed.reshape((len(data), self.sequence_length))
-        
+
     def reverse_transform(self, array):
         with timer('reverse_transform token %s' % self.name, logging.DEBUG):
             data = pandas.DataFrame(array)
@@ -610,7 +611,6 @@ class Token(Unique):
             cleaned = self.series(data).str.replace(Token.PUNCTUATION_FILTER, ' ')
             lowered = cleaned.str.lower()
             dataframe = lowered.str.split(expand=True)
-    
             if fit and self.sequence_length is None:
                 self.sequence_length = len(dataframe.columns)
             while len(dataframe.columns) < self.sequence_length:

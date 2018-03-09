@@ -71,3 +71,24 @@ class TestSKLearn(unittest.TestCase):
     
         loaded = tests.mocks.models.SVM.load()
         self.assertEqual(loaded.fitting, model.fitting)
+
+class TestBinaryClassifier(unittest.TestCase):
+    def test_lifecycle(self):
+        model = tests.mocks.models.BinaryClassifier()
+        model.estimator.sequence_embedding = 'lstm'
+        model.fit()
+        model.save()
+        loaded = tests.mocks.models.BinaryClassifier.load()
+        self.assertEqual(loaded.fitting, model.fitting)
+
+    def test_rnn_embeddings(self):
+        model = tests.mocks.models.BinaryClassifier()
+        model.estimator.sequence_embedding = 'simple_rnn'
+        model.fit(epochs=1)
+        assert True
+
+    def test_flatten_embeddings(self):
+        model = tests.mocks.models.BinaryClassifier()
+        model.estimator.sequence_embedding = 'flatten'
+        model.fit(epochs=1)
+        assert True

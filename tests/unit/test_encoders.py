@@ -319,3 +319,22 @@ class TestMiddleOut(unittest.TestCase):
         res = enc.transform(pandas.DataFrame({'test': numpy.arange(5) + 1}))
         self.assertEqual(res.tolist(), [0, 1, 5, 9, 10])
         self.assertEqual(enc.cardinality(), 11)
+
+class TestTwins(unittest.TestCase):
+    def test_unique(self):
+        encoder = lore.encoders.Unique('test', twin=True)
+        df = pandas.DataFrame({'test': [1, 2, 3, 4, 5], 'test_twin': [4, 5, 6, 1, 2]})
+        encoder.fit(df)
+        res = encoder.transform(df)
+        self.assertEqual(res.tolist(), [2, 3, 4, 5, 6, 5, 6, 7, 2, 3])
+        self.assertEqual(encoder.cardinality(), 9)
+
+    def test_token(self):
+        encoder = lore.encoders.Token('product_name', sequence_length=3, twin=True)
+        df = pandas.DataFrame({'product_name': ['organic orange juice', 'organic apple juice'], 'product_name_twin': ['healthy orange juice', 'naval orange juice']})
+        encoder.fit(df)
+        res = encoder.transform(df['product_name'])
+        self.assertEqual(res.reshape(-1).tolist(), [7,6,4,7,2,4])
+        self.assertEqual(encoder.cardinality(), 9)
+        res = encoder.transform(df['product_name_twin'])
+        self.assertEqual(res.reshape(-1).tolist(), [3, 6, 4, 5, 6, 4])
