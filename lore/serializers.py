@@ -57,7 +57,10 @@ class Base(object):
         self.model_path = join(self.fitting_path, model_file)
         self.remote_model_path = join(self.remote_path, model_file)
         if not os.path.exists(self.fitting_path):
-            os.makedirs(self.fitting_path)
+            try:
+                os.makedirs(self.fitting_path)
+            except os.FileExistsError as ex:
+                pass  # race to create
 
     def save(self, stats=None):
         with timer('pickle model'):
@@ -113,13 +116,22 @@ class Keras(Base):
         self.remote_weights_path = join(self.remote_path, weights_file)
         self.checkpoint_path = join(self.fitting_path, 'checkpoints/{epoch}.h5')
         if not os.path.exists(os.path.dirname(self.checkpoint_path)):
-            os.makedirs(os.path.dirname(self.checkpoint_path))
+            try:
+                os.makedirs(os.path.dirname(self.checkpoint_path))
+            except os.FileExistsError as ex:
+                pass  # race to create
         self.tensorboard_path = join(self.fitting_path, 'tensorboard')
         if not os.path.exists(os.path.dirname(self.tensorboard_path)):
-            os.makedirs(os.path.dirname(self.tensorboard_path))
+            try:
+                os.makedirs(os.path.dirname(self.tensorboard_path))
+            except os.FileExistsError as ex:
+                pass  # race to create
         self.timeline_path = join(self.fitting_path, 'timeline.json')
         if not os.path.exists(os.path.dirname(self.timeline_path)):
-            os.makedirs(os.path.dirname(self.timeline_path))
+            try:
+                os.makedirs(os.path.dirname(self.timeline_path))
+            except os.FileExistsError as ex:
+                pass  # race to create
 
     def save(self, stats=None):
         super(Keras, self).save(stats)
