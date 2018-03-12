@@ -37,12 +37,19 @@ class Base(lore.models.base.Base):
     def fitting(self, value):
         self._fitting = value
         if self._fitting is not None:
+            
             if not os.path.exists(dirname(self.checkpoint_path())):
-                os.makedirs(dirname(self.checkpoint_path()))
-                
+                try:
+                    os.makedirs(dirname(self.checkpoint_path()))
+                except os.FileExistsError as ex:
+                    pass  # race to create
+
             if not os.path.exists(dirname(self.tensorboard_path())):
-                os.makedirs(dirname(self.tensorboard_path()))
-    
+                try:
+                    os.makedirs(dirname(self.tensorboard_path()))
+                except os.FileExistsError as ex:
+                    pass  # race to create
+
     def save(self, stats=None):
         super(Base, self).save(stats)
         

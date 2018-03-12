@@ -623,9 +623,9 @@ def _generate_template(type, parsed, **kwargs):
     import inflection
     name = parsed.name
     kwargs = kwargs or {}
-    kwargs['keras'] = parsed.keras
-    kwargs['xgboost'] = parsed.xgboost
-    kwargs['sklearn'] = parsed.sklearn
+    for attr in ['keras', 'xgboost', 'sklearn']:
+        if hasattr(parsed, attr):
+            kwargs[attr] = getattr(parsed, attr)
     kwargs['major_version'] = sys.version_info[0]
     kwargs['full_version'] = lore.env.python_version
     notebooks = ['features', 'architecture']
