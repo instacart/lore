@@ -15,7 +15,7 @@ import lore.transformers
 from lore.util import timer
 
 logger = logging.getLogger(__name__)
-
+TWIN = '_twin'
 
 class Base(object):
     """
@@ -48,8 +48,8 @@ class Base(object):
             self.name = inflection.underscore(self.__class__.__name__) + '_' + self.name
 
         if self.twin:
-            self.twin_name = self.name+"_twin"
-            self.twin_column = self.column+"_twin"
+            self.twin_name = self.name+TWIN
+            self.twin_column = self.column+TWIN
 
     
     def __str__(self):
@@ -61,7 +61,10 @@ class Base(object):
     def __setstate__(self, dict):
         self.__dict__ = dict
         backward_compatible_defaults = {
-            'missing_value': 0
+            'missing_value': 0,
+            # 'twin': False,
+            # 'twin_name': None,
+            # 'twin_column': None
         }
         for key, default in backward_compatible_defaults.items():
             if key not in self.__dict__.keys():

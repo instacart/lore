@@ -72,6 +72,7 @@ class TestSKLearn(unittest.TestCase):
         loaded = tests.mocks.models.SVM.load()
         self.assertEqual(loaded.fitting, model.fitting)
 
+
 class TestBinaryClassifier(unittest.TestCase):
     def test_lifecycle(self):
         model = tests.mocks.models.BinaryClassifier()

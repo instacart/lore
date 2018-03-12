@@ -204,7 +204,7 @@ class Base(BaseEstimator):
                 if hasattr(encoder, 'sequence_length'):
                     embeddings[embed_name], layer = self.build_sequence_embedding(encoder, embedding, inputs, embed_name)
                     if encoder.twin:
-                        embeddings[embed_name_twin], _ = self.build_sequence_embedding(encoder, embedding, inputs, embed_name, suffix='_twin', layer = layer)
+                        embeddings[embed_name_twin], _ = self.build_sequence_embedding(encoder, embedding, inputs, embed_name, suffix='_twin', layer=layer)
                 else:
                     embeddings[embed_name] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.name]))
                     if encoder.twin:
@@ -212,64 +212,44 @@ class Base(BaseEstimator):
 
         return Concatenate()(list(embeddings.values()))
 
-    def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer = None):
+    def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer=None):
         embed_size = encoder.embed_scale * self.embed_size
-        raw_layer = None
-
+        sequence_embed_size = self.embed_size
         sequence = []
         for i in range(encoder.sequence_length):
             sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
 
         embed_sequence = Concatenate(name=embed_name + '_sequence' + suffix)(sequence)
     
-        if self.sequence_embedding == 'flatten':
-            if layer == None:
-                flatten = Flatten
-                embedding = flatten(name=embed_name + '_flatten' + suffix)(embed_sequence)
-                raw_layer = flatten
-            else:
-                embedding = layer(name=embed_name + '_flatten' + suffix)(embed_sequence)
-        else:
+        if self.sequence_embedding == 'flatten' and not layer:
+            layer = Flatten
+        elif self.sequence_embedding in ['lstm', 'gru', 'simple_rnn'] and not layer:
             sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
             shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
             if self.sequence_embedding == 'lstm':
-                if layer == None:
-                    lstm = LSTM
-                    if self.cudnn:
-                        if available_gpus > 0:
-                            lstm = CuDNNLSTM
-                        else:
-                            raise ValueError('Your estimator self.cuddn is True, but there are no GPUs available to tensorflow')
-
-
-                    embedding = lstm(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
-                    raw_layer = lstm
-                else:
-                    embedding = layer(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
+                layer = LSTM
+                if self.cudnn:
+                    if available_gpus > 0:
+                        layer = CuDNNLSTM
+                    else:
+                        raise ValueError('Your estimator self.cuddn is True, but there are no GPUs available to tensorflow')
             elif self.sequence_embedding == 'gru':
-                if layer == None:
-                    gru = GRU
-                    if self.cudnn:
-                        if available_gpus > 0:
-                            gru = CuDNNGRU
-                        else:
-                            raise ValueError('Your estimator self.cuddn is True, but there are no GPUs available to tensorflow')
-
-
-                    embedding = gru(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
-                    raw_layer = gru
-                else:
-                    embedding = layer(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
+                layer = GRU
+                if self.cudnn:
+                    if available_gpus > 0:
+                        layer = CuDNNGRU
+                    else:
+                        raise ValueError('Your estimator self.cuddn is True, but there are no GPUs available to tensorflow')
             elif self.sequence_embedding == 'simple_rnn':
-                if layer == None:
-                    rnn = SimpleRNN
-                    embedding = rnn(sequence_embed_size, name=embed_name + '_rnn' + suffix)(shaped_sequence)
-                    raw_layer = rnn
-                else:
-                    embedding = layer(sequence_embed_size, name=embed_name + '_rnn' + suffix)(shaped_sequence)
+                layer = SimpleRNN
             else:
                 raise ValueError("Unknown sequence_embedding type: %s" % self.sequence_embedding)
-        return embedding, raw_layer
+
+        if self.sequence_embedding in ['lstm', 'gru', 'simple_rnn']:
+            embedding = layer(sequence_embed_size, name="{}_{}{}".format(embed_name, self.sequence_embedding, suffix))(embed_sequence)
+        else:
+            embedding = layer(name=embed_name + '_flatten' + suffix)(embed_sequence)
+        return embedding, layer
 
     @timed(logging.INFO)
     def build_hidden_layers(self, input_layer, tower):
