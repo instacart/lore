@@ -12,7 +12,10 @@ class Disk(Base):
         self.dir = dir
         self.limit = None
         if not os.path.exists(self.dir):
-            os.makedirs(self.dir)
+            try:
+                os.makedirs(self.dir)
+            except os.FileExistsError as ex:
+                pass  # race to create
     
     def __getitem__(self, key):
         if key in self:

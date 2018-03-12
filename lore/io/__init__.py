@@ -119,7 +119,10 @@ def download(remote_url, local_path=None, cache=True, extract=False):
     if cache:
         dir = os.path.dirname(local_path)
         if not os.path.exists(dir):
-            os.makedirs(dir)
+            try:
+                os.makedirs(dir)
+            except os.FileExistsError:
+                pass  # race to create
     
         os.rename(temp_path, local_path)
 

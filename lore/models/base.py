@@ -159,7 +159,10 @@ class Base(object):
             raise ValueError("This model has not been fit yet. There is no point in saving.")
 
         if not os.path.exists(self.fitting_path()):
-            os.makedirs(self.fitting_path())
+            try:
+                os.makedirs(self.fitting_path())
+            except os.FileExistsError as ex:
+                pass  # race to create
 
         with timer('pickle model'):
             with open(self.model_path(), 'wb') as f:
