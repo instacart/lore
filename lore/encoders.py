@@ -62,9 +62,9 @@ class Base(object):
         self.__dict__ = dict
         backward_compatible_defaults = {
             'missing_value': 0,
-            # 'twin': False,
-            # 'twin_name': None,
-            # 'twin_column': None
+            'twin': False,
+            'twin_name': None,
+            'twin_column': None
         }
         for key, default in backward_compatible_defaults.items():
             if key not in self.__dict__.keys():
