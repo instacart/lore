@@ -45,3 +45,20 @@ class SVM(lore.models.sklearn.Base):
                 svm.SVC()
             )
         )
+
+
+class BinaryClassifier(lore.models.keras.Base):
+    def __init__(
+        self,
+        embed_size=10
+    ):
+        super(BinaryClassifier, self).__init__(
+        tests.mocks.pipelines.TwinData(),
+        lore.estimators.keras.BinaryClassifier(
+            batch_size=1024,
+            embed_size=embed_size,
+            hidden_layers=1,
+            hidden_width=100,
+            cudnn=False
+        )
+    )

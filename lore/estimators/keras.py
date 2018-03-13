@@ -17,7 +17,7 @@ from tensorflow.python.client.timeline import Timeline
 
 import lore.io
 from lore.callbacks import ReloadBest
-from lore.encoders import Continuous
+from lore.encoders import Continuous, Pass
 from lore.pipelines import Observations
 from lore.util import timed, before_after_callbacks
 
@@ -177,63 +177,79 @@ class Base(BaseEstimator):
             if hasattr(encoder, 'sequence_length'):
                 for i in range(encoder.sequence_length):
                     inputs[encoder.sequence_name(i)] = Input(shape=(1,), name=encoder.sequence_name(i))
+                    if encoder.twin:
+                        inputs[encoder.sequence_name(i, suffix='_twin')] = Input(shape=(1,), name=encoder.sequence_name(i, suffix='_twin'))
             else:
                 inputs[encoder.name] = Input(shape=(1,), name=encoder.name)
+                if encoder.twin:
+                    inputs[encoder.twin_name] = Input(shape=(1,), name=encoder.twin_name)
         return inputs
 
     @timed(logging.INFO)
     def build_embedding_layer(self, inputs, tower):
         embeddings = {}
+
         for encoder in self.model.pipeline.encoders:
             embed_name = str(tower) + '_embed_' + encoder.name
+            embed_name_twin = str(tower) + '_embed_' + encoder.name + '_twin'
             embed_size = encoder.embed_scale * self.embed_size
-
-            if isinstance(encoder, Continuous):
-                embedding = Dense(embed_size, activation='relu', name=embed_name)
+            if isinstance(encoder, Pass):
+                embeddings[embed_name] = inputs[encoder.name]
             else:
-                embedding = Embedding(encoder.cardinality(), embed_size, name=embed_name)
+                if isinstance(encoder, Continuous):
+                    embedding = Dense(embed_size, activation='relu', name=embed_name)
+                else:
+                    embedding = Embedding(encoder.cardinality(), embed_size, name=embed_name)
 
-            if hasattr(encoder, 'sequence_length'):
-                embeddings[embed_name] = self.build_sequence_embedding(encoder, embedding, inputs, embed_name)
-            else:
-                embeddings[embed_name] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.name]))
+                if hasattr(encoder, 'sequence_length'):
+                    embeddings[embed_name], layer = self.build_sequence_embedding(encoder, embedding, inputs, embed_name)
+                    if encoder.twin:
+                        embeddings[embed_name_twin], _ = self.build_sequence_embedding(encoder, embedding, inputs, embed_name, suffix='_twin', layer=layer)
+                else:
+                    embeddings[embed_name] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.name]))
+                    if encoder.twin:
+                        embeddings[embed_name_twin] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.twin_name]))
 
         return Concatenate()(list(embeddings.values()))
-    
-    def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix=''):
+
+    def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer=None):
         embed_size = encoder.embed_scale * self.embed_size
-    
+        sequence_embed_size = self.embed_size
         sequence = []
         for i in range(encoder.sequence_length):
             sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
+
         embed_sequence = Concatenate(name=embed_name + '_sequence' + suffix)(sequence)
     
-        if self.sequence_embedding == 'flatten':
-            embedding = Flatten(name=embed_name + '_flatten' + suffix)(embed_sequence)
-        else:
+        if self.sequence_embedding == 'flatten' and not layer:
+            layer = Flatten
+        elif self.sequence_embedding in ['lstm', 'gru', 'simple_rnn'] and not layer:
             sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
             shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
             if self.sequence_embedding == 'lstm':
-                lstm = LSTM
+                layer = LSTM
                 if self.cudnn:
                     if available_gpus > 0:
-                        lstm = CuDNNLSTM
+                        layer = CuDNNLSTM
                     else:
                         raise ValueError('Your estimator self.cuddn is True, but there are no GPUs available to tensorflow')
-                embedding = lstm(sequence_embed_size, name=embed_name + '_lstm' + suffix)(shaped_sequence)
             elif self.sequence_embedding == 'gru':
-                gru = GRU
+                layer = GRU
                 if self.cudnn:
                     if available_gpus > 0:
-                        gru = CuDNNGRU
+                        layer = CuDNNGRU
                     else:
                         raise ValueError('Your estimator self.cuddn is True, but there are no GPUs available to tensorflow')
-                embedding = gru(sequence_embed_size, name=embed_name + '_gru' + suffix)(shaped_sequence)
             elif self.sequence_embedding == 'simple_rnn':
-                embedding = SimpleRNN(sequence_embed_size, name=embed_name + '_rnn' + suffix)(shaped_sequence)
+                layer = SimpleRNN
             else:
                 raise ValueError("Unknown sequence_embedding type: %s" % self.sequence_embedding)
-        return embedding
+
+        if self.sequence_embedding in ['lstm', 'gru', 'simple_rnn']:
+            embedding = layer(sequence_embed_size, name="{}_{}{}".format(embed_name, self.sequence_embedding, suffix))(embed_sequence)
+        else:
+            embedding = layer(name=embed_name + '_flatten' + suffix)(embed_sequence)
+        return embedding, layer
 
     @timed(logging.INFO)
     def build_hidden_layers(self, input_layer, tower):
@@ -406,7 +422,6 @@ class Base(BaseEstimator):
     def score(self, x, y):
         return 1 / self.evaluate(x, y)
 
-
 class Keras(Base):
 
     def __init__(
@@ -522,7 +537,6 @@ class BinaryClassifier(Base):
         kwargs.pop('self')
         kwargs.pop('__class__', None)
         super(BinaryClassifier, self).__init__(**kwargs)
-
 
 class MultiClassifier(Base):
     def __init__(

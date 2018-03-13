@@ -43,7 +43,7 @@ class TestLowMemory(unittest.TestCase):
         self.assertEqual(self.pipeline.table_length(self.pipeline.table_training), 800)
         self.assertEqual(self.pipeline.table_length(self.pipeline.table_validation), 100)
         self.assertEqual(self.pipeline.table_length(self.pipeline.table_test), 100)
-    
+
     def test_split_stratify(self):
         self.pipeline = tests.mocks.pipelines.Users()
         self.pipeline.stratify = 'last_name'
@@ -70,10 +70,14 @@ class TestLowMemory(unittest.TestCase):
         self.pipeline = tests.mocks.pipelines.Users()
         self.pipeline.subsample = 50
         self.pipeline.connection.execute('drop table if exists {name}'.format(name=self.pipeline.table_training + '_random'))
-        
         self.assertEqual(len(pandas.concat([chunk.x for chunk in self.pipeline.encoded_training_data])), 40)
         self.assertEqual(len(pandas.concat([chunk.x for chunk in self.pipeline.encoded_validation_data])), 5)
         self.assertEqual(len(pandas.concat([chunk.x for chunk in self.pipeline.encoded_test_data])), 5)
+
+    def test_encoded_data_twin(self):
+        self.pipeline = tests.mocks.pipelines.TwinData()
+        self.pipeline.subsample = 50
+        self.assertEqual(len(self.pipeline.encoded_training_data[0]), 3)
 
     def test_preserves_types(self):
         self.pipeline = tests.mocks.pipelines.Users()
