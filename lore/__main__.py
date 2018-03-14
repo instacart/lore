@@ -434,6 +434,7 @@ def _get_model(name):
 
     return Model
 
+
 def _pair_args(unknown):
     # handle args passed with ' ' or '=' between name and value
     attrs = [arg[2:] if arg[0:2] == '--' else arg for arg in unknown]  # strip --
@@ -578,10 +579,8 @@ def install(parsed, unknown):
     elif platform.system() == 'Windows':
         print(
             ansi.warning() + ' pyenv does not '
-                             'support Windows. You\'ll have the task of managing'
-                             ' python versions yourself 😰'
+                             'support Windows. Creating virtual env with installed python.'
         )
-        return
     else:
         raise KeyError('unknown system: ' % platform.system())
     
@@ -980,22 +979,25 @@ def install_python_version():
         with open(env.version_path, 'w', encoding='utf-8') as f:
             f.write(env.python_version + os.linesep)
     
-    if not env.pyenv:
-        sys.exit(
-            ansi.error() + ' pyenv is not installed. Lore is broken. try:\n'
-                           ' $ pip uninstall lore && pip install lore\n'
-        )
-    
-    versions = subprocess.check_output(
-        (env.bin_pyenv, 'versions', '--bare')
-    ).decode('utf-8').split(os.linesep)
-    if env.python_version not in versions:
-        print(ansi.success('INSTALL') + ' python %s' % env.python_version)
-        if platform.system() == 'Darwin':
-            install_xcode()
-        subprocess.check_call(('git', '-C', env.pyenv, 'pull'))
-        subprocess.check_call((env.bin_pyenv, 'install', env.python_version))
-        subprocess.check_call((env.bin_pyenv, 'rehash'))
+    if platform.system() == 'Windows':
+        print(ansi.warning() + ' Lore only uses the installed python version on Windows.')
+    else:
+        if not env.pyenv:
+            sys.exit(
+                ansi.error() + ' pyenv is not installed. Lore is broken. try:\n'
+                               ' $ pip uninstall lore && pip install lore\n'
+            )
+        
+        versions = subprocess.check_output(
+            (env.bin_pyenv, 'versions', '--bare')
+        ).decode('utf-8').split(os.linesep)
+        if env.python_version not in versions:
+            print(ansi.success('INSTALL') + ' python %s' % env.python_version)
+            if platform.system() == 'Darwin':
+                install_xcode()
+            subprocess.check_call(('git', '-C', env.pyenv, 'pull'))
+            subprocess.check_call((env.bin_pyenv, 'install', env.python_version))
+            subprocess.check_call((env.bin_pyenv, 'rehash'))
 
 
 def create_virtual_env():
@@ -1009,12 +1011,20 @@ def create_virtual_env():
         return
     
     print(ansi.success('CREATE') + ' virtualenv: %s' % env.project)
-    subprocess.check_call((
-        env.bin_pyenv,
-        'virtualenv',
-        env.python_version,
-        env.project
-    ))
+    if platform.system() == 'Windows':
+        subprocess.check_call((
+            sys.executable,
+            '-m',
+            'venv',
+            env.prefix
+        ))
+    else:
+        subprocess.check_call((
+            env.bin_pyenv,
+            'virtualenv',
+            env.python_version,
+            env.project
+        ))
 
 
 def install_requirements(args):

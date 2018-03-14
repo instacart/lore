@@ -10,6 +10,7 @@ import locale
 import os
 import re
 import sys
+import platform
 from io import open
 import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
@@ -45,12 +46,62 @@ PRODUCTION = 'production'
 
 unicode_locale = True
 unicode_upgraded = False
-if 'utf' not in locale.getpreferredencoding().lower():
-    if os.environ.get('LANG', None):
-        unicode_locale = False
-    else:
-        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-        unicode_upgraded = True
+
+if platform.system() == 'Windows':
+    # enable ansi output on windows
+    # https://bugs.python.org/issue30075
+    import msvcrt
+    import ctypes
+
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+
+    ERROR_INVALID_PARAMETER = 0x0057
+    ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+
+    def _check_bool(result, func, args):
+        if not result:
+            raise ctypes.WinError(ctypes.get_last_error())
+        return args
+
+    LPDWORD = ctypes.POINTER(wintypes.DWORD)
+    kernel32.GetConsoleMode.errcheck = _check_bool
+    kernel32.GetConsoleMode.argtypes = (wintypes.HANDLE, LPDWORD)
+    kernel32.SetConsoleMode.errcheck = _check_bool
+    kernel32.SetConsoleMode.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+
+    def set_conout_mode(new_mode, mask=0xffffffff):
+        # don't assume StandardOutput is a console.
+        # open CONOUT$ instead
+        fdout = os.open('CONOUT$', os.O_RDWR)
+        try:
+            hout = msvcrt.get_osfhandle(fdout)
+            old_mode = wintypes.DWORD()
+            kernel32.GetConsoleMode(hout, ctypes.byref(old_mode))
+            mode = (new_mode & mask) | (old_mode.value & ~mask)
+            kernel32.SetConsoleMode(hout, mode)
+            return old_mode.value
+        finally:
+            os.close(fdout)
+
+    def enable_vt_mode():
+        mode = mask = ENABLE_VIRTUAL_TERMINAL_PROCESSING
+        try:
+            return set_conout_mode(mode, mask)
+        except WindowsError as e:
+            if e.winerror == ERROR_INVALID_PARAMETER:
+                raise NotImplementedError
+            raise
+    import atexit
+    atexit.register(set_conout_mode, enable_vt_mode())
+else:
+    if 'utf' not in locale.getpreferredencoding().lower():
+        if os.environ.get('LANG', None):
+            unicode_locale = False
+        else:
+           locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+           unicode_upgraded = True
 
 
 def read_version(path):
@@ -82,7 +133,7 @@ else:
             break
         
         root = os.path.dirname(root)
-        if root == '/':
+        if root.count(os.path.sep) == 1:
             root = os.getcwd()
             break
 
@@ -172,6 +223,16 @@ def set_python_version(version):
                 'envs',
                 project
             )
+        elif platform.system() == 'Windows':
+            prefix = os.path.join(root.lower(), '.python')
+            bin_venv = os.path.join(prefix, 'scripts')
+            bin_python = os.path.join(bin_venv, 'python.exe')
+            bin_lore = os.path.join(bin_venv, 'lore.exe')
+            bin_jupyter = os.path.join(bin_venv, 'jupyter.exe')
+            bin_flask = os.path.join(bin_venv, 'flask.exe')
+            flask_app = os.path.join('.python', 'lib', 'site-packages', 'lore', 'www', '__init__.py')
+            return
+
         else:
             prefix = os.path.realpath(sys.prefix)
             
@@ -196,6 +257,7 @@ def set_python_version(version):
         bin_python = None
         bin_lore = None
         bin_jupyter = None
+        bin_flask = None
 
 set_python_version(python_version)
 
@@ -261,7 +323,7 @@ def reboot(*args):
     args = list(sys.argv) + list(args)
     if args[0] == 'python' or not args[0]:
         args[0] = bin_python
-    elif args[0][-4:] == 'lore':
+    elif os.path.basename(sys.argv[0]) in ['lore', 'lore.exe']:
         args[0] = bin_lore
     try:
         os.execv(args[0], args)
