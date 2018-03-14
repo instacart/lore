@@ -182,7 +182,7 @@ def set_python_version(version):
             bin_lore = os.path.join(bin_venv, 'lore.exe')
             bin_jupyter = os.path.join(bin_venv, 'jupyter.exe')
             bin_flask = os.path.join(bin_venv, 'flask.exe')
-            flask_app = os.path.join('.python', 'lib', 'site-packages', 'lore', 'www', '__init__.py')
+            flask_app = os.path.join(prefix, 'lib', 'site-packages', 'lore', 'www', '__init__.py')
             return
 
         else:
