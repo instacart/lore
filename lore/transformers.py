@@ -3,12 +3,16 @@ from abc import ABCMeta, abstractmethod
 
 import csv
 import datetime
+import logging
 import os
 import re
 
 import inflection
 import numpy
 import pandas
+
+
+logger = logging.getLogger(__name__)
 
 
 class Base(object):
@@ -35,12 +39,29 @@ class Base(object):
             else:
                 return data[self.column]
 
+    def other_series(self, data):
+        if (not hasattr(self, 'other')) or self.other is None:
+            return None
+        
+        if isinstance(self.other, Base):
+            return self.other.transform(data)
+        else:
+            if isinstance(data, pandas.Series):
+                return data
+            else:
+                return data[self.other]
+
     @property
     def source_column(self):
         column = self.column
         while isinstance(column, Base):
             column = column.column
         return column
+
+
+class IsNull(Base):
+    def transform(self, data):
+        return self.series(data).isnull()
 
 
 class Map(Base):
@@ -64,12 +85,25 @@ class DateTime(Base):
 
 
 class Age(Base):
-    def __init__(self, column, unit='seconds'):
+    def __init__(self, column, reference=None, unit='seconds'):
         super(Age, self).__init__(column)
         self.unit = unit
+        self.other = reference
 
     def transform(self, data):
-        age = (datetime.datetime.now() - self.series(data))
+        series = self.series(data)
+        other = self.other_series(data)
+        if other is None:
+            other = datetime.datetime.now()
+        elif other.dtype != 'datetime64[ns]':
+            logger.warning('%s is not a datetime. Converting to datetime64[ns]' % self.column)
+            other = pandas.to_datetime(other).astype('datetime64[ns]')
+
+        if series.dtype != 'datetime64[ns]':
+            logger.warning('%s is not a datetime. Converting to datetime64[ns]' % self.column)
+            other = pandas.to_datetime(other).astype('datetime64[ns]')
+
+        age = (other - self.series(data))
         if self.unit in ['nanosecond', 'nanoseconds']:
             return age
         
