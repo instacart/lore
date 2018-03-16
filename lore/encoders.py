@@ -17,6 +17,7 @@ from lore.util import timer
 logger = logging.getLogger(__name__)
 TWIN = '_twin'
 
+
 class Base(object):
     """
     Encoders reduces a data set to a more efficient representation suitable
@@ -498,7 +499,7 @@ class Unique(Base):
     minimum_occurrences are mapped to a unique shared encoding to compress the
     long tail. New values that were not seen during fit will be
     distinctly encoded from the long tail values. When stratify is set, the
-    minimum_occurrences will be computed over the number of unique values of 
+    minimum_occurrences will be computed over the number of unique values of
     the stratify column the encoded value appears with.
     """
     
@@ -517,7 +518,7 @@ class Unique(Base):
         self.dtype = numpy.uint32
     
     def fit(self, data):
-        with timer(('fit unique %s' % self.name), logging.DEBUG):
+        with timer(('fit %s' % self.name), logging.DEBUG):
             if self.stratify:
                 ids = pandas.DataFrame({
                     'id': self.series(data),
@@ -537,14 +538,14 @@ class Unique(Base):
             self.dtype = self._type_from_cardinality()
 
     def transform(self, data):
-        with timer('transform unique %s' % self.name, logging.DEBUG):
+        with timer('transform %s' % self.name, logging.DEBUG):
             result = self.series(data).map(self.map, na_action='ignore')
             result[result == 0] = self.tail_value
             result[result.isnull()] = self.missing_value
             return result.astype(self.dtype).values
     
     def reverse_transform(self, array):
-        with timer('reverse_transform unique %s' % self.name, logging.DEBUG):
+        with timer('reverse_transform %s' % self.name, logging.DEBUG):
             series = pandas.Series(array)
             result = series.map(self.inverse, na_action=None)
             result[result.isnull()] = 'MISSING_VALUE'
@@ -578,7 +579,7 @@ class Token(Unique):
         self.sequence_length = sequence_length
     
     def fit(self, data):
-        with timer(('fit token %s' % self.name), logging.DEBUG):
+        with timer(('fit %s' % self.name), logging.DEBUG):
             super(Token, self).fit(self.tokenize(data, fit=True))
     
     def transform(self, data):
@@ -586,11 +587,12 @@ class Token(Unique):
         :param data: DataFrame with column to encode
         :return: encoded Series
         """
-        transformed = super(Token, self).transform(self.tokenize(data))
-        return transformed.reshape((len(data), self.sequence_length))
+        with timer('transform %s' % self.name, logging.DEBUG):
+            transformed = super(Token, self).transform(self.tokenize(data))
+            return transformed.reshape((len(data), self.sequence_length))
 
     def reverse_transform(self, array):
-        with timer('reverse_transform token %s' % self.name, logging.DEBUG):
+        with timer('reverse_transform %s' % self.name, logging.DEBUG):
             data = pandas.DataFrame(array)
             for column in data:
                 data[column] = super(Token, self).reverse_transform(data[column])

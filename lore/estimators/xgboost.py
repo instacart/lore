@@ -8,7 +8,7 @@ import xgboost
 from lore.util import timed
 
 
-class Base(BaseEstimator):
+class Base(object):
     def __init__(self, **xgboost_train_params):
         super(Base, self).__init__()
         self.bst = None
@@ -31,16 +31,14 @@ class Base(BaseEstimator):
 
     @timed(logging.INFO)
     def evaluate(self, x, y):
-        # TODO
-        return 0
+        return self.bst.eval(xgboost.DMatrix(x, label=y))
 
     @timed(logging.INFO)
     def score(self, x, y):
-        # TODO
-        return 0
+        return 1 / self.evaluate(x, y)
 
 
-class XGBoost(Base):
+class XGBoost(BaseEstimator):
     def __init__(self, **kwargs):
         frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
         warnings.showwarning('Please import XGBoost with "from lore.estimators.xgboost import Base"',
@@ -49,13 +47,14 @@ class XGBoost(Base):
         super(XGBoost, self).__init__(**kwargs)
 
 
-class Regression(Base):
-    pass
+class Regression(Base, xgboost.XGBRegressor):
+    def __init__(self, **kwargs):
+        super(Regression, self).__init__(kwargs)
 
 
-class BinaryClassifier(Base):
-    pass
+class BinaryClassifier(Base, xgboost.XGBClassifier):
+    def __init__(self, **kwargs):
+        super(BinaryClassifier, self).__init__(kwargs)
 
 
-class MutliClassifier(Base):
-    pass
+MutliClassifier = BinaryClassifier

@@ -173,7 +173,11 @@ class Base(object):
             for child in [self.estimator, self.pipeline]:
                 param = child.__module__ + '.' + child.__class__.__name__
                 params[param] = {}
-                for key, value in child.__getstate__().items():
+                if hasattr(child, '__get_state__'):
+                    state = child.__getstate__()
+                else:
+                    state = child.__dict__
+                for key, value in state.items():
                     if not key.startswith('_'):
                         params[param][key] = value.__repr__()
             json.dump(params, f, indent=2, sort_keys=True)
