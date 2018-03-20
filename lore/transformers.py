@@ -6,11 +6,23 @@ import datetime
 import logging
 import os
 import re
+from numpy import sin, cos, sqrt, arctan2, radians
 
 import inflection
 import numpy
 import pandas
 
+from lore.util import timer
+
+try:
+    ModuleNotFoundError
+except NameError:
+    ModuleNotFoundError = ImportError
+
+try:
+    import geoip2.database
+except ModuleNotFoundError:
+    geoip2 = False
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +37,12 @@ class Base(object):
         else:
             self.name = self.column
         self.name += '_' + inflection.underscore(self.__class__.__name__)
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
 
     @abstractmethod
     def transform(self, data):
@@ -54,19 +72,26 @@ class Base(object):
     @property
     def source_column(self):
         column = self.column
-        while isinstance(column, Base):
-            column = column.column
+        if isinstance(column, list):
+            for i in range(len(column)):
+                if isinstance(column[i], Base):
+                    column[i] = column[i].source_column
+            column = list(set(column))
+        elif isinstance(column, Base):
+            column = column.source_column
         return column
 
 
 class IsNull(Base):
     def transform(self, data):
-        return self.series(data).isnull()
+        with timer('transform %s' % self.name):
+            return self.series(data).isnull()
 
 
 class Map(Base):
     def transform(self, data):
-        return self.series(data).map(self.__class__.MAP)
+        with timer('transform %s' % self.name):
+            return self.series(data).map(self.__class__.MAP)
 
 
 class DateTime(Base):
@@ -81,7 +106,8 @@ class DateTime(Base):
         self.name += '_' + self.operator
 
     def transform(self, data):
-        return getattr(self.series(data).dt, self.operator)
+        with timer('transform %s' % self.name):
+            return getattr(self.series(data).dt, self.operator)
 
 
 class Age(Base):
@@ -91,39 +117,40 @@ class Age(Base):
         self.other = reference
 
     def transform(self, data):
-        series = self.series(data)
-        other = self.other_series(data)
-        if other is None:
-            other = datetime.datetime.now()
-        elif other.dtype != 'datetime64[ns]':
-            logger.warning('%s is not a datetime. Converting to datetime64[ns]' % self.column)
-            other = pandas.to_datetime(other).astype('datetime64[ns]')
-
-        if series.dtype != 'datetime64[ns]':
-            logger.warning('%s is not a datetime. Converting to datetime64[ns]' % self.column)
-            other = pandas.to_datetime(other).astype('datetime64[ns]')
-
-        age = (other - self.series(data))
-        if self.unit in ['nanosecond', 'nanoseconds']:
-            return age
-        
-        seconds = age.dt.total_seconds()
-        if self.unit in ['second', 'seconds']:
-            return seconds
-        if self.unit in ['minute', 'minutes']:
-            return seconds / 60
-        if self.unit in ['hour', 'hours']:
-            return seconds / 3600
-        if self.unit in ['day', 'days']:
-            return seconds / 86400
-        if self.unit in ['week', 'weeks']:
-            return seconds / 604800
-        if self.unit in ['month', 'months']:
-            return seconds / 2592000
-        if self.unit in ['year', 'years']:
-            return seconds / 31536000
-
-        raise NameError('Unknown unit: %s' % self.unit)
+        with timer('transform %s' % self.name):
+            series = self.series(data)
+            other = self.other_series(data)
+            if other is None:
+                other = datetime.datetime.now()
+            elif other.dtype != 'datetime64[ns]':
+                logger.warning('%s is not a datetime. Converting to datetime64[ns]' % self.column)
+                other = pandas.to_datetime(other).astype('datetime64[ns]')
+    
+            if series.dtype != 'datetime64[ns]':
+                logger.warning('%s is not a datetime. Converting to datetime64[ns]' % self.column)
+                other = pandas.to_datetime(other).astype('datetime64[ns]')
+    
+            age = (other - self.series(data))
+            if self.unit in ['nanosecond', 'nanoseconds']:
+                return age
+            
+            seconds = age.dt.total_seconds()
+            if self.unit in ['second', 'seconds']:
+                return seconds
+            if self.unit in ['minute', 'minutes']:
+                return seconds / 60
+            if self.unit in ['hour', 'hours']:
+                return seconds / 3600
+            if self.unit in ['day', 'days']:
+                return seconds / 86400
+            if self.unit in ['week', 'weeks']:
+                return seconds / 604800
+            if self.unit in ['month', 'months']:
+                return seconds / 2592000
+            if self.unit in ['year', 'years']:
+                return seconds / 31536000
+    
+            raise NameError('Unknown unit: %s' % self.unit)
         
         
 class String(Base):
@@ -135,8 +162,9 @@ class String(Base):
         self.name += '_' + self.operator
 
     def transform(self, data):
-        series = self.series(data).astype(object)
-        return getattr(series.str, self.operator)(*self.args, **self.kwargs)
+        with timer('transform %s' % self.name):
+            series = self.series(data).astype(object)
+            return getattr(series.str, self.operator)(*self.args, **self.kwargs)
 
 
 class Extract(String):
@@ -151,12 +179,14 @@ class Length(String):
 
 class Log(Base):
     def transform(self, data):
-        return numpy.log(self.series(data))
+        with timer('transform %s' % self.name):
+            return numpy.log(self.series(data))
 
 
 class LogPlusOne(Base):
     def transform(self, data):
-        return numpy.log1p(numpy.maximum(self.series(data), 0))
+        with timer('transform %s' % self.name):
+            return numpy.log1p(numpy.maximum(self.series(data), 0))
 
 
 class AreaCode(Base):
@@ -172,15 +202,16 @@ class AreaCode(Base):
     PUNCTUATED = re.compile(r'(?:1[.\-]?)?\s?\(?(\d{3})\)?\s?[.\-]?[\d]{3}[.\-]?[\d]{4}', re.UNICODE)
 
     def transform(self, data):
-        series = self.series(data).astype(object)
-        countries = series.str.extract(AreaCode.COUNTRY_DIGITS, expand=False)
-        countries = countries.str[0:3]
-        punctuated = series.str.extract(AreaCode.PUNCTUATED, expand=False)
-        areacodes = countries
-        areacodes[areacodes.isnull()] = punctuated
-        areacodes[areacodes.isnull()] = ''
-        areacodes[series.isnull()] = None
-        return areacodes
+        with timer('transform %s' % self.name):
+            series = self.series(data).astype(object)
+            countries = series.str.extract(AreaCode.COUNTRY_DIGITS, expand=False)
+            countries = countries.str[0:3]
+            punctuated = series.str.extract(AreaCode.PUNCTUATED, expand=False)
+            areacodes = countries
+            areacodes[areacodes.isnull()] = punctuated
+            areacodes[areacodes.isnull()] = ''
+            areacodes[series.isnull()] = None
+            return areacodes
 
 
 class EmailDomain(Base):
@@ -191,9 +222,10 @@ class EmailDomain(Base):
     NAIVE = re.compile(r'^[^@]+@(.+)$', re.UNICODE)
 
     def transform(self, data):
-        domains = self.series(data).str.extract(EmailDomain.NAIVE, expand=False)
-        domains[domains.isnull()] = ''
-        return domains
+        with timer('transform %s' % self.name):
+            domains = self.series(data).str.extract(EmailDomain.NAIVE, expand=False)
+            domains[domains.isnull()] = ''
+            return domains
 
 
 class NameAge(Map):
@@ -205,7 +237,8 @@ class NameAge(Map):
             MAP[line[0]] = float(line[2])
 
     def transform(self, data):
-        return self.series(data).str.lower().map(self.__class__.MAP)
+        with timer('transform %s' % self.name):
+            return self.series(data).str.lower().map(self.__class__.MAP)
 
 
 class NamePopulation(NameAge):
@@ -230,4 +263,108 @@ class NameFamilial(Base):
     NAIVE = re.compile(r'\b(mom|dad|mother|father|mama|papa|bro|brother|sis|sister)\b', re.UNICODE | re.IGNORECASE)
     
     def transform(self, data):
-        return ~self.series(data).str.extract(NameFamilial.NAIVE, expand=False).isnull()
+        with timer('transform %s' % self.name):
+            return ~self.series(data).str.extract(NameFamilial.NAIVE, expand=False).isnull()
+
+
+class GeoIP(Base):
+    reader = None
+
+    def __init__(self, column, operator):
+        if not geoip2:
+            raise ModuleNotFoundError('"geoip2" is not installed. Add it to your requirements.txt and `lore install`')
+        if GeoIP.reader is None:
+            import lore.io
+            import glob
+            file = lore.io.download(
+                'http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz',
+                cache=True,
+                extract=True
+            )
+    
+            path = [file for file in glob.glob(file.split('.')[0] + '*') if os.path.isdir(file)][0]
+            GeoIP.reader = geoip2.database.Reader(os.path.join(path, 'GeoLite2-City.mmdb'))
+
+        super(GeoIP, self).__init__(column)
+        self.operator = operator
+        self.name += '_' + self.operator
+    
+    def transform(self, data):
+        with timer('transform %s' % self.name):
+            if self.operator in {'lat', 'latitude'}:
+                return self.series(data).apply(GeoIP.get_latitude)
+            elif self.operator in {'lon', 'longitude'}:
+                return self.series(data).apply(GeoIP.get_longitude)
+            elif self.operator in {'acc', 'accuracy'}:
+                return self.series(data).apply(GeoIP.get_accuracy)
+    
+            raise NameError('Unknown GeoIP operator [lat, lon, acc]: %s' % self.operator)
+
+    @staticmethod
+    def get_latitude(ip):
+        try:
+            return GeoIP.reader._db_reader.get(ip)['location']['latitude']
+        except (KeyError, TypeError, geoip2.errors.AddressNotFoundError):
+            return float('nan')
+        
+    @staticmethod
+    def get_longitude(ip):
+        try:
+            return GeoIP.reader._db_reader.get(ip)['location']['longitude']
+        except (KeyError, TypeError, geoip2.errors.AddressNotFoundError):
+            return float('nan')
+
+    @staticmethod
+    def get_accuracy(ip):
+        try:
+            return GeoIP.reader._db_reader.get(ip)['location']['accuracy_radius']
+        except (KeyError, TypeError, geoip2.errors.AddressNotFoundError):
+            return float('nan')
+
+
+class Distance(Base):
+    def __init__(self, lat_a, lon_a, lat_b, lon_b, input='degrees'):
+        self.column = [lat_a, lon_a, lat_b, lon_b]
+        self.name = ('_').join([
+            inflection.underscore(self.__class__.__name__),
+            str(lat_a),
+            str(lat_b),
+            str(lon_a),
+            str(lon_b)
+        ])
+        self.lat_a = lat_a
+        self.lon_a = lon_a
+        self.lat_b = lat_b
+        self.lon_b = lon_b
+        self.input = input
+
+    def transform(self, data):
+        with timer('transform %s' % self.name):
+            lat_a = self.radians(data, self.lat_a)
+            lat_b = self.radians(data, self.lat_b)
+            lon_a = self.radians(data, self.lon_a)
+            lon_b = self.radians(data, self.lon_b)
+    
+            lon = lon_b - lon_a
+            lat = lat_b - lat_a
+            
+            a = sin(lat / 2)**2 + cos(lat_a) * cos(lat_b) * sin(lon / 2)**2
+            c = 2 * arctan2(sqrt(a), sqrt(1 - a))
+       
+            return c * 6373.0  # approximate radius of earth in km
+
+    def radians(self, data, column):
+        if isinstance(column, Base):
+            series = column.transform(data)
+        else:
+            if isinstance(data, pandas.Series):
+                series = data
+            else:
+                series = data[column]
+                
+        if self.input == 'degrees':
+            return radians(series)
+        elif self.input == 'radians':
+            return series
+        
+        raise NameError('Unknown Distance input [degrees, radians]: %s' % self.input)

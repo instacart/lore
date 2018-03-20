@@ -133,8 +133,8 @@ class Base(object):
     @property
     def source_column(self):
         column = self.column
-        while isinstance(column, lore.transformers.Base):
-            column = column.column
+        if isinstance(column, lore.transformers.Base):
+            column = column.source_column
         return column
     
     def series(self, data):
