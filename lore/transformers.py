@@ -304,21 +304,21 @@ class GeoIP(Base):
     def get_latitude(ip):
         try:
             return GeoIP.reader._db_reader.get(ip)['location']['latitude']
-        except (KeyError, TypeError, geoip2.errors.AddressNotFoundError):
+        except (KeyError, TypeError, ValueError, geoip2.errors.AddressNotFoundError):
             return float('nan')
         
     @staticmethod
     def get_longitude(ip):
         try:
             return GeoIP.reader._db_reader.get(ip)['location']['longitude']
-        except (KeyError, TypeError, geoip2.errors.AddressNotFoundError):
+        except (KeyError, TypeError, ValueError, geoip2.errors.AddressNotFoundError):
             return float('nan')
 
     @staticmethod
     def get_accuracy(ip):
         try:
             return GeoIP.reader._db_reader.get(ip)['location']['accuracy_radius']
-        except (KeyError, TypeError, geoip2.errors.AddressNotFoundError):
+        except (KeyError, TypeError, ValueError, geoip2.errors.AddressNotFoundError):
             return float('nan')
 
 
