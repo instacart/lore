@@ -127,9 +127,15 @@ def download(remote_url, local_path=None, cache=True, extract=False):
         os.rename(temp_path, local_path)
 
         if extract:
-            with timer('EXTRACT: %s' % local_path, logging.DEBUG):
-                with tarfile.open(local_path, 'r:gz') as tar:
-                    tar.extractall(os.path.dirname(local_path))
+            with timer('EXTRACT: %s' % local_path, logging.WARNING):
+                if local_path[-7:] == '.tar.gz':
+                    with tarfile.open(local_path, 'r:gz') as tar:
+                        tar.extractall(os.path.dirname(local_path))
+                elif local_path[-4:] == '.zip':
+                    import zipfile
+                    with zipfile.ZipFile(local_path, 'r') as zip:
+                        zip.extractall(os.path.dirname(local_path))
+
     else:
         local_path = temp_path
         
