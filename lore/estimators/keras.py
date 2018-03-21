@@ -279,19 +279,13 @@ class Base(BaseEstimator):
     
     @before_after_callbacks
     @timed(logging.INFO)
-    def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False, **keras_kwargs):
-
-        if validation_data is None:
-            validation_data = self.model.pipeline.encoded_validation_data
+    def fit(self, x, y, validation_x=None, validation_y=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False, **keras_kwargs):
 
         if isinstance(x, pandas.DataFrame):
             x = x.to_dict(orient='series')
         
-        if isinstance(validation_data.x, pandas.DataFrame):
-            validation_data = Observations(
-                x=validation_data.x.to_dict(orient='series'),
-                y=validation_data.y
-            )
+        if isinstance(validation_x, pandas.DataFrame):
+            validation_x = validation_x.to_dict(orient='series')
             
         if not self.keras or not self.optimizer:
             self.build()
@@ -357,12 +351,12 @@ class Base(BaseEstimator):
                 embeddings_freq=1,
                 embeddings_metadata=None
             )]
-        
+
         with self.session.as_default():
             self.history = self.keras_fit(
                 x=x,
                 y=[y] * self.towers,
-                validation_data=Observations(x=validation_data.x, y=[validation_data.y] * self.towers),
+                validation_data=Observations(x=validation_x, y=[validation_y] * self.towers),
                 batch_size=self.batch_size,
                 epochs=epochs,
                 verbose=verbose,
@@ -421,6 +415,7 @@ class Base(BaseEstimator):
     @before_after_callbacks
     def score(self, x, y):
         return 1 / self.evaluate(x, y)
+
 
 class Keras(Base):
 
@@ -537,6 +532,7 @@ class BinaryClassifier(Base):
         kwargs.pop('self')
         kwargs.pop('__class__', None)
         super(BinaryClassifier, self).__init__(**kwargs)
+
 
 class MultiClassifier(Base):
     def __init__(

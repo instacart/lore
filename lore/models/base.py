@@ -48,6 +48,8 @@ class Base(object):
         self.stats = self.estimator.fit(
             x=self.pipeline.encoded_training_data.x,
             y=self.pipeline.encoded_training_data.y,
+            validation_x=self.pipeline.encoded_validation_data.x,
+            validation_y=self.pipeline.encoded_validation_data.y,
             **estimator_kwargs
         )
 
@@ -117,6 +119,8 @@ class Base(object):
         ).fit(
             self.pipeline.encoded_training_data.x,
             y=self.pipeline.encoded_training_data.y,
+            validation_x=self.pipeline.encoded_validation_data.x,
+            validation_y=self.pipeline.encoded_validation_data.y,
             **fit_params
         )
         self.estimator = result.best_estimator_

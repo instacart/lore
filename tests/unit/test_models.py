@@ -53,13 +53,23 @@ class TestKeras(unittest.TestCase):
         assert True
 
 
-class TestXGBoost(unittest.TestCase):
+class TestXGBoostRegression(unittest.TestCase):
     def test_lifecycle(self):
-        model = tests.mocks.models.XGBoost()
+        model = tests.mocks.models.XGBoostRegression()
         model.fit()
         model.save()
 
-        loaded = tests.mocks.models.XGBoost.load()
+        loaded = tests.mocks.models.XGBoostRegression.load()
+        self.assertEqual(loaded.fitting, model.fitting)
+
+
+class TestXGBoostBinaryClassifier(unittest.TestCase):
+    def test_lifecycle(self):
+        model = tests.mocks.models.XGBoostBinaryClassifier()
+        model.fit()
+        model.save()
+
+        loaded = tests.mocks.models.XGBoostBinaryClassifier.load()
         self.assertEqual(loaded.fitting, model.fitting)
 
 

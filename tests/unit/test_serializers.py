@@ -38,12 +38,12 @@ class TestKeras(unittest.TestCase):
 
 class TestXGBoost(unittest.TestCase):
     def test_save(self):
-        m1 = tests.mocks.models.XGBoost()
+        m1 = tests.mocks.models.XGBoostBinaryClassifier()
         m1.fit()
         s1 = lore.serializers.Base(model=m1)
         s1.save()
         
-        s2 = lore.serializers.Base(klass=tests.mocks.models.XGBoost)
+        s2 = lore.serializers.Base(klass=tests.mocks.models.XGBoostBinaryClassifier)
         m2 = s2.load()
         self.assertTrue(True)
 
