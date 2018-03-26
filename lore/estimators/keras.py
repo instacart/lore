@@ -265,7 +265,9 @@ class Base(BaseEstimator):
                                   name='%i_hidden_%i' % (tower, i))(hidden_layers)
             if self.dropout > 0:
                 hidden_layers = Dropout(self.dropout)(hidden_layers)
-            if self.layer_shrink < 1:
+            if self.layer_shrink is None or self.layer_shrink == 0:
+                pass
+            elif self.layer_shrink < 1:
                 hidden_width *= self.layer_shrink
             else:
                 hidden_width -= self.layer_shrink

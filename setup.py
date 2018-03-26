@@ -84,6 +84,7 @@ setup(
         'python-dotenv>=0.6, <0.7.99',
         'six>=1.10, <1.11.99',
         'tabulate>=0.7.5, <0.8.99',
+        'shap>=0.12.0, <0.12.99',
     ] + smart_open,
     extras_require={
         'all': all,
