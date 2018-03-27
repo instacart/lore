@@ -9,6 +9,9 @@ import xgboost
 from lore.util import timed
 
 
+logger = logging.getLogger(__name__)
+
+
 class Base(object):
     def __init__(self, **xgboost_params):
         self.eval_metric = xgboost_params.pop('eval_metric', None)
@@ -31,15 +34,18 @@ class Base(object):
         if validation_x is not None and validation_y is not None:
             eval_set += [(validation_x, validation_y)]
             
-        super(Base, self).fit(
-            X=x,
-            y=y,
-            eval_set=eval_set,
-            eval_metric=self.eval_metric,
-            verbose=verbose,
-            early_stopping_rounds=patience,
-            **xgboost_kwargs
-        )
+        try:
+            super(Base, self).fit(
+                X=x,
+                y=y,
+                eval_set=eval_set,
+                eval_metric=self.eval_metric,
+                verbose=verbose,
+                early_stopping_rounds=patience,
+                **xgboost_kwargs
+            )
+        except KeyboardInterrupt:
+            logger.warning('Caught SIGINT. Training aborted.')
 
         evals = super(Base, self).evals_result()
         results = {

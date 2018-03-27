@@ -394,17 +394,21 @@ class Base(BaseEstimator):
                 embeddings_metadata=None
             )]
 
-        with self.session.as_default():
-            self.history = self.keras_fit(
-                x=x,
-                y=[y] * self.towers,
-                validation_data=Observations(x=validation_x, y=[validation_y] * self.towers),
-                batch_size=self.batch_size,
-                epochs=epochs,
-                verbose=verbose,
-                callbacks=callbacks,
-                **keras_kwargs
-            ).history
+        try:
+            with self.session.as_default():
+                self.history = self.keras_fit(
+                    x=x,
+                    y=[y] * self.towers,
+                    validation_data=Observations(x=validation_x, y=[validation_y] * self.towers),
+                    batch_size=self.batch_size,
+                    epochs=epochs,
+                    verbose=verbose,
+                    callbacks=callbacks,
+                    **keras_kwargs
+                ).history
+        except KeyboardInterrupt:
+            logger.warning('Caught SIGINT. Training aborted, and its history lost.')
+            return {'loss': []}
 
         if timeline:
             with open(self.model.timeline_path(), 'w') as f:
@@ -417,8 +421,7 @@ class Base(BaseEstimator):
         }
 
     def keras_fit(self, **kwargs):
-        with self.session.as_default():
-            return self.keras.fit(**kwargs)
+        return self.keras.fit(**kwargs)
 
     @before_after_callbacks
     @timed(logging.DEBUG)
