@@ -24,7 +24,9 @@ import socket
 # see https://bugs.python.org/issue22490
 os.environ.pop('__PYVENV_LAUNCHER__', None)
 
-if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
+try:
+    ModuleNotFoundError
+except NameError:
     ModuleNotFoundError = ImportError
 
 try:

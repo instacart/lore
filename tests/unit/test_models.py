@@ -51,6 +51,18 @@ class TestKeras(unittest.TestCase):
         model.estimator.towers = 2
         model.fit(epochs=1)
         assert True
+    
+    def test_short_names(self):
+        model = tests.mocks.models.Keras()
+        model.estimator.short_names = True
+        model.build()
+        assert True
+
+    def test_batch_norm(self):
+        model = tests.mocks.models.Keras()
+        model.estimator.batch_norm = True
+        model.build()
+        assert True
 
 
 class TestXGBoostRegression(unittest.TestCase):

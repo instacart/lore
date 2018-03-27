@@ -15,6 +15,16 @@ from lore.util import timer, timed
 
 from sklearn.model_selection import RandomizedSearchCV
 
+try:
+    ModuleNotFoundError
+except NameError:
+    ModuleNotFoundError = ImportError
+
+try:
+    import shap
+except ModuleNotFoundError:
+    shap = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +35,7 @@ class Base(object):
         self.estimator = estimator
         self.fitting = None
         self.pipeline = pipeline
+        self._shap_explainer = None
     
     def __getstate__(self):
         return dict(self.__dict__)
@@ -215,3 +226,26 @@ class Base(object):
         model.fitting = int(fitting)
         lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         return cls.load(fitting)
+
+    def shap_values(self, i, nsamples=100):
+        instance = self.pipeline.encoded_test_data.x.iloc[i, :]
+        display = self.pipeline.decode(instance.to_frame().transpose()).iloc[0, :]
+        return self.shap_explainer.shap_values(instance, nsamples=nsamples), display
+    
+    def shap_force_plot(self, i, nsamples=100):
+        shap.force_plot(*self.shap_values(i, nsamples))
+    
+    @property
+    def shap_explainer(self):
+        if shap is None:
+            raise
+        if self._shap_explainer is None:
+            with timer('fitting shap'):
+                shap_data = self.pipeline.encoded_training_data.x.sample(50)
+    
+                def f(X):
+                    return self.estimator.predict([X[:, i] for i in range(X.shape[1])]).flatten()
+    
+                self._shap_explainer = shap.KernelExplainer(f, shap_data)
+        
+        return self._shap_explainer
