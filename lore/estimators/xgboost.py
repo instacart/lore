@@ -29,7 +29,7 @@ class Base(object):
         self.xgboost_lock = threading.RLock()
         
     @timed(logging.INFO)
-    def fit(self, x, y, validation_x=None, validation_y=None, patience=2, verbose=False, **xgboost_kwargs):
+    def fit(self, x, y, validation_x=None, validation_y=None, patience=0, verbose=True, **xgboost_kwargs):
         eval_set = [(x, y)]
         if validation_x is not None and validation_y is not None:
             eval_set += [(validation_x, validation_y)]
