@@ -84,13 +84,13 @@ class Base(object):
 
 class IsNull(Base):
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             return self.series(data).isnull()
 
 
 class Map(Base):
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             return self.series(data).map(self.__class__.MAP)
 
 
@@ -106,7 +106,7 @@ class DateTime(Base):
         self.name += '_' + self.operator
 
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             return getattr(self.series(data).dt, self.operator)
 
 
@@ -121,7 +121,7 @@ class Age(Base):
             self.name += '_' + self.other
 
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             series = self.series(data)
             other = self.other_series(data)
             if other is None:
@@ -166,7 +166,7 @@ class String(Base):
         self.name += '_' + self.operator
 
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             series = self.series(data).astype(object)
             return getattr(series.str, self.operator)(*self.args, **self.kwargs)
 
@@ -183,13 +183,13 @@ class Length(String):
 
 class Log(Base):
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             return numpy.log(self.series(data))
 
 
 class LogPlusOne(Base):
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             return numpy.log1p(numpy.maximum(self.series(data), 0))
 
 
@@ -206,7 +206,7 @@ class AreaCode(Base):
     PUNCTUATED = re.compile(r'(?:1[.\-]?)?\s?\(?(\d{3})\)?\s?[.\-]?[\d]{3}[.\-]?[\d]{4}', re.UNICODE)
 
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             series = self.series(data).astype(object)
             countries = series.str.extract(AreaCode.COUNTRY_DIGITS, expand=False)
             countries = countries.str[0:3]
@@ -226,7 +226,7 @@ class EmailDomain(Base):
     NAIVE = re.compile(r'^[^@]+@(.+)$', re.UNICODE)
 
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             domains = self.series(data).str.extract(EmailDomain.NAIVE, expand=False)
             domains[domains.isnull()] = ''
             return domains
@@ -241,7 +241,7 @@ class NameAge(Map):
             MAP[line[0]] = float(line[2])
 
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             return self.series(data).str.lower().map(self.__class__.MAP)
 
 
@@ -267,7 +267,7 @@ class NameFamilial(Base):
     NAIVE = re.compile(r'\b(mom|dad|mother|father|mama|papa|bro|brother|sis|sister)\b', re.UNICODE | re.IGNORECASE)
     
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             return ~self.series(data).str.extract(NameFamilial.NAIVE, expand=False).isnull()
 
 
@@ -294,7 +294,7 @@ class GeoIP(Base):
         self.name += '_' + self.operator
     
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             if self.operator in {'lat', 'latitude'}:
                 return self.series(data).apply(GeoIP.get_latitude)
             elif self.operator in {'lon', 'longitude'}:
@@ -343,7 +343,7 @@ class Distance(Base):
         self.input = input
 
     def transform(self, data):
-        with timer('transform %s' % self.name):
+        with timer('transform %s' % self.name, logging.DEBUG):
             lat_a = self.radians(data, self.lat_a)
             lat_b = self.radians(data, self.lat_b)
             lon_a = self.radians(data, self.lon_a)
