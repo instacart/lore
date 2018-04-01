@@ -115,6 +115,10 @@ class Age(Base):
         super(Age, self).__init__(column)
         self.unit = unit
         self.other = reference
+        if isinstance(self.other, Base):
+            self.name += '_' + self.other.name
+        else:
+            self.name += '_' + self.other
 
     def transform(self, data):
         with timer('transform %s' % self.name):

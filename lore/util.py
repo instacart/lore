@@ -248,7 +248,7 @@ class before_after_callbacks(object):
 
 
 def which(command):
-    if shutil:
+    if hasattr(shutil, 'which'):
         return shutil.which(command)
     else:
         paths = os.environ['PATH'].split(os.pathsep)

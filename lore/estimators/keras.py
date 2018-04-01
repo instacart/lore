@@ -196,14 +196,20 @@ class Base(BaseEstimator):
         embeddings = {}
         for i, encoder in enumerate(self.model.pipeline.encoders):
             if self.short_names:
-                suffix = '_t'
-                embed_name = '%i_e_%i' % (tower, i)
+                suffix = 't'
+                embed_name = '%ie%i' % (tower, i)
                 embed_name_twin = embed_name + suffix
+                reshape_name = '%ir%i' % (tower, i)
+                reshape_name_twin = reshape_name + suffix
+                concatenate_name = 'c%i'
             else:
                 suffix = '_twin'
                 embed_name = str(tower) + '_embed_' + encoder.name
                 embed_name_twin = str(tower) + '_embed_' + encoder.name + suffix
-                
+                reshape_name = None
+                reshape_name_twin = None
+                concatenate_name = None
+
             embed_size = encoder.embed_scale * self.embed_size
             if isinstance(encoder, Pass):
                 embeddings[embed_name] = inputs[encoder.name]
@@ -218,11 +224,11 @@ class Base(BaseEstimator):
                     if encoder.twin:
                         embeddings[embed_name_twin], _ = self.build_sequence_embedding(encoder, embedding, inputs, embed_name, suffix=suffix, layer=layer)
                 else:
-                    embeddings[embed_name] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.name]))
+                    embeddings[embed_name] = Reshape(target_shape=(embed_size,), name=reshape_name)(embedding(inputs[encoder.name]))
                     if encoder.twin:
-                        embeddings[embed_name_twin] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.twin_name]))
+                        embeddings[embed_name_twin] = Reshape(target_shape=(embed_size,), name=reshape_name_twin)(embedding(inputs[encoder.twin_name]))
 
-        return Concatenate()(list(embeddings.values()))
+        return Concatenate(name=concatenate_name)(list(embeddings.values()))
 
     def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer=None):
         sequence_embed_size = self.embed_size
@@ -231,8 +237,8 @@ class Base(BaseEstimator):
             sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
 
         if self.short_names:
-            embed_sequence_name = embed_name + '_s' + suffix
-            embed_rnn_name = embed_name + '_r' + suffix
+            embed_sequence_name = embed_name + 's' + suffix
+            embed_rnn_name = embed_name + 'r' + suffix
         else:
             embed_sequence_name = embed_name + '_sequence' + suffix
             embed_rnn_name = embed_name + '_' + self.sequence_embedding + suffix
@@ -275,7 +281,7 @@ class Base(BaseEstimator):
         hidden_width = self.hidden_width
         for i in range(self.hidden_layers):
             if self.short_names:
-                name = '%i_h_%i' % (tower, i)
+                name = '%ih%i' % (tower, i)
             else:
                 name = '%i_hidden_%i' % (tower, i)
 
@@ -287,14 +293,14 @@ class Base(BaseEstimator):
                                   name=name)(hidden_layers)
             if self.dropout > 0:
                 if self.short_names:
-                    name = '%i_d_%i' % (tower, i)
+                    name = '%id%i' % (tower, i)
                 else:
                     name = '%i_dropout_%i' % (tower, i)
                 hidden_layers = Dropout(self.dropout, name=name)(hidden_layers)
 
             if self.batch_norm:
                 if self.short_names:
-                    name = '%i_b_%i' % (tower, i)
+                    name = '%ib%i' % (tower, i)
                 else:
                     name = '%i_batchnorm_%i' % (tower, i)
                 hidden_layers = BatchNormalization(name=name)(hidden_layers)
@@ -313,7 +319,7 @@ class Base(BaseEstimator):
     @timed(logging.INFO)
     def build_output_layer(self, hidden_layers, tower):
         if self.short_names:
-            name = '%i_o' % tower
+            name = '%io' % tower
         else:
             name = '%i_output' % tower
 
