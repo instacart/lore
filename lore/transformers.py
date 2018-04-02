@@ -190,7 +190,11 @@ class Log(Base):
 class LogPlusOne(Base):
     def transform(self, data):
         with timer('transform %s' % self.name, logging.DEBUG):
-            return numpy.log1p(numpy.maximum(self.series(data), 0))
+            series = self.series(data)
+            null = series.isnull()
+            series = numpy.log1p(numpy.maximum(series.fillna(0), 0))
+            series[null] = float('nan')
+            return series
 
 
 class AreaCode(Base):
@@ -367,7 +371,10 @@ class Distance(Base):
                 series = data[column]
                 
         if self.input == 'degrees':
-            return radians(series)
+            null = series.isnull()
+            series = radians(series.fillna(0))
+            series[null] = float('nan')
+            return series
         elif self.input == 'radians':
             return series
         
