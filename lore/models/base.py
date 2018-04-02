@@ -38,8 +38,19 @@ class Base(object):
         self._shap_explainer = None
     
     def __getstate__(self):
-        return dict(self.__dict__)
+        state = dict(self.__dict__)
+        state['_shap_explainer'] = None
+        return state
     
+    def __setstate__(self, state):
+        self.__dict__ = state
+        backward_compatible_defaults = {
+            '_shap_explainer': None,
+        }
+        for key, default in backward_compatible_defaults.items():
+            if key not in self.__dict__.keys():
+                self.__dict__[key] = default
+
     @property
     def estimator(self):
         return self._estimator
@@ -227,13 +238,13 @@ class Base(object):
         lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         return cls.load(fitting)
 
-    def shap_values(self, i, nsamples=100):
+    def shap_values(self, i, nsamples=1000):
         instance = self.pipeline.encoded_test_data.x.iloc[i, :]
         display = self.pipeline.decode(instance.to_frame().transpose()).iloc[0, :]
         return self.shap_explainer.shap_values(instance, nsamples=nsamples), display
     
-    def shap_force_plot(self, i, nsamples=100):
-        shap.force_plot(*self.shap_values(i, nsamples))
+    def shap_force_plot(self, i, nsamples=1000):
+        return shap.force_plot(*self.shap_values(i, nsamples))
     
     @property
     def shap_explainer(self):
@@ -241,7 +252,7 @@ class Base(object):
             raise
         if self._shap_explainer is None:
             with timer('fitting shap'):
-                shap_data = self.pipeline.encoded_training_data.x.sample(50)
+                shap_data = self.pipeline.encoded_training_data.x.sample(100)
     
                 def f(X):
                     return self.estimator.predict([X[:, i] for i in range(X.shape[1])]).flatten()

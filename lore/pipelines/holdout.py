@@ -229,7 +229,7 @@ class Base(object):
     def decode(self, data):
         decoded = OrderedDict()
         for encoder in self.encoders:
-            decoded[encoder.name.split('_', 2)[-1]] = encoder.reverse_transform(data[encoder.name])
+            decoded[encoder.name.split('_', 1)[-1]] = encoder.reverse_transform(data[encoder.name])
         return pandas.DataFrame(decoded)
     
     def read_column(self, data, column):

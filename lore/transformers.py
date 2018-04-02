@@ -117,7 +117,7 @@ class Age(Base):
         self.other = reference
         if isinstance(self.other, Base):
             self.name += '_' + self.other.name
-        else:
+        elif self.other is not None:
             self.name += '_' + self.other
 
     def transform(self, data):
