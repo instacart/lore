@@ -14,7 +14,7 @@ class Base(BaseEstimator):
         self.sklearn = estimator
 
     @timed(logging.INFO)
-    def fit(self, x, y,  **sklearn_kwargs):
+    def fit(self, x, y, validation_x=None, validation_y=None, **sklearn_kwargs):
         self.sklearn.fit(x, y=y, **sklearn_kwargs)
 
         # TODO interesting SKLearn fitting stats
@@ -33,7 +33,6 @@ class Base(BaseEstimator):
     def score(self, x, y):
         # TODO
         return 0
-
 
 
 class SKLearn(Base):

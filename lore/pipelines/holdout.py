@@ -226,8 +226,11 @@ class Base(object):
             return None
     
     @timed(logging.INFO)
-    def decode(self, predictions):
-        return {encoder.name: encoder.reverse_transform(predictions) for encoder in self.encoder}
+    def decode(self, data):
+        decoded = OrderedDict()
+        for encoder in self.encoders:
+            decoded[encoder.name.split('_', 1)[-1]] = encoder.reverse_transform(data[encoder.name])
+        return pandas.DataFrame(decoded)
     
     def read_column(self, data, column):
         """

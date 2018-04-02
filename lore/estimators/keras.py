@@ -7,7 +7,7 @@ import warnings
 import keras
 import keras.backend
 from keras.callbacks import EarlyStopping, TensorBoard, TerminateOnNaN
-from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, SimpleRNN, Flatten, LSTM, GRU
+from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout, SimpleRNN, Flatten, LSTM, GRU, BatchNormalization
 from keras.optimizers import Adam
 import numpy
 import pandas
@@ -59,6 +59,8 @@ class Base(BaseEstimator):
         towers=1,
         cudnn=False,
         multi_gpu_model=True,
+        short_names=False,
+        batch_norm=False,
     ):
         super(Base, self).__init__()
         if output_activation == 'sigmoid' and loss in ['mse', 'mae', 'mean_squared_error', 'mean_absolute_error']:
@@ -89,6 +91,8 @@ class Base(BaseEstimator):
         self.sequence_embed_size = sequence_embed_size or embed_size
         self.cudnn = cudnn
         self.multi_gpu_model = multi_gpu_model
+        self.short_names = short_names
+        self.batch_norm = batch_norm
     
     def __getstate__(self):
         state = super(Base, self).__getstate__()
@@ -97,7 +101,7 @@ class Base(BaseEstimator):
             'keras',
             'optimizer',
             'session',
-            'model'
+            'model',
         ]:
             state[bloat] = None
         return state
@@ -109,6 +113,8 @@ class Base(BaseEstimator):
             'cudnn': False,
             'multi_gpu_model': None,
             'output_activation': 'sigmoid',
+            'short_names': False,
+            'batch_norm': False,
         }
         for key, default in backward_compatible_defaults.items():
             if key not in self.__dict__.keys():
@@ -188,10 +194,22 @@ class Base(BaseEstimator):
     @timed(logging.INFO)
     def build_embedding_layer(self, inputs, tower):
         embeddings = {}
+        for i, encoder in enumerate(self.model.pipeline.encoders):
+            if self.short_names:
+                suffix = 't'
+                embed_name = '%ie%i' % (tower, i)
+                embed_name_twin = embed_name + suffix
+                reshape_name = '%ir%i' % (tower, i)
+                reshape_name_twin = reshape_name + suffix
+                concatenate_name = 'c%i' % i
+            else:
+                suffix = '_twin'
+                embed_name = str(tower) + '_embed_' + encoder.name
+                embed_name_twin = str(tower) + '_embed_' + encoder.name + suffix
+                reshape_name = None
+                reshape_name_twin = None
+                concatenate_name = None
 
-        for encoder in self.model.pipeline.encoders:
-            embed_name = str(tower) + '_embed_' + encoder.name
-            embed_name_twin = str(tower) + '_embed_' + encoder.name + '_twin'
             embed_size = encoder.embed_scale * self.embed_size
             if isinstance(encoder, Pass):
                 embeddings[embed_name] = inputs[encoder.name]
@@ -204,28 +222,33 @@ class Base(BaseEstimator):
                 if hasattr(encoder, 'sequence_length'):
                     embeddings[embed_name], layer = self.build_sequence_embedding(encoder, embedding, inputs, embed_name)
                     if encoder.twin:
-                        embeddings[embed_name_twin], _ = self.build_sequence_embedding(encoder, embedding, inputs, embed_name, suffix='_twin', layer=layer)
+                        embeddings[embed_name_twin], _ = self.build_sequence_embedding(encoder, embedding, inputs, embed_name, suffix=suffix, layer=layer)
                 else:
-                    embeddings[embed_name] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.name]))
+                    embeddings[embed_name] = Reshape(target_shape=(embed_size,), name=reshape_name)(embedding(inputs[encoder.name]))
                     if encoder.twin:
-                        embeddings[embed_name_twin] = Reshape(target_shape=(embed_size,))(embedding(inputs[encoder.twin_name]))
+                        embeddings[embed_name_twin] = Reshape(target_shape=(embed_size,), name=reshape_name_twin)(embedding(inputs[encoder.twin_name]))
 
-        return Concatenate()(list(embeddings.values()))
+        return Concatenate(name=concatenate_name)(list(embeddings.values()))
 
     def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer=None):
-        embed_size = encoder.embed_scale * self.embed_size
         sequence_embed_size = self.embed_size
         sequence = []
         for i in range(encoder.sequence_length):
             sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
 
-        embed_sequence = Concatenate(name=embed_name + '_sequence' + suffix)(sequence)
+        if self.short_names:
+            embed_sequence_name = embed_name + 's' + suffix
+            embed_rnn_name = embed_name + 'r' + suffix
+        else:
+            embed_sequence_name = embed_name + '_sequence' + suffix
+            embed_rnn_name = embed_name + '_' + self.sequence_embedding + suffix
+            
+        embed_sequence = Concatenate(name=embed_sequence_name)(sequence)
     
         if self.sequence_embedding == 'flatten' and not layer:
             layer = Flatten
         elif self.sequence_embedding in ['lstm', 'gru', 'simple_rnn'] and not layer:
             sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
-            shaped_sequence = Reshape(target_shape=(encoder.sequence_length, embed_size))(embed_sequence)
             if self.sequence_embedding == 'lstm':
                 layer = LSTM
                 if self.cudnn:
@@ -246,9 +269,9 @@ class Base(BaseEstimator):
                 raise ValueError("Unknown sequence_embedding type: %s" % self.sequence_embedding)
 
         if self.sequence_embedding in ['lstm', 'gru', 'simple_rnn']:
-            embedding = layer(sequence_embed_size, name="{}_{}{}".format(embed_name, self.sequence_embedding, suffix))(embed_sequence)
+            embedding = layer(sequence_embed_size, name=embed_rnn_name)(embed_sequence)
         else:
-            embedding = layer(name=embed_name + '_flatten' + suffix)(embed_sequence)
+            embedding = layer(name=embed_rnn_name)(embed_sequence)
         return embedding, layer
 
     @timed(logging.INFO)
@@ -257,41 +280,60 @@ class Base(BaseEstimator):
 
         hidden_width = self.hidden_width
         for i in range(self.hidden_layers):
+            if self.short_names:
+                name = '%ih%i' % (tower, i)
+            else:
+                name = '%i_hidden_%i' % (tower, i)
+
             hidden_layers = Dense(int(hidden_width),
                                   activation=self.hidden_activation,
                                   activity_regularizer=self.hidden_activity_regularizer,
                                   kernel_regularizer=self.hidden_kernel_regularizer,
                                   bias_regularizer=self.hidden_bias_regularizer,
-                                  name='%i_hidden_%i' % (tower, i))(hidden_layers)
+                                  name=name)(hidden_layers)
             if self.dropout > 0:
-                hidden_layers = Dropout(self.dropout)(hidden_layers)
-            if self.layer_shrink < 1:
+                if self.short_names:
+                    name = '%id%i' % (tower, i)
+                else:
+                    name = '%i_dropout_%i' % (tower, i)
+                hidden_layers = Dropout(self.dropout, name=name)(hidden_layers)
+
+            if self.batch_norm:
+                if self.short_names:
+                    name = '%ib%i' % (tower, i)
+                else:
+                    name = '%i_batchnorm_%i' % (tower, i)
+                hidden_layers = BatchNormalization(name=name)(hidden_layers)
+
+            if self.layer_shrink is None or self.layer_shrink == 0:
+                pass
+            elif self.layer_shrink < 1:
                 hidden_width *= self.layer_shrink
             else:
                 hidden_width -= self.layer_shrink
+            
             hidden_width = max(1, hidden_width)
             
         return hidden_layers
     
     @timed(logging.INFO)
     def build_output_layer(self, hidden_layers, tower):
-        return Dense(1, activation=self.output_activation, name='%i_output' % tower)(hidden_layers)
+        if self.short_names:
+            name = '%io' % tower
+        else:
+            name = '%i_output' % tower
+
+        return Dense(1, activation=self.output_activation, name=name)(hidden_layers)
     
     @before_after_callbacks
     @timed(logging.INFO)
-    def fit(self, x, y, validation_data=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False, **keras_kwargs):
-
-        if validation_data is None:
-            validation_data = self.model.pipeline.encoded_validation_data
+    def fit(self, x, y, validation_x=None, validation_y=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False, **keras_kwargs):
 
         if isinstance(x, pandas.DataFrame):
             x = x.to_dict(orient='series')
         
-        if isinstance(validation_data.x, pandas.DataFrame):
-            validation_data = Observations(
-                x=validation_data.x.to_dict(orient='series'),
-                y=validation_data.y
-            )
+        if isinstance(validation_x, pandas.DataFrame):
+            validation_x = validation_x.to_dict(orient='series')
             
         if not self.keras or not self.optimizer:
             self.build()
@@ -357,18 +399,22 @@ class Base(BaseEstimator):
                 embeddings_freq=1,
                 embeddings_metadata=None
             )]
-        
-        with self.session.as_default():
-            self.history = self.keras_fit(
-                x=x,
-                y=[y] * self.towers,
-                validation_data=Observations(x=validation_data.x, y=[validation_data.y] * self.towers),
-                batch_size=self.batch_size,
-                epochs=epochs,
-                verbose=verbose,
-                callbacks=callbacks,
-                **keras_kwargs
-            ).history
+
+        try:
+            with self.session.as_default():
+                self.history = self.keras_fit(
+                    x=x,
+                    y=[y] * self.towers,
+                    validation_data=Observations(x=validation_x, y=[validation_y] * self.towers),
+                    batch_size=self.batch_size,
+                    epochs=epochs,
+                    verbose=verbose,
+                    callbacks=callbacks,
+                    **keras_kwargs
+                ).history
+        except KeyboardInterrupt:
+            logger.warning('Caught SIGINT. Training aborted, and its history lost.')
+            return {'loss': []}
 
         if timeline:
             with open(self.model.timeline_path(), 'w') as f:
@@ -381,8 +427,7 @@ class Base(BaseEstimator):
         }
 
     def keras_fit(self, **kwargs):
-        with self.session.as_default():
-            return self.keras.fit(**kwargs)
+        return self.keras.fit(**kwargs)
 
     @before_after_callbacks
     @timed(logging.DEBUG)
@@ -421,6 +466,7 @@ class Base(BaseEstimator):
     @before_after_callbacks
     def score(self, x, y):
         return 1 / self.evaluate(x, y)
+
 
 class Keras(Base):
 
@@ -537,6 +583,7 @@ class BinaryClassifier(Base):
         kwargs.pop('self')
         kwargs.pop('__class__', None)
         super(BinaryClassifier, self).__init__(**kwargs)
+
 
 class MultiClassifier(Base):
     def __init__(

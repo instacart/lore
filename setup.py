@@ -15,8 +15,10 @@ sql = ['sqlalchemy>=1.2.0b3, <1.2.99', 'sqlalchemy-migrate>=0.11, <0.11.99']
 postgres = ['psycopg2>=2.7, <2.7.99'] + sql
 redshift = ['sqlalchemy-redshift>=0.7, <0.7.99'] + sql
 redis = ['redis>=2.10, <2.10.99']
-s3 = ['boto3>=1.4, <1.4.99', 'python-dateutil>=2.1, <2.7.0']
+s3 = ['boto3>=1.4, <1.6.99', 'python-dateutil>=2.1, <2.7.0']
 smart_open = ['smart-open>=1.5, <1.5.99'] + s3
+geoip = ['geoip2']
+
 keras = [
     'Keras>=2.0.9, <2.1.99',
     'tensorflow>=1.3, <1.5.99',
@@ -29,7 +31,7 @@ keras = [
 xgboost = ['xgboost>=0.6a2, <0.6.99']
 scikit = ['scikit-learn>=0.19, <0.19.99']
 
-all = list(set(keras + xgboost + scikit + postgres + redshift + redis + s3))
+all = list(set(keras + xgboost + scikit + postgres + redshift + redis + s3 + geoip))
 devel = all + ['moto>=1.1, <1.1.99', 'sphinx', 'sphinx-autobuild', 'sphinx_rtd_theme']
 
 setup(
@@ -82,6 +84,7 @@ setup(
         'python-dotenv>=0.6, <0.7.99',
         'six>=1.10, <1.11.99',
         'tabulate>=0.7.5, <0.8.99',
+        'shap>=0.12.0, <0.12.99',
     ] + smart_open,
     extras_require={
         'all': all,
@@ -93,6 +96,7 @@ setup(
         's3': s3,
         'scikit': scikit,
         'xgboost': xgboost + scikit,
+        'geoip': geoip,
     },
     zip_safe=True,
     test_suite='tests',

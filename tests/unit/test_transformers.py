@@ -1,9 +1,12 @@
 import unittest
+import datetime
+import math
 
-import lore.transformers
 import numpy
 import pandas
-import datetime
+
+import lore.transformers
+
 
 class TestAreaCode(unittest.TestCase):
     def setUp(self):
@@ -82,7 +85,7 @@ class TestDateTime(unittest.TestCase):
 
 class TestAge(unittest.TestCase):
     def test_transform_age(self):
-        transformer = lore.transformers.Age('test', 'days')
+        transformer = lore.transformers.Age('test', unit='days')
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
 
         data = pandas.DataFrame({'test': [datetime.datetime.now(), yesterday]})
@@ -128,3 +131,70 @@ class TestStringLower(unittest.TestCase):
         transformed = transformer.transform(data)
         self.assertEqual(transformed.iloc[0], 'bob')
         self.assertEqual(transformed.iloc[1], 'bob')
+
+
+class TestGeoIP(unittest.TestCase):
+    def test_transform_latitude(self):
+        transformer = lore.transformers.GeoIP('test', 'latitude')
+        
+        data = pandas.DataFrame({'test': ['124.0.0.1', '124.0.0.2']})
+        transformed = transformer.transform(data)
+        self.assertEqual(transformed.iloc[0], 37.5112)
+        self.assertEqual(transformed.iloc[1], 37.5112)
+
+    def test_transform_longitude(self):
+        transformer = lore.transformers.GeoIP('test', 'longitude')
+    
+        data = pandas.DataFrame({'test': ['124.0.0.1', '124.0.0.2']})
+        transformed = transformer.transform(data)
+        self.assertEqual(transformed.iloc[0], 126.97409999999999)
+        self.assertEqual(transformed.iloc[1], 126.97409999999999)
+
+    def test_transform_accuracy(self):
+        transformer = lore.transformers.GeoIP('test', 'accuracy')
+    
+        data = pandas.DataFrame({'test': ['124.0.0.1', '124.0.0.2']})
+        transformed = transformer.transform(data)
+        self.assertEqual(transformed.iloc[0], 200)
+        self.assertEqual(transformed.iloc[1], 200)
+
+    def test_missing_ip(self):
+        transformer = lore.transformers.GeoIP('test', 'accuracy')
+        data = pandas.DataFrame({'test': ['127.0.0.2']})
+        transformed = transformer.transform(data)
+        self.assertTrue(math.isnan(transformed.iloc[0]))
+
+    
+class TestDistance(unittest.TestCase):
+    def test_distance(self):
+        data = pandas.DataFrame({
+            'a_lat': [0., 52.2296756],
+            'b_lat': [0., 52.406374],
+            'a_lon': [0., 21.0122287],
+            'b_lon': [0., 16.9251681]
+        })
+        
+        transformer = lore.transformers.Distance(
+            lat_a='a_lat',
+            lat_b='b_lat',
+            lon_a='a_lon',
+            lon_b='b_lon',
+        )
+        
+        transformed = transformer.transform(data)
+        self.assertEqual(transformed.iloc[0], 0)
+        self.assertEqual(transformed.iloc[1], 278.54558935106695)
+    
+    def test_ip(self):
+        data = pandas.DataFrame({'a': ['124.0.0.1', '124.0.0.2'], 'b': ['124.0.0.1', '127.0.0.2']})
+        
+        transformer = lore.transformers.Distance(
+            lat_a=lore.transformers.GeoIP('a', 'latitude'),
+            lat_b=lore.transformers.GeoIP('b', 'latitude'),
+            lon_a=lore.transformers.GeoIP('a', 'longitude'),
+            lon_b=lore.transformers.GeoIP('b', 'longitude'),
+        )
+        
+        transformed = transformer.transform(data)
+        self.assertEqual(transformed.iloc[0], 0)
+        self.assertTrue(math.isnan(transformed.iloc[1]))

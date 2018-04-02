@@ -26,14 +26,19 @@ class Keras(lore.models.keras.Base):
         )
 
 
-class XGBoost(lore.models.xgboost.Base):
+class XGBoostBinaryClassifier(lore.models.xgboost.Base):
     def __init__(self):
-        super(XGBoost, self).__init__(
+        super(XGBoostBinaryClassifier, self).__init__(
             tests.mocks.pipelines.Xor(),
-            lore.estimators.xgboost.Base(
-                silent=1,
-                objective='binary:logistic'
-            )
+            lore.estimators.xgboost.BinaryClassifier()
+        )
+
+
+class XGBoostRegression(lore.models.xgboost.Base):
+    def __init__(self):
+        super(XGBoostRegression, self).__init__(
+            tests.mocks.pipelines.Xor(),
+            lore.estimators.xgboost.Regression()
         )
 
 

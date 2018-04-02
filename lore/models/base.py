@@ -15,6 +15,16 @@ from lore.util import timer, timed
 
 from sklearn.model_selection import RandomizedSearchCV
 
+try:
+    ModuleNotFoundError
+except NameError:
+    ModuleNotFoundError = ImportError
+
+try:
+    import shap
+except ModuleNotFoundError:
+    shap = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,10 +35,22 @@ class Base(object):
         self.estimator = estimator
         self.fitting = None
         self.pipeline = pipeline
+        self._shap_explainer = None
     
     def __getstate__(self):
-        return dict(self.__dict__)
+        state = dict(self.__dict__)
+        state['_shap_explainer'] = None
+        return state
     
+    def __setstate__(self, state):
+        self.__dict__ = state
+        backward_compatible_defaults = {
+            '_shap_explainer': None,
+        }
+        for key, default in backward_compatible_defaults.items():
+            if key not in self.__dict__.keys():
+                self.__dict__[key] = default
+
     @property
     def estimator(self):
         return self._estimator
@@ -48,6 +70,8 @@ class Base(object):
         self.stats = self.estimator.fit(
             x=self.pipeline.encoded_training_data.x,
             y=self.pipeline.encoded_training_data.y,
+            validation_x=self.pipeline.encoded_validation_data.x,
+            validation_y=self.pipeline.encoded_validation_data.y,
             **estimator_kwargs
         )
 
@@ -117,6 +141,8 @@ class Base(object):
         ).fit(
             self.pipeline.encoded_training_data.x,
             y=self.pipeline.encoded_training_data.y,
+            validation_x=self.pipeline.encoded_validation_data.x,
+            validation_y=self.pipeline.encoded_validation_data.y,
             **fit_params
         )
         self.estimator = result.best_estimator_
@@ -173,7 +199,11 @@ class Base(object):
             for child in [self.estimator, self.pipeline]:
                 param = child.__module__ + '.' + child.__class__.__name__
                 params[param] = {}
-                for key, value in child.__getstate__().items():
+                if hasattr(child, '__get_state__'):
+                    state = child.__getstate__()
+                else:
+                    state = child.__dict__
+                for key, value in state.items():
                     if not key.startswith('_'):
                         params[param][key] = value.__repr__()
             json.dump(params, f, indent=2, sort_keys=True)
@@ -207,3 +237,26 @@ class Base(object):
         model.fitting = int(fitting)
         lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         return cls.load(fitting)
+
+    def shap_values(self, i, nsamples=1000):
+        instance = self.pipeline.encoded_test_data.x.iloc[i, :]
+        display = self.pipeline.decode(instance.to_frame().transpose()).iloc[0, :]
+        return self.shap_explainer.shap_values(instance, nsamples=nsamples), display
+    
+    def shap_force_plot(self, i, nsamples=1000):
+        return shap.force_plot(*self.shap_values(i, nsamples))
+    
+    @property
+    def shap_explainer(self):
+        if shap is None:
+            raise
+        if self._shap_explainer is None:
+            with timer('fitting shap'):
+                shap_data = self.pipeline.encoded_training_data.x.sample(100)
+    
+                def f(X):
+                    return self.estimator.predict([X[:, i] for i in range(X.shape[1])]).flatten()
+    
+                self._shap_explainer = shap.KernelExplainer(f, shap_data)
+        
+        return self._shap_explainer

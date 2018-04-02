@@ -30,7 +30,7 @@ class Keras(lore.models.keras.Base):
 
 class XGBoost(lore.models.xgboost.Base):
     def __init__(self, pipeline=None, estimator=None):
-        super(Keras, self).__init__(
+        super(XGBoost, self).__init__(
             {{app_name}}.pipelines.{{module_name}}.Holdout(),
             {{app_name}}.estimators.{{module_name}}.XGBoost()
         )
@@ -40,7 +40,7 @@ class XGBoost(lore.models.xgboost.Base):
 
 class SKLearn(lore.models.sklearn.Base):
     def __init__(self, pipeline=None, estimator=None):
-        super(Keras, self).__init__(
+        super(SKLearn, self).__init__(
             {{app_name}}.pipelines.{{module_name}}.Holdout(),
             {{app_name}}.estimators.{{module_name}}.SKLearn()
         )

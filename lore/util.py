@@ -17,11 +17,15 @@ from datetime import datetime
 
 from lore import ansi, env
 
-if sys.version_info.major == 3:
-    import shutil
-
-if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
+try:
+    ModuleNotFoundError
+except NameError:
     ModuleNotFoundError = ImportError
+
+try:
+    import shutil
+except ModuleNotFoundError:
+    shutil = None
 
 
 class SecretFilter(logging.Filter):
@@ -69,6 +73,7 @@ class ConsoleFormatter(logging.Formatter):
 
 logger = logging.getLogger()
 
+
 def add_log_file_handler(path):
     if not os.path.exists(os.path.dirname(path)):
         os.mkdir(os.path.dirname(path))
@@ -77,11 +82,13 @@ def add_log_file_handler(path):
     handler.addFilter(SecretFilter())
     logger.addHandler(handler)
 
+
 def add_log_stream_handler(stream=sys.stdout):
     handler = logging.StreamHandler(stream)
     handler.setFormatter(ConsoleFormatter())
     handler.addFilter(SecretFilter())
     logger.addHandler(handler)
+
 
 def add_syslog_handler(address):
     syslog = logging.handlers.SysLogHandler(address=address)
@@ -241,13 +248,13 @@ class before_after_callbacks(object):
 
 
 def which(command):
-    if sys.version_info.major < 3:
+    if hasattr(shutil, 'which'):
+        return shutil.which(command)
+    else:
         paths = os.environ['PATH'].split(os.pathsep)
         return any(
             os.access(os.path.join(path, command), os.X_OK) for path in paths
         )
-    else:
-        return shutil.which(command)
 
 
 def calling_logger(height=1):
