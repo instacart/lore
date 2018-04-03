@@ -6,6 +6,11 @@ import logging
 import lore
 from lore.util import timer
 
+try:
+    FileExistsError
+except NameError:
+    FileExistsError = OSError
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +46,13 @@ class Base(lore.models.base.Base):
             if not os.path.exists(dirname(self.checkpoint_path())):
                 try:
                     os.makedirs(dirname(self.checkpoint_path()))
-                except os.FileExistsError as ex:
+                except FileExistsError as ex:
                     pass  # race to create
 
             if not os.path.exists(dirname(self.tensorboard_path())):
                 try:
                     os.makedirs(dirname(self.tensorboard_path()))
-                except os.FileExistsError as ex:
+                except FileExistsError as ex:
                     pass  # race to create
 
     def save(self, stats=None):

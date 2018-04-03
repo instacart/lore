@@ -201,7 +201,7 @@ class Base(BaseEstimator):
                 embed_name_twin = embed_name + suffix
                 reshape_name = '%ir%i' % (tower, i)
                 reshape_name_twin = reshape_name + suffix
-                concatenate_name = 'c%i' % i
+                concatenate_name = '%ic%i' % (tower, i)
             else:
                 suffix = '_twin'
                 embed_name = str(tower) + '_embed_' + encoder.name

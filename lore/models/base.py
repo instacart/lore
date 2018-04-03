@@ -27,6 +27,11 @@ except ModuleNotFoundError:
 
 logger = logging.getLogger(__name__)
 
+try:
+    FileExistsError
+except NameError:
+    FileExistsError = OSError
+
 
 class Base(object):
     def __init__(self, pipeline=None, estimator=None):
@@ -187,7 +192,7 @@ class Base(object):
         if not os.path.exists(self.fitting_path()):
             try:
                 os.makedirs(self.fitting_path())
-            except os.FileExistsError as ex:
+            except FileExistsError as ex:
                 pass  # race to create
 
         with timer('pickle model'):

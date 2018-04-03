@@ -4,6 +4,11 @@ import pickle
 from lore.stores.base import Base
 from lore.util import timer
 
+try:
+    FileExistsError
+except NameError:
+    FileExistsError = OSError
+
 
 class Disk(Base):
     EXTENSION = '.pickle'
@@ -14,7 +19,7 @@ class Disk(Base):
         if not os.path.exists(self.dir):
             try:
                 os.makedirs(self.dir)
-            except os.FileExistsError as ex:
+            except FileExistsError as ex:
                 pass  # race to create
     
     def __getitem__(self, key):
