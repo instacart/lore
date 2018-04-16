@@ -86,7 +86,8 @@ if sqlalchemy:
     
     @event.listens_for(Engine, "connect")
     def receive_connect(dbapi_connection, connection_record):
-        logger.info("connect: %s" % dbapi_connection.get_dsn_parameters())
+        if hasattr(dbapi_connection, 'get_dsn_parameters'):
+            logger.info("connect: %s" % dbapi_connection.get_dsn_parameters())
 
 
 class Connection(object):
@@ -101,7 +102,7 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         if '__name__' in kwargs:
             del kwargs['__name__']
-        if 'isolation_level' not in kwargs:
+        if url[0:12] != 'snowflake://' and 'isolation_level' not in kwargs:
             kwargs['isolation_level'] = 'AUTOCOMMIT'
 
         self._engine = sqlalchemy.create_engine(url, **kwargs)
@@ -342,7 +343,7 @@ class Connection(object):
             raise ImportError("jinja2 not present")
         logger.debug("READ SQL TEMPLATE: " + filename)
         sql = jinja2_env.get_template(filename + '.sql.j2').render(**kwargs)
-            
+        
         return re.sub(r'\{(\w+?)\}', r'%(\1)s', sql)
     
     def __prepare(self, sql, filename):

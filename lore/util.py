@@ -67,7 +67,12 @@ class ConsoleFormatter(logging.Formatter):
 
         msg = record.msg
         if record.args:
-            msg = msg % record.args
+            try:
+                msg = msg % record.args
+            except TypeError:
+                logger.debug("BROKEN LOG RECORD FORMATTING")
+                msg = msg + ' % ' + str(record.args)
+                
         return '%s  %s %s => %s' % (timestamp, level, location, msg)
 
 
