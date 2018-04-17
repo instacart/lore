@@ -5,6 +5,7 @@ import configparser
 import sys
 import tarfile
 import logging
+import pickle
 
 if sys.version_info[0] == 2:
     from urlparse import urlparse
@@ -138,11 +139,19 @@ def download(remote_url, local_path=None, cache=True, extract=False):
 
     else:
         local_path = temp_path
-        
     return local_path
 
 
-def upload(local_path, remote_path=None):
+def upload_object(obj, remote_path=None):
+    if remote_path is None:
+        raise ValueError("remote_path cannot be None when uploading objects")
+    else:
+        with tempfile.NamedTemporaryFile() as f:
+            pickle.dump(obj, f)
+            upload(f.name, remote_path)
+
+
+def upload_file(local_path, remote_path=None):
     if remote_path is None:
         remote_path = remote_from_local(local_path)
     remote_path = prefix_remote_root(remote_path)
@@ -153,6 +162,14 @@ def upload(local_path, remote_path=None):
         except ClientError as e:
             logger.error("Error uploading file: %s" % e)
             raise
+
+
+def upload(obj, remote_path=None):
+    if isinstance(obj, str):
+        local_path = obj
+        upload_file(local_path, remote_path)
+    else:
+        upload_object(obj, remote_path)
 
 
 def remote_from_local(local_path):
