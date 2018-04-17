@@ -142,6 +142,24 @@ def download(remote_url, local_path=None, cache=True, extract=False):
     return local_path
 
 
+# Note: This can be rewritten in a more efficient way
+# https://stackoverflow.com/questions/11426560/amazon-s3-boto-how-to-delete-folder
+def delete_folder(remote_url):
+    if remote_url is None:
+        raise ValueError("remote_url cannot be None")
+    else:
+        remote_url = prefix_remote_root(remote_url)
+        keys = bucket.objects.filter(Prefix=remote_url + '/')
+        empty = True
+
+        for key in keys:
+            empty = False
+            key.delete()
+
+        if empty:
+            logger.info('Remote was not a folder')
+
+
 def upload_object(obj, remote_path=None):
     if remote_path is None:
         raise ValueError("remote_path cannot be None when uploading objects")
