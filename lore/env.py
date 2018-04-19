@@ -10,6 +10,7 @@ import locale
 import os
 import re
 import sys
+import platform
 from io import open
 import pkg_resources
 from pkg_resources import DistributionNotFound, VersionConflict
@@ -47,12 +48,14 @@ PRODUCTION = 'production'
 
 unicode_locale = True
 unicode_upgraded = False
-if 'utf' not in locale.getpreferredencoding().lower():
-    if os.environ.get('LANG', None):
-        unicode_locale = False
-    else:
-        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-        unicode_upgraded = True
+
+if platform.system() != 'Windows':
+    if 'utf' not in locale.getpreferredencoding().lower():
+        if os.environ.get('LANG', None):
+            unicode_locale = False
+        else:
+           locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+           unicode_upgraded = True
 
 
 def read_version(path):
@@ -84,7 +87,7 @@ else:
             break
         
         root = os.path.dirname(root)
-        if root == '/':
+        if root.count(os.path.sep) == 1:
             root = os.getcwd()
             break
 
@@ -174,6 +177,16 @@ def set_python_version(version):
                 'envs',
                 project
             )
+        elif platform.system() == 'Windows':
+            prefix = os.path.join(root.lower(), '.python')
+            bin_venv = os.path.join(prefix, 'scripts')
+            bin_python = os.path.join(bin_venv, 'python.exe')
+            bin_lore = os.path.join(bin_venv, 'lore.exe')
+            bin_jupyter = os.path.join(bin_venv, 'jupyter.exe')
+            bin_flask = os.path.join(bin_venv, 'flask.exe')
+            flask_app = os.path.join(prefix, 'lib', 'site-packages', 'lore', 'www', '__init__.py')
+            return
+
         else:
             prefix = os.path.realpath(sys.prefix)
             
@@ -198,6 +211,7 @@ def set_python_version(version):
         bin_python = None
         bin_lore = None
         bin_jupyter = None
+        bin_flask = None
 
 set_python_version(python_version)
 
@@ -263,7 +277,7 @@ def reboot(*args):
     args = list(sys.argv) + list(args)
     if args[0] == 'python' or not args[0]:
         args[0] = bin_python
-    elif args[0][-4:] == 'lore':
+    elif os.path.basename(sys.argv[0]) in ['lore', 'lore.exe']:
         args[0] = bin_lore
     try:
         os.execv(args[0], args)

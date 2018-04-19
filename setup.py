@@ -81,6 +81,7 @@ setup(
         'jupyter-core>=4.4.0, <4.4.99',
         'numpy>=1.14, <1.14.99',
         'pandas>=0.20, <0.22.99',
+        'python-dateutil>=2.1, <2.7.0',
         'python-dotenv>=0.6, <0.7.99',
         'six>=1.10, <1.11.99',
         'tabulate>=0.7.5, <0.8.99',
