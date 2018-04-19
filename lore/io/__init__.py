@@ -160,6 +160,21 @@ def delete_folder(remote_url):
             logger.info('Remote was not a folder')
 
 
+def delete(remote_url, recursive=False):
+    if remote_url is None:
+        raise ValueError("remote_url cannot be None")
+
+    if (recursive is False) and (remote_url.endswith('/')):
+        raise ValueError("remote_url cannot end with trailing / when recursive is False")
+
+    remote_url = prefix_remote_root(remote_url)
+    if recursive is True:
+        delete_folder(remote_url)
+    else:
+        obj = bucket.Object(key=remote_url)
+        obj.delete()
+
+
 def upload_object(obj, remote_path=None):
     if remote_path is None:
         raise ValueError("remote_path cannot be None when uploading objects")
