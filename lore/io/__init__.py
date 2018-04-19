@@ -149,7 +149,9 @@ def delete_folder(remote_url):
         raise ValueError("remote_url cannot be None")
     else:
         remote_url = prefix_remote_root(remote_url)
-        keys = bucket.objects.filter(Prefix=remote_url + '/')
+        if not remote_url.endswith('/'):
+            remote_url = remote_url + '/'
+        keys = bucket.objects.filter(Prefix=remote_url)
         empty = True
 
         for key in keys:
