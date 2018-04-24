@@ -3,6 +3,7 @@ from __future__ import absolute_import
 
 import logging
 import sys
+import os
 
 from lore import env, util, ansi
 from lore.ansi import underline
@@ -39,7 +40,8 @@ lore_no_env = False
 if hasattr(sys, 'lore_no_env'):
     lore_no_env = sys.lore_no_env
 
-if len(sys.argv) > 1 and sys.argv[0][-4:] == 'lore' and sys.argv[1] in ['install', 'init', 'server', 'console', 'notebook']:
+no_env_commands = ['install', 'init', 'server', 'console', 'notebook']
+if len(sys.argv) > 1 and os.path.basename(sys.argv[0]) in ['lore', 'lore.exe'] and sys.argv[1] in no_env_commands:
     lore_no_env = True
 
 if not lore_no_env:
