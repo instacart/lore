@@ -5,6 +5,7 @@ import configparser
 import sys
 import tarfile
 import logging
+import pickle
 
 if sys.version_info[0] == 2:
     from urlparse import urlparse
@@ -138,11 +139,54 @@ def download(remote_url, local_path=None, cache=True, extract=False):
 
     else:
         local_path = temp_path
-        
     return local_path
 
 
-def upload(local_path, remote_path=None):
+# Note: This can be rewritten in a more efficient way
+# https://stackoverflow.com/questions/11426560/amazon-s3-boto-how-to-delete-folder
+def delete_folder(remote_url):
+    if remote_url is None:
+        raise ValueError("remote_url cannot be None")
+    else:
+        remote_url = prefix_remote_root(remote_url)
+        if not remote_url.endswith('/'):
+            remote_url = remote_url + '/'
+        keys = bucket.objects.filter(Prefix=remote_url)
+        empty = True
+
+        for key in keys:
+            empty = False
+            key.delete()
+
+        if empty:
+            logger.info('Remote was not a folder')
+
+
+def delete(remote_url, recursive=False):
+    if remote_url is None:
+        raise ValueError("remote_url cannot be None")
+
+    if (recursive is False) and (remote_url.endswith('/')):
+        raise ValueError("remote_url cannot end with trailing / when recursive is False")
+
+    remote_url = prefix_remote_root(remote_url)
+    if recursive is True:
+        delete_folder(remote_url)
+    else:
+        obj = bucket.Object(key=remote_url)
+        obj.delete()
+
+
+def upload_object(obj, remote_path=None):
+    if remote_path is None:
+        raise ValueError("remote_path cannot be None when uploading objects")
+    else:
+        with tempfile.NamedTemporaryFile() as f:
+            pickle.dump(obj, f)
+            upload(f.name, remote_path)
+
+
+def upload_file(local_path, remote_path=None):
     if remote_path is None:
         remote_path = remote_from_local(local_path)
     remote_path = prefix_remote_root(remote_path)
@@ -153,6 +197,14 @@ def upload(local_path, remote_path=None):
         except ClientError as e:
             logger.error("Error uploading file: %s" % e)
             raise
+
+
+def upload(obj, remote_path=None):
+    if isinstance(obj, str):
+        local_path = obj
+        upload_file(local_path, remote_path)
+    else:
+        upload_object(obj, remote_path)
 
 
 def remote_from_local(local_path):
