@@ -271,12 +271,12 @@ class Base(object):
             train_ids, validate_ids = train_test_split(
                 ids,
                 test_size=self.test_size,
-                random_state=1
+                random_state=self.split_seed
             )
             train_ids, test_ids = train_test_split(
                 train_ids,
                 test_size=self.test_size,
-                random_state=1
+                random_state=self.split_seed
             )
             
             rows = self._data[self.stratify].values
@@ -287,13 +287,13 @@ class Base(object):
             self._training_data, self._validation_data = train_test_split(
                 self._data,
                 test_size=self.test_size,
-                random_state=1
+                random_state=self.split_seed
             )
             
             self._training_data, self._test_data = train_test_split(
                 self._training_data,
                 test_size=self.test_size,
-                random_state=1
+                random_state=self.split_seed
             )
         # It's import to reset these indexes after split so in case
         # these dataframes are copied, the missing split rows are
