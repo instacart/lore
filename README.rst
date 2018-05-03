@@ -16,7 +16,7 @@ Features
 --------
 
 - Models support hyper parameter search over estimators with a data pipeline. They will efficiently utilize multiple GPUs (if available) with a couple different strategies, and can be saved and distributed for horizontal scalability.
-- Estimators from multiple packages are supported: `Keras <https://keras.io/>`_ (TensorFlow/Theano/CNTK), `XGBoost <https://https://xgboost.readthedocs.io/>`_ and `SciKit Learn <http://scikit-learn.org/stable/>`_. They can all be subclassed with build, fit or predict overridden to completely customize your algorithm and architecture, while still benefiting from everything else.
+- Estimators from multiple packages are supported: `Keras <https://keras.io/>`_ (TensorFlow/Theano/CNTK), `XGBoost <https://xgboost.readthedocs.io/>`_ and `SciKit Learn <http://scikit-learn.org/stable/>`_. They can all be subclassed with build, fit or predict overridden to completely customize your algorithm and architecture, while still benefiting from everything else.
 - Pipelines avoid information leaks between train and test sets, and one pipeline allows experimentation with many different estimators. A disk based pipeline is available if you exceed your machines available RAM.
 - Transformers standardize advanced feature engineering. For example, convert an American first name to its statistical age or gender using US Census data. Extract the geographic area code from a free form phone number string. Common date, time and string operations are supported efficiently through pandas.
 - Encoders offer robust input to your estimators, and avoid common problems with missing and long tail values. They are well tested to save you from garbage in/garbage out.
