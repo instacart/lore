@@ -1,15 +1,16 @@
+import csv
+import gc
+import gzip
 import hashlib
 import inspect
-import logging
-import gc
 import io
+import logging
+import math
 import os
 import re
 import sys
 import tempfile
-import csv
-import gzip
-import math
+
 from datetime import datetime
 
 import pandas
@@ -40,6 +41,12 @@ try:
     )
 except ModuleNotFoundError as ex:
     jinja2_env = False
+
+try:
+    from urllib.parse import urlparse as parse_url
+except ModuleNotFoundError as ex:
+    from urlparse import urlparse as parse_url
+
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +102,9 @@ class Connection(object):
     IAM_ROLE = os.environ.get('IAM_ROLE', None)
     
     def __init__(self, url, name='connection', **kwargs):
+        parsed = parse_url(url)
+        self.adapter = parsed.scheme
+
         for int_value in ['pool_size', 'pool_recycle', 'max_overflow']:
             if int_value in kwargs:
                 kwargs[int_value] = int(kwargs[int_value])
@@ -102,8 +112,13 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         if '__name__' in kwargs:
             del kwargs['__name__']
-        if url[0:12] != 'snowflake://' and 'isolation_level' not in kwargs:
-            kwargs['isolation_level'] = 'AUTOCOMMIT'
+
+        if self.adapter == 'snowflake':
+            if 'numpy' not in parsed.query:
+                logger.error('You should add `?numpy=True` query param to your snowflake connection url to ensure proper compatibility')
+        else:
+            if 'isolation_level' not in kwargs:
+                kwargs['isolation_level'] = 'AUTOCOMMIT'
 
         self._engine = sqlalchemy.create_engine(url, **kwargs)
         self._connection = None
