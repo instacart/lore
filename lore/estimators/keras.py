@@ -455,7 +455,7 @@ class Base(BaseEstimator):
         result = self.keras_evaluate(x, y)
         
         if self.towers > 1:
-            result = numpy.mean(result, axis=0)
+            result = numpy.mean(result, axis=0) / self.towers
     
         return result.squeeze()
     
@@ -546,6 +546,8 @@ class Regression(Base):
             towers=1,
             cudnn=False,
             multi_gpu_model=True,
+            short_names=False,
+            batch_norm=False,
     ):
         kwargs = locals()
         kwargs.pop('self')
@@ -578,6 +580,8 @@ class BinaryClassifier(Base):
             towers=1,
             cudnn=False,
             multi_gpu_model=True,
+            short_names=False,
+            batch_norm=False,
     ):
         kwargs = locals()
         kwargs.pop('self')
@@ -610,6 +614,8 @@ class MultiClassifier(Base):
             towers=1,
             cudnn=False,
             multi_gpu_model=True,
+            short_names=False,
+            batch_norm=False,
     ):
         kwargs = locals()
         kwargs.pop('self')
