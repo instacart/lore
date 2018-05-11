@@ -524,7 +524,7 @@ class Unique(Base):
                 if not isinstance(self.column, str):
                     raise "Can not correlate with non native columns"
 
-                self.map = MissingValueMap(data.groupby(self.column)[correlation].mean().to_dict())
+                self.map = MissingValueMap(data.groupby(self.column)[self.correlation].mean().to_dict())
                 self.missing_value = data[self.column].mean()
             else:
                 if self.stratify:
