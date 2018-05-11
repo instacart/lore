@@ -49,10 +49,9 @@ class Base(object):
             self.name = inflection.underscore(self.__class__.__name__) + '_' + self.name
 
         if self.twin:
-            self.twin_name = self.name+TWIN
-            self.twin_column = self.column+TWIN
+            self.twin_name = self.name + TWIN
+            self.twin_column = self.column + TWIN
 
-    
     def __str__(self):
         return self.name
         
@@ -65,7 +64,8 @@ class Base(object):
             'missing_value': 0,
             'twin': False,
             'twin_name': None,
-            'twin_column': None
+            'twin_column': None,
+            'correlation': None
         }
         for key, default in backward_compatible_defaults.items():
             if key not in self.__dict__.keys():
@@ -503,7 +503,7 @@ class Unique(Base):
     the stratify column the encoded value appears with.
     """
     
-    def __init__(self, column, name=None, minimum_occurrences=1, stratify=None, embed_scale=1, tags=[], twin=False):
+    def __init__(self, column, name=None, minimum_occurrences=1, stratify=None, embed_scale=1, tags=[], twin=False, correlation=None):
         """
         :param minimum_occurrences: ignore ids with less than this many occurrences
         :param stratify: compute minimum occurrences over data column with this name
@@ -516,25 +516,33 @@ class Unique(Base):
         self.missing_value = 2
         self.stratify = stratify
         self.dtype = numpy.uint32
+        self.correlation = correlation
     
     def fit(self, data):
         with timer(('fit %s' % self.name), logging.DEBUG):
-            if self.stratify:
-                ids = pandas.DataFrame({
-                    'id': self.series(data),
-                    'stratify': data[self.stratify]
-                }).drop_duplicates()
+            if self.correlation:
+                if not isinstance(self.column, str):
+                    raise "Can not correlate with non native columns"
+
+                self.map = MissingValueMap(data.groupby(self.column)[correlation].mean().to_dict())
+                self.missing_value = data[self.column].mean()
             else:
-                ids = pandas.DataFrame({'id': self.series(data)})
-            counts = pandas.DataFrame({'n': ids.groupby('id').size()})
-            qualified = counts[counts.n >= self.minimum_occurrences].copy()
-            qualified['encoded_id'] = numpy.arange(len(qualified)) + 2
-            
-            self.map = MissingValueMap(qualified.to_dict()['encoded_id'])
+                if self.stratify:
+                    ids = pandas.DataFrame({
+                        'id': self.series(data),
+                        'stratify': data[self.stratify]
+                    }).drop_duplicates()
+                else:
+                    ids = pandas.DataFrame({'id': self.series(data)})
+                counts = pandas.DataFrame({'n': ids.groupby('id').size()})
+                qualified = counts[counts.n >= self.minimum_occurrences].copy()
+                qualified['encoded_id'] = numpy.arange(len(qualified)) + 2
+                
+                self.map = MissingValueMap(qualified.to_dict()['encoded_id'])
+                self.missing_value = len(self.map) + 2
+    
             self.inverse = {v: k for k, v in self.map.items()}
             self.inverse[self.tail_value] = 'LONG_TAIL'
-            self.missing_value = len(self.map) + 2
-
             self.dtype = self._type_from_cardinality()
 
     def transform(self, data):

@@ -3,6 +3,7 @@ import atexit
 import inspect
 import logging
 import warnings
+import base64
 
 import keras
 import keras.backend
@@ -196,12 +197,13 @@ class Base(BaseEstimator):
         embeddings = {}
         for i, encoder in enumerate(self.model.pipeline.encoders):
             if self.short_names:
+                number = i * self.towers + tower
                 suffix = 't'
-                embed_name = '%ie%i' % (tower, i)
+                embed_name = 'e%x' % number
                 embed_name_twin = embed_name + suffix
-                reshape_name = '%ir%i' % (tower, i)
+                reshape_name = 'r%x' % number
                 reshape_name_twin = reshape_name + suffix
-                concatenate_name = '%ic%i' % (tower, i)
+                concatenate_name = 'c%x' % number
             else:
                 suffix = '_twin'
                 embed_name = str(tower) + '_embed_' + encoder.name
@@ -280,8 +282,9 @@ class Base(BaseEstimator):
 
         hidden_width = self.hidden_width
         for i in range(self.hidden_layers):
+            number = (i * self.towers + tower)
             if self.short_names:
-                name = '%ih%i' % (tower, i)
+                name = 'h%x' % number
             else:
                 name = '%i_hidden_%i' % (tower, i)
 
@@ -293,14 +296,14 @@ class Base(BaseEstimator):
                                   name=name)(hidden_layers)
             if self.dropout > 0:
                 if self.short_names:
-                    name = '%id%i' % (tower, i)
+                    name = 'd%x' % number
                 else:
                     name = '%i_dropout_%i' % (tower, i)
                 hidden_layers = Dropout(self.dropout, name=name)(hidden_layers)
 
             if self.batch_norm:
                 if self.short_names:
-                    name = '%ib%i' % (tower, i)
+                    name = 'b%x' % number
                 else:
                     name = '%i_batchnorm_%i' % (tower, i)
                 hidden_layers = BatchNormalization(name=name)(hidden_layers)
@@ -319,7 +322,7 @@ class Base(BaseEstimator):
     @timed(logging.INFO)
     def build_output_layer(self, hidden_layers, tower):
         if self.short_names:
-            name = '%io' % tower
+            name = 'o%x' % tower
         else:
             name = '%i_output' % tower
 
