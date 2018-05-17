@@ -15,7 +15,7 @@ sql = ['sqlalchemy>=1.2.0b3, <1.2.99', 'sqlalchemy-migrate>=0.11, <0.11.99']
 postgres = ['psycopg2>=2.7, <2.7.99'] + sql
 redshift = ['sqlalchemy-redshift>=0.7, <0.7.99'] + sql
 redis = ['redis>=2.10, <2.10.99']
-s3 = ['boto3>=1.4, <1.6.99', 'python-dateutil>=2.1, <2.7.0']
+s3 = ['boto3>=1.4, <1.7.99', 'python-dateutil>=2.1, <2.7.0']
 smart_open = ['smart-open>=1.5, <1.5.99'] + s3
 geoip = ['geoip2']
 
@@ -80,7 +80,7 @@ setup(
         'jupyter>=1.0, <1.0.99',
         'jupyter-core>=4.4.0, <4.4.99',
         'numpy>=1.14, <1.14.99',
-        'pandas>=0.20, <0.22.99',
+        'pandas>=0.20, <0.23.99, !=0.22.0',
         'python-dateutil>=2.1, <2.7.0',
         'python-dotenv>=0.6, <0.7.99',
         'six>=1.10, <1.11.99',
