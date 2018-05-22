@@ -204,7 +204,7 @@ class Base(object):
             for child in [self.estimator, self.pipeline]:
                 param = child.__module__ + '.' + child.__class__.__name__
                 params[param] = {}
-                if hasattr(child, '__get_state__'):
+                if hasattr(child, '__getstate__'):
                     state = child.__getstate__()
                 else:
                     state = child.__dict__
