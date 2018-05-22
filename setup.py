@@ -74,7 +74,7 @@ setup(
         'lore.template.init.tests.unit',
     ],
     install_requires=[
-        'flask>=0.12.2, <0.12.99',
+        'flask>=0.11.0, <0.12.99',
         'future>=0.15, <0.16.99',
         'inflection>=0.3, <0.3.99',
         'jupyter>=1.0, <1.0.99',
