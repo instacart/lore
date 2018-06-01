@@ -81,7 +81,6 @@ if sqlalchemy:
         caller = next(x for x in stack if x[0] == origin)
         
         statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
-        logger.debug(statement)
         return statement, parameters
     
     
@@ -102,6 +101,9 @@ class Connection(object):
     IAM_ROLE = os.environ.get('IAM_ROLE', None)
     
     def __init__(self, url, name='connection', **kwargs):
+        if not sqlalchemy:
+            raise ModuleNotFoundError('No module named sqlalchemy. Please add it to requirements.txt.')
+        
         parsed = parse_url(url)
         self.adapter = parsed.scheme
 
@@ -112,29 +114,17 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         if '__name__' in kwargs:
             del kwargs['__name__']
-
         if self.adapter == 'snowflake':
             if 'numpy' not in parsed.query:
                 logger.error('You should add `?numpy=True` query param to your snowflake connection url to ensure proper compatibility')
-        else:
-            if 'isolation_level' not in kwargs:
-                kwargs['isolation_level'] = 'AUTOCOMMIT'
 
-        self._engine = sqlalchemy.create_engine(url, **kwargs)
-        self._connection = None
+        self._engine = sqlalchemy.create_engine(url, **kwargs).execution_options(autocommit=True)
+        self.__connection = None
         self._metadata = None
         self.name = name
         self._transactions = []
 
     def __enter__(self):
-        if self._connection is None:
-            self._connection = self._engine.connect()
-        dbapi_connection = self._connection.connection.connection
-        if self._transactions:
-            assert not dbapi_connection.autocommit
-        else:
-            assert dbapi_connection.autocommit
-            dbapi_connection.autocommit = False
         self._transactions.append(self._connection.begin())
         return self
     
@@ -144,24 +134,21 @@ class Connection(object):
             transaction.commit()
         else:
             transaction.rollback()
-        if not self._transactions:
-            dbapi_connection = self._connection.connection.connection
-            assert not dbapi_connection.autocommit
-            dbapi_connection.autocommit = True
 
+    @property
+    def _connection(self):
+        if self.__connection is None:
+            self.__connection = self._engine.connect()
+        return self.__connection
+    
     @staticmethod
     def path(filename, extension='.sql'):
-        return os.path.join(
-            lore.env.root, lore.env.project, 'extracts',
-            filename + extension)
+        return os.path.join(lore.env.root, lore.env.project, 'extracts', filename + extension)
 
     def execute(self, sql=None, filename=None, **kwargs):
         self.__execute(self.__prepare(sql, filename), kwargs)
 
     def insert(self, table, dataframe, batch_size=10 ** 5):
-        if self._connection is None:
-            self._connection = self._engine.connect()
-
         if self._engine.dialect.name in ['postgresql', 'redshift']:
             for batch in range(int(math.ceil(float(len(dataframe)) / batch_size))):
                 if sys.version_info[0] == 2:
@@ -172,6 +159,7 @@ class Connection(object):
                 slice.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
                 rows.seek(0)
                 self._connection.connection.cursor().copy_from(rows, table, null='\\N', sep='|', columns=dataframe.columns)
+                self._connection.connection.commit()
                 del rows
                 gc.collect()
         else:
@@ -185,7 +173,7 @@ class Connection(object):
 
     def close(self):
         self._engine.dispose()
-        self._connection = None
+        self.__connection = None
         
     def replace(self, table, dataframe, batch_size=10 ** 5):
         import migrate.changeset
@@ -346,8 +334,6 @@ class Connection(object):
     @query_cached
     def _dataframe(self, sql, bindings, chunksize=None):
         with timer("dataframe:"):
-            if self._connection is None:
-                self._connection = self._engine.connect()
             return pandas.read_sql(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
 
     def quote_identifier(self, identifier):
@@ -373,6 +359,4 @@ class Connection(object):
         return sql
 
     def __execute(self, sql, bindings):
-        if self._connection is None:
-            self._connection = self._engine.connect()
         return self._connection.execute(sql, bindings)
