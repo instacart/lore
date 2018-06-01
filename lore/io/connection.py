@@ -341,8 +341,8 @@ class Connection(object):
         
     def template(self, filename, **kwargs):
         if not jinja2_env:
-            raise ImportError("jinja2 not present")
-        logger.debug("READ SQL TEMPLATE: " + filename)
+            raise ModuleNotFoundError('No module named jinja2. Please add it to requirements.txt.')
+        logger.debug('READ SQL TEMPLATE: ' + filename)
         sql = jinja2_env.get_template(filename + '.sql.j2').render(**kwargs)
         
         return re.sub(r'\{(\w+?)\}', r'%(\1)s', sql)
@@ -350,7 +350,7 @@ class Connection(object):
     def __prepare(self, sql, filename):
         if sql is None and filename is not None:
             filename = Connection.path(filename, '.sql')
-            logger.debug("READ SQL FILE: " + filename)
+            logger.debug('READ SQL FILE: ' + filename)
             with open(filename) as file:
                 sql = file.read()
 
