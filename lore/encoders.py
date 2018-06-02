@@ -520,26 +520,28 @@ class Unique(Base):
     
     def fit(self, data):
         with timer(('fit %s' % self.name), logging.DEBUG):
-            if self.correlation:
-                if not isinstance(self.column, str):
-                    raise "Can not correlate with non native columns"
-
-                self.map = MissingValueMap(data.groupby(self.column)[self.correlation].mean().to_dict())
-                self.missing_value = data[self.column].mean()
+            if self.stratify:
+                ids = pandas.DataFrame({
+                    'id': self.series(data),
+                    'stratify': data[self.stratify],
+                }).drop_duplicates()
             else:
-                if self.stratify:
-                    ids = pandas.DataFrame({
-                        'id': self.series(data),
-                        'stratify': data[self.stratify]
-                    }).drop_duplicates()
-                else:
-                    ids = pandas.DataFrame({'id': self.series(data)})
-                counts = pandas.DataFrame({'n': ids.groupby('id').size()})
-                qualified = counts[counts.n >= self.minimum_occurrences].copy()
-                qualified['encoded_id'] = numpy.arange(len(qualified)) + 2
-                
-                self.map = MissingValueMap(qualified.to_dict()['encoded_id'])
-                self.missing_value = len(self.map) + 2
+                ids = pandas.DataFrame({'id': self.series(data)})
+                if self.correlation:
+                    if not isinstance(self.column, str):
+                        raise 'Can not correlate with non native columns'
+                    ids['correlation'] = data[self.correlation]
+
+            counts = pandas.DataFrame({'n': ids.groupby('id').size()})
+            if self.correlation:
+                counts['correlation'] = ids.groupby('id')['correlation'].mean()
+                counts = counts.sort_values('correlation')
+
+            qualified = counts[counts.n >= self.minimum_occurrences].copy()
+            qualified['encoded_id'] = numpy.arange(len(qualified)) + 2
+
+            self.map = MissingValueMap(qualified.to_dict()['encoded_id'])
+            self.missing_value = len(self.map) + 2
     
             self.inverse = {v: k for k, v in self.map.items()}
             self.inverse[self.tail_value] = 'LONG_TAIL'
