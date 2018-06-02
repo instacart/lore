@@ -528,8 +528,6 @@ class Unique(Base):
             else:
                 ids = pandas.DataFrame({'id': self.series(data)})
                 if self.correlation:
-                    if not isinstance(self.column, str):
-                        raise 'Can not correlate with non native columns'
                     ids['correlation'] = data[self.correlation]
 
             counts = pandas.DataFrame({'n': ids.groupby('id').size()})
