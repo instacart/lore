@@ -393,7 +393,7 @@ class Base(BaseEstimator):
         ]
         if tensorboard:
             callbacks += [TensorBoard(
-                log_dir=self.model.serializer.tensorboard_path,
+                log_dir=self.model.tensorboard_path(),
                 histogram_freq=1,
                 batch_size=self.batch_size,
                 write_graph=True,
