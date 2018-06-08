@@ -339,7 +339,7 @@ class Connection(object):
         tablename = self.quote_identifier(tablename)
         with timer("temptable:"):
             if drop:
-                self.execute('DROP TABLE IF EXISTS ' + tablename)
+                self.execute(sql='DROP TABLE IF EXISTS ' + tablename)
             self.__execute('CREATE TEMPORARY TABLE ' + tablename + ' AS ' + self.__prepare(extract, sql, filename, **kwargs), kwargs)
         
     def quote_identifier(self, identifier):
@@ -361,8 +361,10 @@ class Connection(object):
                 if not jinja2_env:
                     raise ModuleNotFoundError('No module named jinja2. Please add it to requirements.txt.')
                 logger.debug('READ SQL TEMPLATE: ' + template_filename)
-                sql = jinja2_env.get_template(template_filename).render(**kwargs)
-
+                sql = jinja2_env.get_template(extract + '.sql.j2').render(**kwargs)
+            else:
+                raise IOError('There is no template or sql file for %s' % extract)
+            
         # support mustache style bindings
         sql = re.sub(r'\{(\w+?)\}', r'%(\1)s', sql)
 
