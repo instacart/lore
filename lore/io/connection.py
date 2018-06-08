@@ -142,11 +142,11 @@ class Connection(object):
         return self.__connection
     
     @staticmethod
-    def path(filename, extension='.sql'):
-        return os.path.join(lore.env.root, lore.env.project, 'extracts', filename + extension)
+    def path(extract, extension='.sql'):
+        return os.path.join(lore.env.root, lore.env.project, 'extracts', extract + extension)
 
-    def execute(self, sql=None, filename=None, **kwargs):
-        self.__execute(self.__prepare(sql, filename), kwargs)
+    def execute(self, extract=None, sql=None, filename=None, **kwargs):
+        self.__execute(self.__prepare(extract, sql, filename, **kwargs), kwargs)
 
     def insert(self, table, dataframe, batch_size=10 ** 5):
         if self._engine.dialect.name in ['postgresql', 'redshift']:
@@ -203,7 +203,7 @@ class Connection(object):
                 new.table = destination
                 new.create(bind=self._connection)
             self.insert(destination.name, dataframe, batch_size=batch_size)
-            self.execute("BEGIN; SET LOCAL statement_timeout = '1min'; ANALYZE %s; COMMIT;" % self.quote_identifier(table))
+            self.execute(sql="BEGIN; SET LOCAL statement_timeout = '1min'; ANALYZE %s; COMMIT;" % self.quote_identifier(table))
 
             with self as transaction:
                 backup = sqlalchemy.Table(table + '_b', self.metadata)
@@ -225,18 +225,17 @@ class Connection(object):
 
         return self._metadata
 
-    def select(self, sql=None, filename=None, **kwargs):
+    def select(self, extract=None, sql=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
-        sql = self.__prepare(sql, filename)
-        return self._select(sql, kwargs, cache=cache)
+        return self._select(self.__prepare(extract, sql, filename, **kwargs), kwargs, cache=cache)
 
     @query_cached
     def _select(self, sql, bindings):
         return self.__execute(sql, bindings).fetchall()
 
-    def unload(self, sql=None, filename=None, **kwargs):
+    def unload(self, extract=None, sql=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
-        sql = self.__prepare(sql, filename)
+        sql = self.__prepare(extract, sql, filename)
         return self._unload(sql, kwargs, cache=cache)
     
     @query_cached
@@ -317,12 +316,12 @@ class Connection(object):
             logger.info(result.head())
             return result
         
-    def dataframe(self, sql=None, filename=None, **kwargs):
+    def dataframe(self, extract=None, sql=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
         chunksize = kwargs.pop('chunksize', None)
         if chunksize and cache:
             raise ValueError('Chunking is incompatible with caching. Choose to pass either "cache" or "chunksize".')
-        sql = self.__prepare(sql, filename)
+        sql = self.__prepare(extract, sql, filename, **kwargs)
         dataframe = self._dataframe(sql, kwargs, cache=cache, chunksize=chunksize)
         if chunksize is None:
             buffer = io.StringIO()
@@ -336,26 +335,37 @@ class Connection(object):
         with timer("dataframe:"):
             return pandas.read_sql(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
 
+    def temp_table(self, tablename, extract=None, sql=None, filename=None, drop=True, **kwargs):
+        tablename = self.quote_identifier(tablename)
+        with timer("temptable:"):
+            if drop:
+                self.execute('DROP TABLE IF EXISTS ' + tablename)
+            self.__execute('CREATE TEMPORARY TABLE ' + tablename + ' AS ' + self.__prepare(extract, sql, filename, **kwargs), kwargs)
+        
     def quote_identifier(self, identifier):
         return self._engine.dialect.identifier_preparer.quote(identifier)
         
-    def template(self, filename, **kwargs):
-        if not jinja2_env:
-            raise ModuleNotFoundError('No module named jinja2. Please add it to requirements.txt.')
-        logger.debug('READ SQL TEMPLATE: ' + filename)
-        sql = jinja2_env.get_template(filename + '.sql.j2').render(**kwargs)
-        
-        return re.sub(r'\{(\w+?)\}', r'%(\1)s', sql)
-    
-    def __prepare(self, sql, filename):
-        if sql is None and filename is not None:
-            filename = Connection.path(filename, '.sql')
-            logger.debug('READ SQL FILE: ' + filename)
-            with open(filename) as file:
-                sql = file.read()
+    def __prepare(self, extract, sql, filename, **kwargs):
+        if extract is None:
+            extract = filename
+        if sql is None and extract is not None:
+            sql_filename = Connection.path(extract, '.sql')
+            template_filename = Connection.path(extract, '.sql.j2')
+            if os.path.exists(sql_filename):
+                logger.debug('READ SQL FILE: ' + sql_filename)
+                if os.path.exists(template_filename):
+                    logger.warning('ignoring template with the same base file name')
+                with open(sql_filename) as file:
+                    sql = file.read()
+            elif os.path.exists(template_filename):
+                if not jinja2_env:
+                    raise ModuleNotFoundError('No module named jinja2. Please add it to requirements.txt.')
+                logger.debug('READ SQL TEMPLATE: ' + template_filename)
+                sql = jinja2_env.get_template(template_filename).render(**kwargs)
 
         # support mustache style bindings
         sql = re.sub(r'\{(\w+?)\}', r'%(\1)s', sql)
+
         return sql
 
     def __execute(self, sql, bindings):
