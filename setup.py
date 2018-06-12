@@ -66,6 +66,7 @@ setup(
         'lore.models',
         'lore.pipelines',
         'lore.stores',
+        'lore.tasks',
         'lore.www',
         'lore.template.init.app',
         'lore.template.init.app.estimators',
