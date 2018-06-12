@@ -47,6 +47,13 @@ try:
 except ModuleNotFoundError as ex:
     from urlparse import urlparse as parse_url
 
+try:
+    from snowflake.connector.errors import ProgrammingError as SnowflakeProgrammingError
+    import snowflake.connector.sqlstate
+    import snowflake.connector.errorcode
+except ModuleNotFoundError as ex:
+    class SnowflakeProgrammingError(BaseException):
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -145,8 +152,8 @@ class Connection(object):
     def path(extract, extension='.sql'):
         return os.path.join(lore.env.root, lore.env.project, 'extracts', extract + extension)
 
-    def execute(self, extract=None, sql=None, filename=None, **kwargs):
-        self.__execute(self.__prepare(extract, sql, filename, **kwargs), kwargs)
+    def execute(self, sql=None, extract=None, filename=None, **kwargs):
+        self.__execute(self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs), kwargs)
 
     def insert(self, table, dataframe, batch_size=10 ** 5):
         if self._engine.dialect.name in ['postgresql', 'redshift']:
@@ -225,17 +232,17 @@ class Connection(object):
 
         return self._metadata
 
-    def select(self, extract=None, sql=None, filename=None, **kwargs):
+    def select(self, sql=None, extract=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
-        return self._select(self.__prepare(extract, sql, filename, **kwargs), kwargs, cache=cache)
+        return self._select(self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs), kwargs, cache=cache)
 
     @query_cached
     def _select(self, sql, bindings):
         return self.__execute(sql, bindings).fetchall()
 
-    def unload(self, extract=None, sql=None, filename=None, **kwargs):
+    def unload(self, sql=None, extract=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
-        sql = self.__prepare(extract, sql, filename)
+        sql = self.__prepare(sql=sql, extract=extract, filename=filename)
         return self._unload(sql, kwargs, cache=cache)
     
     @query_cached
@@ -316,12 +323,12 @@ class Connection(object):
             logger.info(result.head())
             return result
         
-    def dataframe(self, extract=None, sql=None, filename=None, **kwargs):
+    def dataframe(self, sql=None, extract=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
         chunksize = kwargs.pop('chunksize', None)
         if chunksize and cache:
             raise ValueError('Chunking is incompatible with caching. Choose to pass either "cache" or "chunksize".')
-        sql = self.__prepare(extract, sql, filename, **kwargs)
+        sql = self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs)
         dataframe = self._dataframe(sql, kwargs, cache=cache, chunksize=chunksize)
         if chunksize is None:
             buffer = io.StringIO()
@@ -335,17 +342,17 @@ class Connection(object):
         with timer("dataframe:"):
             return pandas.read_sql(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
 
-    def temp_table(self, tablename, extract=None, sql=None, filename=None, drop=True, **kwargs):
+    def temp_table(self, tablename, sql=None, extract=None, filename=None, drop=True, **kwargs):
         tablename = self.quote_identifier(tablename)
         with timer("temptable:"):
             if drop:
                 self.execute(sql='DROP TABLE IF EXISTS ' + tablename)
-            self.__execute('CREATE TEMPORARY TABLE ' + tablename + ' AS ' + self.__prepare(extract, sql, filename, **kwargs), kwargs)
+            self.__execute('CREATE TEMPORARY TABLE ' + tablename + ' AS ' + self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs), kwargs)
         
     def quote_identifier(self, identifier):
         return self._engine.dialect.identifier_preparer.quote(identifier)
         
-    def __prepare(self, extract, sql, filename, **kwargs):
+    def __prepare(self, sql=None, extract=None, filename=None, **kwargs):
         if extract is None:
             extract = filename
         if sql is None and extract is not None:
@@ -371,4 +378,13 @@ class Connection(object):
         return sql
 
     def __execute(self, sql, bindings):
-        return self._connection.execute(sql, bindings)
+        try:
+            return self._connection.execute(sql, bindings)
+        except SnowflakeProgrammingError as ex:
+            # retry after reconnect
+            if (
+                ex.errno == snowflake.connector.errorcode.ER_FAILED_TO_RENEW_SESSION
+                and ex.sqlstate == snowflake.connector.sqlstate.SQLSTATE_CONNECTION_WAS_NOT_ESTABLISHED
+            ):
+                self.close()
+                return self._connection.execute(sql, bindings)
