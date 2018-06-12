@@ -328,6 +328,17 @@ def main(args=None):
     )
     lab_parser.set_defaults(func=lab)
 
+    task_parser = commands.add_parser(
+        'task',
+        help='execute a task in the lore environment'
+    )
+    task_parser.set_defaults(func=task)
+    task_parser.add_argument(
+        'task',
+        metavar='TASK',
+        help='fully qualified task name. e.g. app.tasks.project.Task'
+    )
+    
     test_parser = commands.add_parser(
         'test',
         help='run tests'
@@ -423,16 +434,19 @@ def _cast_attr(value, default):
         return value
 
 
-def _get_model(name):
+def _get_fully_qualified_class(name):
     module, klass = name.rsplit('.', 1)
     try:
         module = importlib.import_module(module)
-        Model = getattr(module, klass)
-    except (AttributeError, ModuleNotFoundError):
-        sys.exit(
-            ansi.error() + ' "' + name + '" does not exist in this directoy! Are you sure you typed the fully qualified module.Class name correctly?')
+    except ModuleNotFoundError as ex:
+        sys.exit(ansi.error() + ' "%s" does not exist in this directoy! Are you sure you typed the name correctly?' % module)
 
-    return Model
+    try:
+        value = getattr(module, klass)
+    except AttributeError as ex:
+        sys.exit(ansi.error() + ' "%s" does not exist in %s! Are you sure you typed the fully qualified module.Class name correctly?' % (klass, module))
+
+    return value
 
 
 def _pair_args(unknown):
@@ -449,7 +463,7 @@ def _pair_args(unknown):
 
 def fit(parsed, unknown):
     print(ansi.success('FITTING ') + parsed.model)
-    Model = _get_model(parsed.model)
+    Model = _get_fully_qualified_class(parsed.model)
     model = Model()
 
     valid_model_fit_args = _get_valid_fit_args(model.fit)
@@ -702,6 +716,14 @@ def python(parsed, unknown):
     args = [env.bin_python] + unknown
     print(ansi.success('EXECUTE ') + ' '.join(args))
     subprocess.check_call(args)
+
+
+def task(parsed, unknown):
+    Task = _get_fully_qualified_class(parsed.task)
+    grouped, unpaired = _pair_args(unknown)
+
+    with timer('execute %s' % parsed.task):
+        Task().main(**dict(grouped))
 
 
 def test(parsed, unknown):

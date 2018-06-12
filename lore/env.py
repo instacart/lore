@@ -117,6 +117,7 @@ project = os.environ.get('LORE_PROJECT', root.split(os.sep)[-1])
 sys.path = [root] + sys.path
 work_dir = 'tests' if name == TEST else os.environ.get('WORK_DIR', root)
 models_dir = os.path.join(work_dir, 'models')
+tasks_dir = os.path.join(work_dir, 'tasks')
 data_dir = os.path.join(work_dir, 'data')
 log_dir = os.path.join(root if name == TEST else work_dir, 'logs')
 tests_dir = os.path.join(root, 'tests')
