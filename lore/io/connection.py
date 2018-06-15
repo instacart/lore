@@ -180,7 +180,7 @@ class Connection(object):
             )
 
     def close(self):
-        self.__thread_locals.connection = None
+        self.__thread_local = threading.local()
         self._engine.dispose()
         
     def replace(self, table, dataframe, batch_size=10 ** 5):

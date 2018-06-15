@@ -14,6 +14,7 @@ from sqlalchemy.engine import Engine
 import pandas
 
 import lore
+import psycopg2
 
 calls = 0
 @event.listens_for(Engine, "after_cursor_execute")
@@ -155,3 +156,12 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(posts, [3])
         self.assertEqual(thrown, [True])
         self.assertAlmostEqual((slow_done - fast_done).total_seconds(), 0.5, 1)
+
+    def test_close(self):
+        lore.io.main.execute(sql='create temporary table tests_close(id integer not null primary key)')
+        lore.io.main.execute(sql='insert into tests_close values (1), (2), (3)')
+        lore.io.main.close()
+        reopened = lore.io.main.select(sql='select 1')
+        self.assertEquals(reopened, [(1,)])
+        with self.assertRaises(sqlalchemy.exc.ProgrammingError):
+            lore.io.main.select(sql='select count(*) from tests_close')
