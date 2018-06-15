@@ -130,17 +130,17 @@ class TestConnection(unittest.TestCase):
         posts = []
         thrown = []
     
-        def insert(connection, delay=0):
+        def insert(delay=0):
             try:
-                priors.append(connection.select(sql='select count(*) from tests_autocommit')[0][0])
-                connection.execute(sql='insert into tests_autocommit values (1), (2), (3)')
-                posts.append(connection.select(sql='select count(*) from tests_autocommit')[0][0])
+                priors.append(lore.io.main.select(sql='select count(*) from tests_autocommit')[0][0])
+                lore.io.main.execute(sql='insert into tests_autocommit values (1), (2), (3)')
+                posts.append(lore.io.main.select(sql='select count(*) from tests_autocommit')[0][0])
                 time.sleep(delay)
             except sqlalchemy.exc.IntegrityError as ex:
                 thrown.append(True)
     
-        slow = Thread(target=insert, args=(lore.io.main, 1))
-        fast = Thread(target=insert, args=(lore.io.main_two, 0))
+        slow = Thread(target=insert, args=(1,))
+        fast = Thread(target=insert, args=(0,))
 
         slow.start()
         time.sleep(0.5)
