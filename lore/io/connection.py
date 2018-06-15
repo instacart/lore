@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import tempfile
+import threading
 
 from datetime import datetime
 
@@ -126,10 +127,10 @@ class Connection(object):
                 logger.error('You should add `?numpy=True` query param to your snowflake connection url to ensure proper compatibility')
 
         self._engine = sqlalchemy.create_engine(url, **kwargs).execution_options(autocommit=True)
-        self.__connection = None
         self._metadata = None
         self.name = name
         self._transactions = []
+        self.__thread_local = threading.local()
 
     def __enter__(self):
         self._transactions.append(self._connection.begin())
@@ -144,9 +145,9 @@ class Connection(object):
 
     @property
     def _connection(self):
-        if self.__connection is None:
-            self.__connection = self._engine.connect()
-        return self.__connection
+        if not hasattr(self.__thread_local, 'connection') or self.__thread_local.connection is None:
+            self.__thread_local.connection = self._engine.connect()
+        return self.__thread_local.connection
     
     @staticmethod
     def path(extract, extension='.sql'):
@@ -179,8 +180,8 @@ class Connection(object):
             )
 
     def close(self):
+        self.__thread_locals.connection = None
         self._engine.dispose()
-        self.__connection = None
         
     def replace(self, table, dataframe, batch_size=10 ** 5):
         import migrate.changeset
