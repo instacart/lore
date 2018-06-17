@@ -28,7 +28,7 @@ keras = [
     'html5lib==0.9999999',
     'pydot>=1.2.4, <1.2.99',
     'graphviz>=0.8.2, <0.8.99']
-xgboost = ['xgboost>=0.6a2, <0.6.99']
+xgboost = ['xgboost>=0.72, <0.80']
 scikit = ['scikit-learn>=0.19, <0.19.99']
 
 all = list(set(keras + xgboost + scikit + postgres + redshift + redis + s3 + geoip))

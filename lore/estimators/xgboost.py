@@ -70,7 +70,7 @@ class Base(object):
     @timed(logging.INFO)
     def evaluate(self, x, y):
         with self.xgboost_lock:
-            return float(self.booster().eval(xgboost.DMatrix(x, label=y)).decode().split(':')[-1])
+            return float(self.get_booster().eval(xgboost.DMatrix(x, label=y)).split(':')[-1])
 
     @timed(logging.INFO)
     def score(self, x, y):
@@ -94,9 +94,8 @@ class Regression(Base, xgboost.XGBRegressor):
         n_estimators=100,
         silent=True,
         objective='reg:linear',
-        # booster='gbtree',
-        # n_jobs=1,
-        nthread=8,
+        booster='gbtree',
+        n_jobs=-1,
         gamma=0,
         min_child_weight=1,
         max_delta_step=0,
@@ -107,8 +106,7 @@ class Regression(Base, xgboost.XGBRegressor):
         reg_lambda=1,
         scale_pos_weight=1,
         base_score=0.5,
-        # random_state=0,
-        seed=0,
+        random_state=0,
         missing=None,
         eval_metric='rmse',
         **kwargs
@@ -117,6 +115,10 @@ class Regression(Base, xgboost.XGBRegressor):
         kwargs.pop('self')
         kwargs.pop('__class__', None)
         kwargs = dict(kwargs, **(kwargs.pop('kwargs', {})))
+        if 'random_state' not in kwargs and 'seed' in kwargs:
+            kwargs['random_state'] = kwargs.pop('seed')
+        if 'n_jobs' not in kwargs and 'nthread' in kwargs:
+            kwargs['n_jobs'] = kwargs.pop('nthread')
         super(Regression, self).__init__(**kwargs)
         
 
@@ -128,9 +130,8 @@ class BinaryClassifier(Base, xgboost.XGBClassifier):
         n_estimators=100,
         silent=True,
         objective='binary:logistic',
-        # booster='gbtree',
-        # n_jobs=1,
-        nthread=8,
+        booster='gbtree',
+        n_jobs=-1,
         gamma=0,
         min_child_weight=1,
         max_delta_step=0,
@@ -141,8 +142,7 @@ class BinaryClassifier(Base, xgboost.XGBClassifier):
         reg_lambda=1,
         scale_pos_weight=1,
         base_score=0.5,
-        # random_state=0,
-        seed=0,
+        random_state=0,
         missing=None,
         eval_metric='logloss',
         **kwargs
@@ -151,6 +151,10 @@ class BinaryClassifier(Base, xgboost.XGBClassifier):
         kwargs.pop('self')
         kwargs.pop('__class__', None)
         kwargs = dict(kwargs, **(kwargs.pop('kwargs', {})))
+        if 'random_state' not in kwargs and 'seed' in kwargs:
+            kwargs['random_state'] = kwargs.pop('seed')
+        if 'n_jobs' not in kwargs and 'nthread' in kwargs:
+            kwargs['n_jobs'] = kwargs.pop('nthread')
         super(BinaryClassifier, self).__init__(**kwargs)
 
 
