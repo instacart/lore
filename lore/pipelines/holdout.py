@@ -48,7 +48,7 @@ class Base(object):
             '_test_data',
             '_validation_data',
             '_encoded_training_data',
-            '_encoded_validation_data'
+            '_encoded_validation_data',
             '_encoded_test_data',
         ]:
             state[bloat] = None
