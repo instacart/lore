@@ -29,7 +29,15 @@ class Base(object):
     def __setstate__(self, state):
         self.__dict__ = state
         self.xgboost_lock = threading.RLock()
-        
+
+        backward_compatible_defaults = {
+            'n_jobs': state.pop('nthread', -1),
+            'random_state': state.pop('seed', 0)
+        }
+        for key, default in backward_compatible_defaults.items():
+            if key not in self.__dict__.keys():
+                self.__dict__[key] = default
+
     @timed(logging.INFO)
     def fit(self, x, y, validation_x=None, validation_y=None, patience=0, verbose=None, **xgboost_kwargs):
         eval_set = [(x, y)]
