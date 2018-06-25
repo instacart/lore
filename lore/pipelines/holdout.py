@@ -251,7 +251,7 @@ class Base(object):
         logger.debug('random seed set to: %i' % self.split_seed)
         
         self._data = self.get_data()
-
+        gc.collect()
         if self.subsample:
             
             if self.stratify:
@@ -273,12 +273,14 @@ class Base(object):
                 test_size=self.test_size,
                 random_state=self.split_seed
             )
+            gc.collect()
             train_ids, test_ids = train_test_split(
                 train_ids,
                 test_size=self.test_size,
                 random_state=self.split_seed
             )
-            
+            gc.collect()
+
             rows = self._data[self.stratify].values
             self._training_data = self._data.iloc[numpy.isin(rows, train_ids.values)]
             self._validation_data = self._data.iloc[numpy.isin(rows, validate_ids.values)]
@@ -295,15 +297,22 @@ class Base(object):
                 test_size=self.test_size,
                 random_state=self.split_seed
             )
+        gc.collect()
+
+        self._data = None
+        gc.collect()
+
         # It's import to reset these indexes after split so in case
         # these dataframes are copied, the missing split rows are
         # not re-materialized later full of nans.
         self._training_data.reset_index(drop=True, inplace=True)
+        gc.collect()
         self._validation_data.reset_index(drop=True, inplace=True)
+        gc.collect()
         self._test_data.reset_index(drop=True, inplace=True)
-        
-        logger.debug('data: %i | training: %i | validation: %i | test: %i' % (
-            len(self._data),
+        gc.collect()
+
+        logger.debug('training: %i | validation: %i | test: %i' % (
             len(self._training_data),
             len(self._validation_data),
             len(self._test_data)
