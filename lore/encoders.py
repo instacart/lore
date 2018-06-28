@@ -319,7 +319,7 @@ class Norm(Continuous):
 
     def fit(self, data):
         with timer(('fit %s' % self.name), logging.DEBUG):
-            series = self.series(data)
+            series = self.series(data).astype(self.dtype)
             self.__min = float(series.min())
             self.__max = float(series.max())
             self.__mean = numpy.mean(series)
