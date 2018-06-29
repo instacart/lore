@@ -442,9 +442,9 @@ class Base(BaseEstimator):
             result = self.keras.predict(dataframe, batch_size=self.batch_size)
 
         if self.towers > 1:
-            result = numpy.mean(result, axis=0)
-            
-        return result.squeeze()
+            result = numpy.mean(result, axis=0).squeeze()
+
+        return result
     
     @before_after_callbacks
     @timed(logging.INFO)
