@@ -7,6 +7,15 @@
 ### Test locally
 CI is run for all PR's.
 
+First you need to install all of the dependencies used to test lore:
+
+```bash
+$ python2 -m pip install lore[devel]
+$ python3 -m pip install lore[devel]
+```
+
+Then tests can be run with:
+
 ```bash
 $ python2 setup.py test
 $ python3 setup.py test
