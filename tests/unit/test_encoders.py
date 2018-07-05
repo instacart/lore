@@ -338,3 +338,30 @@ class TestTwins(unittest.TestCase):
         self.assertEqual(encoder.cardinality(), 9)
         res = encoder.transform(df['product_name_twin'])
         self.assertEqual(res.reshape(-1).tolist(), [3, 6, 4, 5, 6, 4])
+
+
+class TestNestedUnique(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.encoder = lore.encoders.NestedUnique('test', sequence_length=3)
+        cls.encoder.fit(pandas.DataFrame({'test': [['apple', 'orange', 'carrot']]}))
+
+    def test_cardinality(self):
+        self.assertEqual(self.encoder.cardinality(), 6)
+
+    def test_reverse_transform(self):
+        a = [['apple', 'orange', 'carrot'], ['carrot', 'orange', 'apple']]
+        b = self.encoder.reverse_transform(
+            self.encoder.transform(pandas.DataFrame({'test': a}))
+        ).tolist()
+        self.assertEqual(a, b)
+
+    def test_handles_missing_labels(self):
+        a = [['thisisnotavalidwordintheembeddings'], [float('nan')], None]
+        b = self.encoder.reverse_transform(
+            self.encoder.transform(pandas.DataFrame({'test': a}))
+        ).tolist()
+        self.assertEqual([['LONG_TAIL', 'MISSING_VALUE', 'MISSING_VALUE'],
+                          ['MISSING_VALUE', 'MISSING_VALUE', 'MISSING_VALUE'],
+                          ['MISSING_VALUE', 'MISSING_VALUE', 'MISSING_VALUE']], b)
+        self.assertEqual(self.encoder.cardinality(), 6)
