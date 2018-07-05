@@ -65,6 +65,17 @@ class TestKeras(unittest.TestCase):
         assert True
 
 
+class TestNestedKeras(unittest.TestCase):
+    def test_lifecycle(self):
+        model = tests.mocks.models.NestedKeras()
+        model.fit(epochs=1)
+        model.save()
+
+        loaded = tests.mocks.models.NestedKeras.load()
+        self.assertEqual(loaded.fitting, model.fitting)
+
+
+
 class TestXGBoostRegression(unittest.TestCase):
     def test_lifecycle(self):
         model = tests.mocks.models.XGBoostRegression()

@@ -26,6 +26,25 @@ class Keras(lore.models.keras.Base):
         )
 
 
+class NestedKeras(lore.models.keras.Base):
+    def __init__(
+        self,
+        embed_size=10
+    ):
+        super(NestedKeras, self).__init__(
+            tests.mocks.pipelines.MockNestedData(),
+            lore.estimators.keras.Base(
+                batch_size=1024,
+                embed_size=embed_size,
+                hidden_layers=1,
+                hidden_width=100,
+                loss='binary_crossentropy',
+                monitor='val_loss',
+                cudnn=False
+            )
+        )
+
+
 class XGBoostBinaryClassifier(lore.models.xgboost.Base):
     def __init__(self):
         super(XGBoostBinaryClassifier, self).__init__(
