@@ -365,3 +365,29 @@ class TestNestedUnique(unittest.TestCase):
                           ['MISSING_VALUE', 'MISSING_VALUE', 'MISSING_VALUE'],
                           ['MISSING_VALUE', 'MISSING_VALUE', 'MISSING_VALUE']], b)
         self.assertEqual(self.encoder.cardinality(), 6)
+
+
+class TestNestedNorm(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.encoder = lore.encoders.NestedNorm('test', sequence_length=3)
+        cls.encoder.fit(pandas.DataFrame({'test': [[1, 2, 3]]}))
+
+    def test_reverse_transform(self):
+        a = [[1, 2, 3], [3, 2, 1]]
+        b = self.encoder.reverse_transform(
+            self.encoder.transform(pandas.DataFrame({'test': a}))
+        ).tolist()
+        self.assertEqual(a, b)
+
+    def test_handles_outliers_and_missing_labels(self):
+        a = [[100], [-100], [float('nan')], None]
+        b = self.encoder.reverse_transform(
+            self.encoder.transform(pandas.DataFrame({'test': a}))
+        ).tolist()
+        self.assertEqual([[3.0, 2.0, 2.0],
+                          [1.0, 2.0, 2.0],
+                          [2.0, 2.0, 2.0],
+                          [2.0, 2.0, 2.0],
+                          ], b)
+

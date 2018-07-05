@@ -795,3 +795,79 @@ class NestedUnique(Unique):
             # Flatten
             flattened = [item for sublist in same_size for item in sublist]
             return pandas.DataFrame({self.column: flattened})
+
+
+class NestedNorm(Norm):
+    """
+    Encodes each float in nested arrays individually with the same methodology as the
+    Norm encoder.
+    """
+
+    def __init__(self, column, name=None, sequence_length=None, dtype=numpy.float32, embed_scale=1, tags=[], twin=False):
+        """
+        :param sequence_length: truncates tokens after sequence_length. None for unlimited.
+        :param minimum_occurrences: ignore tokens with less than this many occurrences
+        """
+        super(NestedNorm, self).__init__(
+            column,
+            name=name,
+            dtype=dtype,
+            embed_scale=embed_scale,
+            tags=tags,
+            twin=twin
+        )
+        self.sequence_length = sequence_length
+
+    def fit(self, data):
+        with timer(('fit %s' % self.name), logging.DEBUG):
+            super(NestedNorm, self).fit(self.unnest(data, fit=True))
+
+    def transform(self, data):
+        """
+        :param data: DataFrame with column to encode
+        :return: encoded Series
+        """
+        with timer('transform %s' % self.name, logging.DEBUG):
+            transformed = super(NestedNorm, self).transform(self.unnest(data))
+            return transformed.reshape((len(data), self.sequence_length))
+
+    def reverse_transform(self, array):
+        with timer('reverse_transform %s' % self.name, logging.DEBUG):
+            data = pandas.DataFrame(array)
+            for column in data:
+                data[column] = super(NestedNorm, self).reverse_transform(data[column])
+            return numpy.array(data)
+
+    def get_column(self, encoded, i):
+        return encoded.apply(self.get_token, i=i)
+
+    def get_token(self, tokens, i):
+        if isinstance(tokens, float) or i >= len(tokens):
+            return self.missing_value
+        return tokens[i]
+
+    def unnest(self, data, fit=False):
+        """
+        :param data: a dataframe containing a column to be unnested
+        :param fit: if True, self.sequence_length will exactly accomodate the largest sequence length
+        :return: 1D array of values with length = rows * sequence_length
+        """
+        with timer('unnest %s' % self.name, logging.DEBUG):
+            raw = self.series(data)
+            # lengths of every sequence
+            lengths = [0 if x is None or (isinstance(x, float) and numpy.isnan(x)) else len(x) for x in raw.values]
+            if fit and self.sequence_length is None:
+                self.sequence_length = numpy.max(lengths)
+            # Make them all the same size
+            def fill_x(x, length):
+                x_new = numpy.empty(length, dtype='float')
+                x_new[:] = numpy.nan
+                if x is None or (isinstance(x, float) and numpy.isnan(x)):
+                    return x_new
+                fill_length = min(len(x), length)
+                x_new[0:fill_length] = x[0:fill_length]
+                return x_new
+            same_size = [fill_x(x, self.sequence_length) for x in raw.values]
+            # Flatten
+            flattened = [item for sublist in same_size for item in sublist]
+            return pandas.DataFrame({self.column: flattened})
