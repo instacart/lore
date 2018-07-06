@@ -14,7 +14,7 @@ import threading
 import traceback
 from contextlib import contextmanager
 from datetime import datetime
-
+import inspect
 from lore import ansi, env
 
 try:
@@ -77,6 +77,13 @@ class ConsoleFormatter(logging.Formatter):
 
 
 logger = logging.getLogger()
+
+
+def get_relevant_args(method, kwargs):
+    base_args = inspect.getargspec(method).args
+    base_args = [v for v in base_args if v != 'self']
+    base_kwargs = {k: v for k, v in kwargs.iteritems() if k in base_args}
+    return base_kwargs
 
 
 def add_log_file_handler(path):
