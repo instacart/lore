@@ -13,7 +13,7 @@
 
 # IDE files
 .idea
-
+.vscode
 # Jupyter
 notebooks/.ipynb_checkpoints/*
 
