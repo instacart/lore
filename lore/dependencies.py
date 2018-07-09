@@ -24,7 +24,7 @@ REDIS = ['redis>=2.10, <2.10.99']
 S3 = ['boto3>=1.4, <1.7.99'] + DATEUTIL
 SMART_OPEN = ['smart-open>=1.5, <1.5.99'] + S3
 GEOIP = ['geoip2']
-H5PY = ['h5py>=2.7, <2.7.99',]
+H5PY = ['h5py>=2.7, <2.8.99',]
 KERAS = [
     'Keras>=2.0.9, <2.1.99',
     'tensorflow>=1.3, <1.5.99',
@@ -66,7 +66,7 @@ TEST = ALL + [
     'moto>=1.1, <1.3.99'
 ]
 
-DOC = [
+DOC = ALL + [
     'sphinx',
     'sphinx-autobuild',
     'sphinx_rtd_theme'
