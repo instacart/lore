@@ -18,6 +18,7 @@ jobs:
         command: git pull
     - run: pyenv install -s 2.7.15
     - run: pyenv install -s 3.6.5
+    - run: pip install --upgrade pip
     - restore_cache:
         keys:
         - v1-dep-{{ .Branch }}-
