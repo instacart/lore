@@ -10,6 +10,7 @@ dependencies:
   pre:
     - createdb lore_test
   override:
+    - pip install -e .
     - LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.__init__
     - LORE_PYTHON_VERSION=3.6.5 lore test -s tests.unit.__init__
 
