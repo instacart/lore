@@ -23,6 +23,10 @@ jobs:
     - run: pyenv install -s 3.6.5
     - run: pyenv global 3.6.5
     - run: pip install --upgrade pip
+    - save_cache:
+        key: v1-dep-{{ .Branch }}-{{ epoch }}
+        paths:
+        - /opt/circleci/.pyenv
     - restore_cache:
         keys:
         - v1-dep-{{ .Branch }}-
@@ -35,7 +39,7 @@ jobs:
     - save_cache:
         key: v1-dep-{{ .Branch }}-{{ epoch }}
         paths:
-        - ~/.pyenv
+        - /opt/circleci/.pyenv
     - run: LORE_PYTHON_VERSION=2.7.15 lore test
     - run: LORE_PYTHON_VERSION=3.6.5 lore test
     - store_test_results:
