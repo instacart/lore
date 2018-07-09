@@ -1,0 +1,43 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/instacart/lore
+    parallelism: 1
+    shell: /bin/bash --login
+    environment:
+      CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
+      CIRCLE_TEST_REPORTS: /tmp/circleci-test-results
+    docker:
+    - image: circleci/build-image:ubuntu-14.04-XXL-upstart-1189-5614f37
+      command: /sbin/init
+    steps:
+    - checkout
+    - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
+    - run:
+        working_directory: /opt/circleci/.pyenv
+        command: git pull
+    - run: pyenv install -s 2.7.15
+    - run: pyenv install -s 3.6.5
+    - restore_cache:
+        keys:
+        - v1-dep-{{ .Branch }}-
+        - v1-dep-master-
+        - v1-dep-
+    - run: createdb lore_test
+    - run: pip install -e .
+    - run: LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.__init__
+    - run: LORE_PYTHON_VERSION=3.6.5 lore test -s tests.unit.__init__
+    - save_cache:
+        key: v1-dep-{{ .Branch }}-{{ epoch }}
+        paths:
+        - ~/.pyenv
+    - run: LORE_PYTHON_VERSION=2.7.15 lore test
+    - run: LORE_PYTHON_VERSION=3.6.5 lore test
+    - store_test_results:
+        path: /tmp/circleci-test-results
+    - store_artifacts:
+        path: /tmp/circleci-artifacts
+    - store_artifacts:
+        path: /tmp/circleci-test-results
+
+
