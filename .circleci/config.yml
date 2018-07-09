@@ -23,7 +23,6 @@ jobs:
     - run: pyenv install -s 3.6.5
     - run: pyenv global 3.6.5
     - run: pip install --upgrade pip
-    - run: createdb lore_test
     - restore_cache:
         keys:
         - v1-dep-{{ .Branch }}-
