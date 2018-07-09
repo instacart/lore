@@ -78,6 +78,12 @@ def require(packages):
     :type package: unicode
 
     """
+    global INSTALLED_PACKAGES
+    INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([BIN_PYTHON, '-m', 'pip', 'freeze']).split()]
+
+    if INSTALLED_PACKAGES is None:
+        return
+
     if not isinstance(packages, list):
         packages = [packages]
 
@@ -122,8 +128,13 @@ def launched():
 def validate():
     """Display error messages and exit if no lore environment can be found.
     """
-    if not os.path.exists(os.path.join(ROOT, PROJECT, '__init__.py')):
-        sys.exit(ansi.error() + ' Python module not found. Do you need to change $LORE_PROJECT from "%s"?' % PROJECT)
+    if not os.path.exists(os.path.join(ROOT, APP, '__init__.py')):
+        message = ansi.error() + ' Python module not found.'
+        if os.environ.get('LORE_APP') is None:
+            message += ' $LORE_APP is not set. Should it be different than "%s"?' % APP
+        else:
+            message += ' $LORE_APP is set to "%s". Should it be different?' % APP
+        sys.exit(message)
 
     if exists():
         return
@@ -150,7 +161,7 @@ def launch():
         return
 
     if not os.path.exists(BIN_LORE):
-        missing = ' %s virtualenv is missing.' % PROJECT
+        missing = ' %s virtualenv is missing.' % APP
         if '--launched' in sys.argv:
             sys.exit(ansi.error() + missing + ' Please check for errors during:\n $ lore install\n')
         else:
@@ -284,15 +295,17 @@ def extend_path():
         sys.path.insert(0, LIB)
 
 
-def load_env_vars():
+def load_env_file():
+    if launched() and os.path.isfile(ENV_FILE):
+        require(lore.dependencies.DOTENV)
+        from dotenv import load_dotenv
+        load_dotenv(ENV_FILE)
+
+
+def load_env_directory():
     for var in glob.glob(os.path.join(ENV_DIRECTORY, '*')):
         if os.path.isfile(var):
             os.environ[os.path.basename(var)] = open(var, encoding='utf-8').read()
-
-    if os.path.isfile(ENV_FILE):
-        if launched():
-            require(lore.dependencies.DOTENV)
-            load_dotenv(ENV_FILE)
 
 
 def set_python_version(python_version):
@@ -317,7 +330,7 @@ def set_python_version(python_version):
                     'versions',
                     PYTHON_VERSION,
                     'envs',
-                    PROJECT
+                    APP
                 )
             else:
                 PREFIX = os.path.realpath(sys.prefix)
@@ -344,10 +357,19 @@ DEVELOPMENT = 'development'  #: environment for mucking about
 PRODUCTION = 'production'  #: environment that actually matters
 DEFAULT_NAME = DEVELOPMENT  #: the environment you get when you just can't be bothered to care
 
-INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([sys.executable, '-m', 'pip', 'freeze']).split()]
-REQUIRED_VERSION = next((package for package in INSTALLED_PACKAGES if re.match(r'^lore[!<>=]', package)), None)
-if REQUIRED_VERSION:
-    REQUIRED_VERSION = re.split(r'[!<>=]', REQUIRED_VERSION)[-1]
+PYTHON_VERSION_INFO = []  #: Parsed version of python required by this Lore app.
+PREFIX = None  #: path to the Lore app virtualenv
+BIN_PYTHON = None  #: path to virtualenv python executable
+BIN_LORE = None  #: path to virtualenv lore executable
+BIN_JUPYTER = None  #: path to virtualenv jupyter executable
+BIN_FLASK = None  #: path to virtualenv flask executable
+FLASK_APP = None  #: path to the current lore app's flask app
+
+ENV_FILE = '.env'  #: environment variables will be loaded from this file first
+load_env_file()
+
+ENV_DIRECTORY = os.environ.get('ENV_DIRECTORY', '/conf/env')  #: more environment variables will be loaded from files in this directory
+load_env_directory()
 
 VERSION_PATH = 'runtime.txt'  #: Path to the specification of this apps Python version.
 PYTHON_VERSION = os.environ.get('LORE_PYTHON_VERSION', None)  #: Version of python required by this Lore app.
@@ -371,7 +393,7 @@ else:
 
 HOME = os.environ.get('HOME', ROOT)  #: :envvar:`HOME` directory of the current user or ``ROOT`` if unset
 PYENV = os.path.join(HOME, '.pyenv')  #: Path to pyenv root
-PROJECT = os.environ.get('LORE_PROJECT', ROOT.split(os.sep)[-1])  #: The name of this Lore app
+APP = os.environ.get('LORE_APP', ROOT.split(os.sep)[-1])  #: The name of this Lore app
 REQUIREMENTS = os.path.join(ROOT, 'requirements.txt')  #: requirement files
 REQUIREMENTS_VCS = os.path.join(ROOT, 'requirements.vcs.txt')
 
@@ -382,13 +404,6 @@ else:
     PYENV = None
     BIN_PYENV = None
 
-PYTHON_VERSION_INFO = []  #: Parsed version of python required by this Lore app.
-PREFIX = None  #: path to the Lore app virtualenv
-BIN_PYTHON = None  #: path to virtualenv python executable
-BIN_LORE = None  #: path to virtualenv lore executable
-BIN_JUPYTER = None  #: path to virtualenv jupyter executable
-BIN_FLASK = None  #: path to virtualenv flask executable
-FLASK_APP = None  #: path to the current lore app's flask app
 
 set_python_version(PYTHON_VERSION)
 
@@ -400,8 +415,6 @@ DATA_DIR = os.path.join(WORK_DIR, 'data')  #: disk based caching and data depend
 LOG_DIR = os.path.join(ROOT if NAME == TEST else WORK_DIR, 'logs')  #: log file storage
 TESTS_DIR = os.path.join(ROOT, 'tests')  #: Lore app test suite
 
-ENV_DIRECTORY = '/conf/env'  #: environment variables will be loaded from files in this directory
-ENV_FILE = os.path.join(ROOT, '.env')  #: more environment variables will be loaded from this file
 
 UNICODE_LOCALE = True  #: does the current python locale support unicode?
 UNICODE_UPGRADED = False  #: did lore change current system locale for unicode support?
@@ -416,7 +429,6 @@ if platform.system() != 'Windows':
 
 LIB = os.path.join(ROOT, 'lib')  #: packages in :file:`./lib` are also available for import in the Lore app.
 
-load_env_vars()
 extend_path()
 
 if launched():
@@ -425,9 +437,17 @@ if launched():
     except ModuleNotFoundError:
         JUPYTER_KERNEL_PATH = 'N/A'
     else:
-        JUPYTER_KERNEL_PATH = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', PROJECT)  #: location of jupyter kernels
+        JUPYTER_KERNEL_PATH = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', APP)  #: location of jupyter kernels
 else:
     JUPYTER_KERNEL_PATH = 'N/A'
+
+if os.path.exists(BIN_PYTHON):
+    INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([BIN_PYTHON, '-m', 'pip', 'freeze']).split()]
+    REQUIRED_VERSION = next((package for package in INSTALLED_PACKAGES if re.match(r'^lore[!<>=]', package)), None)
+    if REQUIRED_VERSION:
+        REQUIRED_VERSION = re.split(r'[!<>=]', REQUIRED_VERSION)[-1]
+else:
+    INSTALLED_PACKAGES = None
 
 COLOR = {
     DEVELOPMENT: ansi.GREEN,

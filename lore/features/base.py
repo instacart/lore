@@ -40,7 +40,7 @@ class Base(object):
         pass
 
     @property
-    def version(self, version = str(datetime.date.today())):
+    def version(self, version=str(datetime.date.today())):
         """
         Feature version : Override this method if you want to manage versions yourself
         ex 'v1', 'v2'
@@ -71,7 +71,6 @@ class Base(object):
             self._data['cache_key'] = self._data[key_list].apply(lambda xdf: key_prefix + "=" + '#'.join(xdf.astype(str).values), axis=1)
             result[column] = dict(zip(self._data.cache_key.values, self._data[column].values))
         return result
-
 
     def cache_key_prefix(self):
         return ('#').join(self.key())

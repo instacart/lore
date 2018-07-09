@@ -19,19 +19,19 @@ import pandas
 from flask import Flask, request
 
 
-app = Flask(lore.env.PROJECT)
+app = Flask(lore.env.APP)
 
 logger = logging.getLogger(__name__)
 
 
 @app.route('/')
 def index():
-    names = str([name for _, name, _ in pkgutil.iter_modules([lore.env.PROJECT + '/' + 'models'])])
-    return 'Hello %s!' % lore.env.PROJECT + '\n' + names
+    names = str([name for _, name, _ in pkgutil.iter_modules([lore.env.APP + '/' + 'models'])])
+    return 'Hello %s!' % lore.env.APP + '\n' + names
 
 
-for module_finder, module_name, _ in pkgutil.iter_modules([lore.env.PROJECT + '/' + 'models']):
-    module = importlib.import_module(lore.env.PROJECT + '.models.' + module_name)
+for module_finder, module_name, _ in pkgutil.iter_modules([lore.env.APP + '/' + 'models']):
+    module = importlib.import_module(lore.env.APP + '.models.' + module_name)
     for class_name, member in inspect.getmembers(module):
         if not (inspect.isclass(member) and issubclass(member, lore.models.base.Base)):
             continue

@@ -354,7 +354,7 @@ def main(args=None):
 
 
 def api(parsed, unknown):
-    api_path = os.path.join(env.ROOT, env.PROJECT, 'api')
+    api_path = os.path.join(env.ROOT, env.APP, 'api')
     endpoint_paths = []
     consumer_paths = []
     if 'HUB_LISTENERS' in os.environ:
@@ -395,7 +395,7 @@ def api(parsed, unknown):
 
     try:
         Listener(
-            os.environ.get('HUB_APP_NAME', env.PROJECT),
+            os.environ.get('HUB_APP_NAME', env.APP),
             concurrency=os.environ.get("HUB_CONCURRENCY", 4),
             host_index=os.environ.get("RABBIT_HOST_INDEX")
         ).start()
@@ -532,7 +532,7 @@ def server(parsed, unknown):
 def console(parsed, unknown):
     install_jupyter_kernel()
     sys.argv[0] = env.BIN_JUPYTER
-    args = [env.BIN_JUPYTER, 'console', '--kernel', env.PROJECT] + unknown
+    args = [env.BIN_JUPYTER, 'console', '--kernel', env.APP] + unknown
     startup = '.ipython'
     if not os.path.exists(startup):
         with open(startup, 'w+') as file:
@@ -655,7 +655,7 @@ def _generate_template(type, parsed, **kwargs):
     elif type in notebooks:
         destination = os.path.join('notebooks', name, type + '.ipynb')
     else:
-        destination = os.path.join(env.PROJECT, inflection.pluralize(type), name + '.py')
+        destination = os.path.join(env.APP, inflection.pluralize(type), name + '.py')
 
     if os.path.exists(destination):
         sys.exit(ansi.error() + ' %s already exists' % destination)
@@ -666,7 +666,7 @@ def _generate_template(type, parsed, **kwargs):
         if type not in notebooks:
             open(os.path.join(dir, '__init__.py'), 'w')
 
-    kwargs['app_name'] = env.PROJECT
+    kwargs['app_name'] = env.APP
     kwargs['module_name'] = name
     kwargs['class_name'] = inflection.camelize(name)
     code = _render_template(type + '.py.j2', **kwargs)
@@ -1027,14 +1027,14 @@ def install_python_version():
 def create_virtual_env():
     if env.PYENV:
         try:
-            os.unlink(os.path.join(env.PYENV, 'versions', env.PROJECT))
+            os.unlink(os.path.join(env.PYENV, 'versions', env.APP))
         except OSError as e:
             pass
 
     if os.path.exists(env.BIN_PYTHON):
         return
 
-    print(ansi.success('CREATE') + ' virtualenv: %s' % env.PROJECT)
+    print(ansi.success('CREATE') + ' virtualenv: %s' % env.APP)
     if platform.system() == 'Windows':
         subprocess.check_call((
             sys.executable,
@@ -1047,7 +1047,7 @@ def create_virtual_env():
             env.BIN_PYENV,
             'virtualenv',
             env.PYTHON_VERSION,
-            env.PROJECT
+            env.APP
         ))
 
     subprocess.check_call((env.BIN_PYTHON, '-m', 'pip', 'install', '--upgrade', 'pip'))
@@ -1068,17 +1068,20 @@ def install_requirements(args):
 
 def install_jupyter_kernel():
     lore.env.require(lore.dependencies.JUPYTER)
+    if not os.path.exists(env.BIN_JUPYTER):
+        return
+
     if os.path.exists(env.JUPYTER_KERNEL_PATH):
         return
 
     print(ansi.success('INSTALL') + ' jupyter kernel')
-    subprocess.call((
+    subprocess.check_call((
         env.BIN_PYTHON,
         '-m',
         'ipykernel',
         'install',
         '--user',
-        '--name=' + env.PROJECT
+        '--name=' + env.APP
     ))
 
 
@@ -1103,15 +1106,18 @@ def freeze_requirements():
     regex = re.compile(r'contains ([\w\-\_]+)')
     needed = [m.group(1).lower() for l in missing for m in [regex.search(l)] if m]
 
-    added_index = present.index('## The following requirements were added by pip freeze:')
+    divider = '## The following requirements were added by pip freeze:'
+    added_index = present.index(divider) if divider in present else None
     unsafe = None
-    if added_index:
+    if added_index is not None:
         added = present[added_index + 1:-1]
         present = set(present[0:added_index])
         safe = set()
         unsafe = set()
         for package in added:
             name = package.split('==')[0]
+            if re.match(r'^-e.*#egg=' + env.APP, name):
+                unsafe.add(package)
 
             for bad in vcs:
                 if name in bad:
@@ -1152,7 +1158,8 @@ def freeze_requirements():
         )
 
     with open(source, 'w', encoding='utf-8') as f:
-        f.write(os.linesep.join(sorted(present, key=lambda s: s.lower())).strip() + os.linesep)
+        if present:
+            f.write(os.linesep.join(sorted(present, key=lambda s: s.lower())).strip() + os.linesep)
         if vcs:
             f.write(os.linesep.join(vcs) + os.linesep)
 
@@ -1162,7 +1169,8 @@ def split_vcs_lines():
         lines = f.readlines()
 
     vcs = [line for line in lines if
-           re.match(r'^(-e )?(git|svn|hg|bzr).*', line)]
+           re.match(r'^(-e \.$)|((-e )?(git|svn|hg|bzr).*)', line)]
+
     if not vcs:
         return vcs
 

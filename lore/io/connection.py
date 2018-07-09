@@ -35,7 +35,7 @@ from sqlalchemy.ext.compiler import compiles
 import jinja2
 jinja2_env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(
-        os.path.join(lore.env.ROOT, lore.env.PROJECT, 'extracts')
+        os.path.join(lore.env.ROOT, lore.env.APP, 'extracts')
     ),
     trim_blocks=True,
     lstrip_blocks=True
@@ -112,7 +112,7 @@ class Connection(object):
                 origin = paths[0]
             caller = next(x for x in stack if x[0] == origin)
 
-            statement = "/* %s | %s:%d in %s */\n" % (lore.env.PROJECT, caller[0], caller[1], caller[2]) + statement
+            statement = "/* %s | %s:%d in %s */\n" % (lore.env.APP, caller[0], caller[1], caller[2]) + statement
             return statement, parameters
 
         @event.listens_for(self._engine, "after_cursor_execute")
@@ -144,7 +144,7 @@ class Connection(object):
 
     @staticmethod
     def path(extract, extension='.sql'):
-        return os.path.join(lore.env.ROOT, lore.env.PROJECT, 'extracts', extract + extension)
+        return os.path.join(lore.env.ROOT, lore.env.APP, 'extracts', extract + extension)
 
     def execute(self, sql=None, extract=None, filename=None, **kwargs):
         self.__execute(self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs), kwargs)

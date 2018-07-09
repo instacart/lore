@@ -28,7 +28,7 @@ def banner():
     import getpass
 
     return '%s in %s on %s with %s' % (
-        ansi.foreground(ansi.GREEN, env.PROJECT),
+        ansi.foreground(ansi.GREEN, env.APP),
         ansi.foreground(env.COLOR, env.NAME),
         ansi.foreground(
             ansi.CYAN,
@@ -43,7 +43,7 @@ if hasattr(sys, 'lore_no_env'):
     lore_no_env = sys.lore_no_env
 
 
-no_env_commands = ['--version', 'install', 'init', 'server', 'console', 'notebook']
+no_env_commands = ['--version', 'install', 'init', 'server']
 if len(sys.argv) > 1 and os.path.basename(sys.argv[0]) in ['lore', 'lore.exe'] and sys.argv[1] in no_env_commands:
     lore_no_env = True
 
