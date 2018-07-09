@@ -27,13 +27,14 @@ def banner():
     import socket
     import getpass
 
-    return '%s in %s on %s' % (
+    return '%s in %s on %s with %s' % (
         ansi.foreground(ansi.GREEN, env.PROJECT),
         ansi.foreground(env.COLOR, env.NAME),
         ansi.foreground(
             ansi.CYAN,
             getpass.getuser() + '@' + socket.gethostname()
-        )
+        ),
+        ansi.foreground(ansi.YELLOW, 'Python ' + env.PYTHON_VERSION)
     )
 
 

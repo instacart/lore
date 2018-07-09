@@ -368,8 +368,7 @@ else:
             if ROOT.count(os.path.sep) == 1:
                 ROOT = os.getcwd()
                 break
-print(ROOT)
-print(PYTHON_VERSION)
+
 HOME = os.environ.get('HOME', ROOT)  #: :envvar:`HOME` directory of the current user or ``ROOT`` if unset
 PYENV = os.path.join(HOME, '.pyenv')  #: Path to pyenv root
 PROJECT = os.environ.get('LORE_PROJECT', ROOT.split(os.sep)[-1])  #: The name of this Lore app
