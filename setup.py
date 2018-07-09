@@ -53,8 +53,6 @@ setup(
         'lore.template.init.tests.unit',
     ],
     zip_safe=True,
-    test_suite='tests',
-    tests_require=[],
     package_data={
         '': [
             'data/names.csv',
