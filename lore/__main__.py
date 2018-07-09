@@ -787,40 +787,32 @@ def install_homebrew():
 
 
 def install_pyenv():
-    home = os.environ.get('HOME')
-    if not home:
+    virtualenv = os.path.join(env.PYENV, 'plugins', 'pyenv-virtualenv')
+    if os.path.exists(env.BIN_PYENV) and os.path.exists(virtualenv):
         return
 
-    pyenv = os.path.join(home, '.pyenv')
-    bin_pyenv = os.path.join(pyenv, 'bin', 'pyenv')
-    virtualenv = os.path.join(pyenv, 'plugins', 'pyenv-virtualenv')
-    if os.path.exists(bin_pyenv) and os.path.exists(virtualenv):
-        return
-
-    if os.path.exists(pyenv) and not os.path.isfile(bin_pyenv):
-        print(ansi.warning() + ' pyenv executable is not present at %s' % bin_pyenv)
+    if os.path.exists(env.PYENV) and not os.path.isfile(env.BIN_PYENV):
+        print(ansi.warning() + ' pyenv executable is not present at %s' % env.BIN_PYENV)
         while True:
             answer = input('Would you like to blow away ~/.pyenv and rebuild from scratch? [Y/n] ')
             if answer in ['', 'y', 'Y']:
-                shutil.rmtree(pyenv)
+                shutil.rmtree(lore.env.PYENV)
                 break
             elif answer in ['n', 'N']:
                 sys.exit(ansi.error() + ' please fix pyenv before continuing')
             else:
                 print('please enter Y or N')
 
-    if not os.path.exists(pyenv):
+    if not os.path.exists(env.PYENV):
         print(ansi.success('INSTALLING') + ' pyenv')
         subprocess.check_call((
             'git',
             'clone',
             'https://github.com/pyenv/pyenv.git',
-            pyenv
+            env.PYENV
         ))
     else:
         print(ansi.success('CHECK') + ' existing pyenv installation')
-    env.PYENV = pyenv
-    env.BIN_PYENV = bin_pyenv
     env.set_python_version(env.PYTHON_VERSION)
 
     if not os.path.exists(virtualenv):

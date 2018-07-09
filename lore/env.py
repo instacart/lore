@@ -399,18 +399,14 @@ else:
                 break
 
 HOME = os.environ.get('HOME', ROOT)  #: :envvar:`HOME` directory of the current user or ``ROOT`` if unset
-PYENV = os.environ.get('PYENV_ROOT', os.path.join(HOME, '.pyenv'))  #: Path to pyenv root
 APP = os.environ.get('LORE_APP', ROOT.split(os.sep)[-1])  #: The name of this Lore app
 REQUIREMENTS = os.path.join(ROOT, 'requirements.txt')  #: requirement files
 REQUIREMENTS_VCS = os.path.join(ROOT, 'requirements.vcs.txt')
 
+PYENV = os.environ.get('PYENV_ROOT', os.path.join(HOME, '.pyenv'))  #: Path to pyenv root
 if os.path.exists(PYENV):
     PYENV = os.path.realpath(PYENV)
-    BIN_PYENV = os.path.join(PYENV, 'bin', 'pyenv')  #: path to pyenv executable
-else:
-    PYENV = None
-    BIN_PYENV = None
-
+BIN_PYENV = os.path.join(PYENV, 'bin', 'pyenv')  #: path to pyenv executable
 
 set_python_version(PYTHON_VERSION)
 

@@ -33,9 +33,6 @@ jobs:
     - run:
         working_directory: /opt/circleci/.pyenv
         command: git pull
-    - run:
-        working_directory: /opt/circleci/.pyenv
-        command: "[ -e plugins/virtualenv ] || git clone https://github.com/pyenv/pyenv-virtualenv.git plugins/virtualenv"
     - run: pyenv install -s 2.7.15
     - run: pyenv global 2.7.15
     - run: pip install --upgrade pip
