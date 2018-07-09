@@ -15,21 +15,21 @@ jobs:
     - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
 
     - restore_cache:
-      keys:
-        - source-v1-{{ .Branch }}-{{ .Revision }}
-        - source-v1-{{ .Branch }}-
-        - source-v1-
+        keys:
+          - source-v1-{{ .Branch }}-{{ .Revision }}
+          - source-v1-{{ .Branch }}-
+          - source-v1-
     - checkout
     - save_cache:
         key: source-v1-{{ .Branch }}-{{ .Revision }}
         paths:
-          - ".git"
+        - ".git"
 
     - restore_cache:
-      keys:
-        - pyenv-v1-{{ .Branch }}-{{ .Revision }}
-        - pyenv-v1-{{ .Branch }}-
-        - pyenv-v1-
+        keys:
+          - pyenv-v1-{{ .Branch }}-{{ .Revision }}
+          - pyenv-v1-{{ .Branch }}-
+          - pyenv-v1-
     - run:
         working_directory: /opt/circleci/.pyenv
         command: git pull
