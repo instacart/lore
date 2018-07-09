@@ -102,7 +102,7 @@ def add_syslog_handler(address):
     logger.addHandler(syslog)
 
 if env.exists():
-    logfile = os.path.join(env.log_dir, env.name + '.log')
+    logfile = os.path.join(env.LOG_DIR, env.NAME + '.log')
     add_log_file_handler(logfile)
 
 
@@ -131,10 +131,10 @@ log_levels = {
     env.DEVELOPMENT: logging.DEBUG,
     env.TEST: logging.DEBUG,
 }
-logger.setLevel(log_levels.get(env.name, logging.INFO))
+logger.setLevel(log_levels.get(env.NAME, logging.INFO))
 
 
-if env.name != env.DEVELOPMENT and env.name != env.TEST:
+if env.NAME != env.DEVELOPMENT and env.NAME != env.TEST:
     address = None
     for f in ('/dev/log', '/var/run/syslog',):
         if os.path.exists(f):
@@ -156,7 +156,7 @@ def strip_one_off_handlers():
 strip_one_off_handlers()
 
 
-if env.unicode_upgraded:
+if env.UNICODE_UPGRADED:
     logger.warning('The default python locale does not support unicode. Lore has upgraded to en_US.UTF-8. Set $LANG if you really mean it.')
 
 
@@ -189,7 +189,7 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
             librato_record(librato_name, time.total_seconds())
     
         _nested_timers -= 1
-        if _nested_timers == 0 or not env.unicode_locale:
+        if _nested_timers == 0 or not env.UNICODE_LOCALE:
             _ascii_pipes = ''
         else:
             delta = (_nested_timers - _previous_timer_level)
@@ -300,8 +300,8 @@ if env.launched():
             rollbar.init(
                 os.environ.get("ROLLBAR_ACCESS_TOKEN", None),
                 allow_logging_basic_config=False,
-                environment=env.name,
-                enabled=(env.name != env.DEVELOPMENT),
+                environment=env.NAME,
+                enabled=(env.NAME != env.DEVELOPMENT),
                 handler='blocking',
                 locals={"enabled": True}
             )
@@ -316,7 +316,7 @@ if env.launched():
                 try:
                     rollbar.report_exc_info(
                         exc_info=(exc_type, value, tb),
-                        extra_data={"app": env.project}
+                        extra_data={"app": env.PROJECT}
                     )
                 except Exception as e:
                     logger.exception('reporting to rollbar: %s' % e)
@@ -370,11 +370,11 @@ if env.launched():
         if _librato is None:
             return
         try:
-            name = '.'.join([env.project, env.name, name])
+            name = '.'.join([env.PROJECT, env.NAME, name])
             with _librato_lock:
                 _librato_cancel_timer()
                 if _librato_aggregator is None:
-                    _librato_aggregator = Aggregator(_librato, source=env.host)
+                    _librato_aggregator = Aggregator(_librato, source=env.HOST)
                     _librato_start = time.time()
 
                 _librato_aggregator.add(name, value)

@@ -5,26 +5,17 @@
 * Breaking changes will not be accepted until a major version release.
 
 ### Test locally
-CI is run for all PR's.
-
-First you need to install all of the dependencies used to test lore:
+CI is run for all PR's. Contributions should be compatible with recent versions of python 2 & 3. To run tests against a specific version of python:
 
 ```bash
-$ python2 -m pip install lore[devel]
-$ python3 -m pip install lore[devel]
-```
-
-Then tests can be run with:
-
-```bash
-$ python2 setup.py test
-$ python3 setup.py test
+$ LORE_PYTHON_VERSION=2.7.15 lore test
+$ LORE_PYTHON_VERSION=3.7.0 lore test
 ```
 
 Install a local version of lore in your project's lore env:
 
 ```bash
-$ git clone https://github.com/instacart/lore ~/repos/lore 
+$ git clone https://github.com/instacart/lore ~/repos/lore
 $ cd my_project
 $ lore pip install -e ~/repos/lore
 $ lore test
@@ -44,9 +35,9 @@ Do not fall prey to the 80 char line length limit. It leads to short, bad names 
 Use pylint to check your Python changes. To install pylint and retrieve Lore's custom style definition:
 ```bash
 $ pip install pylint
-$ wget -O /tmp/pylintrc https://raw.githubusercontent.com/instacart/lore/master/pylint.rc
+$ wget -O /tmp/pylintrc https://raw.githubusercontent.com/instacart/lore/master/pylintrc
 ```
 To check a file with pylint:
 ```bash
-$ pylint --rcfile=/tmp/pylint.rc myfile.py
+$ pylint myfile.py
 ```

@@ -20,7 +20,7 @@ class TestDisk(unittest.TestCase):
         return self.one_shot_calls
     
     def test_disk(self):
-        cache = Disk(os.path.join(lore.env.data_dir, 'cache'))
+        cache = Disk(os.path.join(lore.env.DATA_DIR, 'cache'))
 
         for key in cache.keys():
             del cache[key]

@@ -4,6 +4,9 @@ import lore.models
 import lore.models.keras
 import lore.models.sklearn
 import lore.models.xgboost
+import lore.estimators.keras
+import lore.estimators.sklearn
+import lore.estimators.xgboost
 import tests.mocks.pipelines
 
 
@@ -58,7 +61,7 @@ class BinaryClassifier(lore.models.keras.Base):
         embed_size=10
     ):
         super(BinaryClassifier, self).__init__(
-        tests.mocks.pipelines.TwinData(),
+        tests.mocks.pipelines.TwinData(test_size=0.5),
         lore.estimators.keras.BinaryClassifier(
             batch_size=1024,
             embed_size=embed_size,

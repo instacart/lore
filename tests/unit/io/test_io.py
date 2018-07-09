@@ -10,8 +10,8 @@ import os
 
 class TestRemoteFromLocalPaths(unittest.TestCase):
     def test_works_dir_is_removed(self):
-        local = os.path.join(lore.env.work_dir, 'README.rst')
-        self.assertIsNotNone(lore.env.work_dir)
+        local = os.path.join(lore.env.WORK_DIR, 'README.rst')
+        self.assertIsNotNone(lore.env.WORK_DIR)
         self.assertEqual(lore.io.remote_from_local(local), '/README.rst')
 
     def test_relative_is_ok(self):

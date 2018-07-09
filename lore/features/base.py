@@ -1,14 +1,24 @@
 # -*- coding: utf-8 -*-
 import datetime
-from abc import ABCMeta, abstractmethod, abstractproperty
-import pandas as pd
+from abc import ABCMeta, abstractmethod
+
+import lore
+from lore.env import require
+
+require(
+    lore.dependencies.PANDAS +
+    lore.dependencies.INFLECTION
+)
+
+import pandas
 import inflection
+
 
 class Base(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self._data = pd.DataFrame()
+        self._data = pandas.DataFrame()
 
     @abstractmethod
     def key(self):

@@ -4,7 +4,6 @@ from __future__ import absolute_import, unicode_literals
 
 import argparse
 import datetime
-import dateutil
 import glob
 from io import open
 import importlib
@@ -22,15 +21,6 @@ import lore
 from lore import ansi, env, util
 from lore.util import timer, which
 
-try:
-    ModuleNotFoundError
-except NameError:
-    ModuleNotFoundError = ImportError
-
-try:
-    reload
-except NameError:
-    from importlib import reload
 
 logger = logging.getLogger(__name__)
 
@@ -46,35 +36,37 @@ def main(args=None):
     parser.add_argument(
         '--version',
         action='version',
-        version='lore %s' % lore.__version__
+        version='\nsystem version: %s | project version: %s' % (lore.__version__, env.REQUIRED_VERSION)
     )
-    
     commands = parser.add_subparsers(help='common commands')
-    
+
+    env_parser = commands.add_parser('env', help='print lore.env variables for the current project')
+    env_parser.set_defaults(func=print_env)
+
     init_parser = commands.add_parser('init', help='create a new lore project')
     init_parser.set_defaults(func=init)
     init_parser.add_argument('name', metavar='NAME', help='the name of the project')
     init_parser.add_argument('--git-ignore', default=True)
     init_parser.add_argument('--python-version', default=None)
-    
+
     api_parser = commands.add_parser(
         'api',
         help='serve the api'
     )
     api_parser.set_defaults(func=api)
-    
+
     console_parser = commands.add_parser(
         'console',
         help='launch an interactive python shell'
     )
     console_parser.set_defaults(func=console)
-    
+
     exec_parser = commands.add_parser(
         'exec',
         help='run a shell command in this project\'s virtual env'
     )
     exec_parser.set_defaults(func=execute)
-    
+
     install_parser = commands.add_parser(
         'install',
         help='install dependencies in a virtualenv'
@@ -90,7 +82,7 @@ def main(args=None):
         help='recalculate requirements.frozen.txt with current versions',
         action='store_true'
     )
-    
+
     generate_parser = commands.add_parser(
         'generate',
         help='create a new model'
@@ -309,13 +301,13 @@ def main(args=None):
         help='pass a command to this project\'s virtual env pip'
     )
     pip_parser.set_defaults(func=pip)
-    
+
     python_parser = commands.add_parser(
         'python',
         help='pass a command to this project\'s virtual env python'
     )
     python_parser.set_defaults(func=python)
-    
+
     notebook_parser = commands.add_parser(
         'notebook',
         help='pass a command to this project\'s virtual env jupyter notebook'
@@ -338,7 +330,7 @@ def main(args=None):
         metavar='TASK',
         help='fully qualified task name. e.g. app.tasks.project.Task'
     )
-    
+
     test_parser = commands.add_parser(
         'test',
         help='run tests'
@@ -349,7 +341,7 @@ def main(args=None):
         help='test only certain modules, e.g. tests.unit.test_foo,tests.unit.test_bar'
     )
     test_parser.set_defaults(func=test)
-    
+
     (known, unknown) = parser.parse_known_args(args)
     if '--env-launched' in unknown:
         unknown.remove('--env-launched')
@@ -362,7 +354,7 @@ def main(args=None):
 
 
 def api(parsed, unknown):
-    api_path = os.path.join(env.root, env.project, 'api')
+    api_path = os.path.join(env.ROOT, env.PROJECT, 'api')
     endpoint_paths = []
     consumer_paths = []
     if 'HUB_LISTENERS' in os.environ:
@@ -379,7 +371,7 @@ def api(parsed, unknown):
     else:
         endpoint_paths = glob.glob(os.path.join(api_path, '*_endpoint.py'))
         consumer_paths = glob.glob(os.path.join(api_path, '*_consumer.py'))
-    
+
     for path in endpoint_paths + consumer_paths:
         module = os.path.basename(path)[:-3]
         if sys.version_info.major == 2:
@@ -391,7 +383,7 @@ def api(parsed, unknown):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
     util.strip_one_off_handlers()
-    
+
     if len(endpoint_paths) > 0 and len(consumer_paths) > 0:
         from hub.listeners.combined import CombinedListener as Listener
     elif len(endpoint_paths) > 0:
@@ -400,10 +392,10 @@ def api(parsed, unknown):
         from hub.listeners.consumer import ConsumerListener as Listener
     else:
         raise IOError('No hub listeners found in %s' % api_path)
-    
+
     try:
         Listener(
-            os.environ.get('HUB_APP_NAME', env.project),
+            os.environ.get('HUB_APP_NAME', env.PROJECT),
             concurrency=os.environ.get("HUB_CONCURRENCY", 4),
             host_index=os.environ.get("RABBIT_HOST_INDEX")
         ).start()
@@ -422,6 +414,9 @@ def _filter_private_attributes(dict):
 
 
 def _cast_attr(value, default):
+    env.require(lore.dependencies.DATEUTIL)
+    import dateutil
+
     if isinstance(default, int):
         return int(value)
     elif isinstance(default, float):
@@ -438,7 +433,7 @@ def _get_fully_qualified_class(name):
     module, klass = name.rsplit('.', 1)
     try:
         module = importlib.import_module(module)
-    except ModuleNotFoundError as ex:
+    except env.ModuleNotFoundError as ex:
         sys.exit(ansi.error() + ' "%s" does not exist in this directoy! Are you sure you typed the name correctly?' % module)
 
     try:
@@ -514,62 +509,68 @@ def fit(parsed, unknown):
         msg += ansi.bold("Valid estimator attributes") + ": %s\n" % ', '.join(sorted(estimator_attrs.keys()))
         msg += ansi.bold("Valid pipeline attributes") + ": %s\n" % ', '.join(sorted(pipeline_attrs.keys()))
         msg += ansi.bold("Valid fit arguments") + ": %s\n" % ', '.join(sorted(valid_fit_args))
-        
+
         sys.exit(ansi.error() + ' Unknown arguments: %s\n%s' % (unknown_args, msg))
-    
+
     model.fit(score=parsed.score, test=parsed.test, **fit_args)
     print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
-    
-    
+
+
 def hyper_fit(parsed, unknown):
     print(ansi.success('HYPER PARAM FITTING ') + parsed.model)
     # TODO
-    
+
 
 def server(parsed, unknown):
     host = parsed.host or os.environ.get('HOST') or '0.0.0.0'
     port = parsed.port or os.environ.get('PORT') or '5000'
-    args = [env.bin_flask, 'run', '--port', port, '--host', host] + unknown
-    os.environ['FLASK_APP'] = lore.env.flask_app
-    os.execv(env.bin_flask, args)
+    args = [env.BIN_FLASK, 'run', '--port', port, '--host', host] + unknown
+    os.environ['FLASK_APP'] = env.FLASK_APP
+    os.execv(env.BIN_FLASK, args)
 
 
 def console(parsed, unknown):
     install_jupyter_kernel()
-    sys.argv[0] = env.bin_jupyter
-    args = [env.bin_jupyter, 'console', '--kernel', env.project] + unknown
+    sys.argv[0] = env.BIN_JUPYTER
+    args = [env.BIN_JUPYTER, 'console', '--kernel', env.PROJECT] + unknown
     startup = '.ipython'
     if not os.path.exists(startup):
         with open(startup, 'w+') as file:
             file.write('import lore\n')
 
-    print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
+    print(ansi.success('JUPYTER') + ' ' + str(env.BIN_JUPYTER))
     os.environ['PYTHONSTARTUP'] = startup
-    os.execv(env.bin_jupyter, args)
+    os.execv(env.BIN_JUPYTER, args)
 
 
 def execute(parsed, unknown):
     if len(unknown) == 0:
         print(ansi.error() + ' no args to execute!')
         return
-    
+
     print(ansi.success('EXECUTE ') + ' '.join(unknown))
-    
-    os.environ['PATH'] = os.path.join(env.prefix, 'bin') + ':' + os.environ['PATH']
+
+    os.environ['PATH'] = os.path.join(env.PREFIX, 'bin') + ':' + os.environ['PATH']
     subprocess.check_call(unknown, env=os.environ)
+
+
+def print_env(parsed, unknown):
+    for key, value in lore.env.__dict__.items():
+        if re.match(r'^[A-Z]', key):
+            print('%s: %s' % (key, value))
 
 
 def init(parsed, unknown):
     template = os.path.join(os.path.dirname(__file__), 'template', 'init')
-    
+
     if os.path.exists(parsed.name):
         sys.exit(
             ansi.error() + ' "' + parsed.name + '" already exists in this directoy! Lore can not create a new project with this name.')
-    
+
     shutil.copytree(template, parsed.name, symlinks=False, ignore=None)
     os.chdir(parsed.name)
     shutil.move('app', parsed.name)
-    
+
     requirements = 'lore'
     if unknown:
         requirements += '[' + ','.join([r[2:] for r in unknown]) + ']'
@@ -577,10 +578,10 @@ def init(parsed, unknown):
         file.write(requirements)
 
     python_version = parsed.python_version or '3.6.4'
-    
+
     with open('runtime.txt', 'wt') as file:
         file.write('python-' + python_version + '\n')
-    reload(lore.env)
+    lore.env.reload(lore.env)
     install(parsed, unknown)
 
 
@@ -597,11 +598,11 @@ def install(parsed, unknown):
         )
     else:
         raise KeyError('unknown system: ' % platform.system())
-    
+
     install_python_version()
     create_virtual_env()
     install_requirements(parsed)
-    
+
     if hasattr(parsed, 'native') and parsed.native:
         install_tensorflow()
 
@@ -612,8 +613,9 @@ _jinja2_env = None
 def _render_template(name, **kwargs):
     global _jinja2_env
     if _jinja2_env is None:
+        require(lore.dependencies.JINJA)
         import jinja2
-        
+
         _jinja2_env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(
                 os.path.join(os.path.dirname(__file__), 'template')
@@ -640,20 +642,20 @@ def _generate_template(type, parsed, **kwargs):
         if hasattr(parsed, attr):
             kwargs[attr] = getattr(parsed, attr)
     kwargs['major_version'] = sys.version_info[0]
-    kwargs['full_version'] = lore.env.python_version
+    kwargs['full_version'] = env.PYTHON_VERSION
     notebooks = ['features', 'architecture']
     name = inflection.underscore(name)
     if type == 'notebooks':
         for notebook in notebooks:
             _generate_template(notebook, parsed, **kwargs)
         return
-        
+
     if type == 'test':
         destination = os.path.join(inflection.pluralize(type), 'unit', 'test_' + name + '.py')
     elif type in notebooks:
         destination = os.path.join('notebooks', name, type + '.ipynb')
     else:
-        destination = os.path.join(lore.env.project, inflection.pluralize(type), name + '.py')
+        destination = os.path.join(env.PROJECT, inflection.pluralize(type), name + '.py')
 
     if os.path.exists(destination):
         sys.exit(ansi.error() + ' %s already exists' % destination)
@@ -663,21 +665,21 @@ def _generate_template(type, parsed, **kwargs):
         os.makedirs(dir)
         if type not in notebooks:
             open(os.path.join(dir, '__init__.py'), 'w')
-        
-    kwargs['app_name'] = lore.env.project
+
+    kwargs['app_name'] = env.PROJECT
     kwargs['module_name'] = name
     kwargs['class_name'] = inflection.camelize(name)
     code = _render_template(type + '.py.j2', **kwargs)
-    
+
     with open(destination, 'w+') as file:
         file.write(code)
-    
+
     print(ansi.success('CREATED ') + destination)
 
 
 def generate_model(parsed, unknown):
     _generate_template('model', parsed)
-    
+
 
 def generate_estimator(parsed, unknown):
     base = 'Base'
@@ -689,7 +691,7 @@ def generate_estimator(parsed, unknown):
         base = 'MultiClassifier'
 
     _generate_template('estimator', parsed, base=base)
-    
+
 
 def generate_pipeline(parsed, unknown):
     if not parsed.holdout:
@@ -707,13 +709,13 @@ def generate_notebooks(parsed, unknown):
 
 
 def pip(parsed, unknown):
-    args = [env.bin_python, '-m', 'pip'] + unknown
+    args = [env.BIN_PYTHON, '-m', 'pip'] + unknown
     print(ansi.success('EXECUTE ') + ' '.join(args))
     subprocess.check_call(args)
 
 
 def python(parsed, unknown):
-    args = [env.bin_python] + unknown
+    args = [env.BIN_PYTHON] + unknown
     print(ansi.success('EXECUTE ') + ' '.join(args))
     subprocess.check_call(args)
 
@@ -729,18 +731,18 @@ def task(parsed, unknown):
 def test(parsed, unknown):
     with timer('boot time'):
         if 'LORE_ENV' not in os.environ:
-            env.name = env.TEST
+            env.NAME = env.TEST
             logger.level = logging.WARN
-        
+
         import unittest
         if parsed.modules:
             names = parsed.modules.split(',')
-            print(ansi.success('RUNNING ') + 'tests in ' + str(names))
+            print(ansi.success('RUNNING ') + 'Tests in ' + str(names))
             suite = unittest.TestLoader().loadTestsFromNames(names)
         else:
-            print(ansi.success('RUNNING ') + 'all tests')
-            suite = unittest.defaultTestLoader.discover(env.tests_dir)
-    
+            print(ansi.success('RUNNING ') + 'Test Suite')
+            suite = unittest.defaultTestLoader.discover(env.TESTS_DIR)
+
     result = unittest.TextTestRunner().run(suite)
     if not result.wasSuccessful():
         sys.exit(1)
@@ -750,23 +752,23 @@ def test(parsed, unknown):
 
 def notebook(parsed, unknown):
     install_jupyter_kernel()
-    args = [env.bin_jupyter, 'notebook'] + unknown
-    print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
-    os.execv(env.bin_jupyter, args)
+    args = [env.BIN_JUPYTER, 'notebook'] + unknown
+    print(ansi.success('JUPYTER') + ' ' + str(env.BIN_JUPYTER))
+    os.execv(env.BIN_JUPYTER, args)
 
 
 def lab(parsed, unknown):
     install_jupyter_kernel()
-    args = [env.bin_jupyter, 'lab'] + unknown
-    print(ansi.success('JUPYTER') + ' ' + str(env.bin_jupyter))
-    os.execv(env.bin_jupyter, args)
+    args = [env.BIN_JUPYTER, 'lab'] + unknown
+    print(ansi.success('JUPYTER') + ' ' + str(env.BIN_JUPYTER))
+    os.execv(env.BIN_JUPYTER, args)
 
 
 def install_darwin():
     install_gcc_5()
     install_pyenv()
     install_graphviz()
-    
+
 
 def install_linux():
     install_pyenv()
@@ -775,7 +777,7 @@ def install_linux():
 def install_homebrew():
     if which('brew'):
         return
-    
+
     print(ansi.success('INSTALL') + ' homebrew')
     subprocess.check_call((
         '/usr/bin/ruby',
@@ -788,13 +790,13 @@ def install_pyenv():
     home = os.environ.get('HOME')
     if not home:
         return
-    
+
     pyenv = os.path.join(home, '.pyenv')
     bin_pyenv = os.path.join(pyenv, 'bin', 'pyenv')
     virtualenv = os.path.join(pyenv, 'plugins', 'pyenv-virtualenv')
     if os.path.exists(bin_pyenv) and os.path.exists(virtualenv):
         return
-    
+
     if os.path.exists(pyenv) and not os.path.isfile(bin_pyenv):
         print(ansi.warning() + ' pyenv executable is not present at %s' % bin_pyenv)
         while True:
@@ -806,7 +808,7 @@ def install_pyenv():
                 sys.exit(ansi.error() + ' please fix pyenv before continuing')
             else:
                 print('please enter Y or N')
-    
+
     if not os.path.exists(pyenv):
         print(ansi.success('INSTALLING') + ' pyenv')
         subprocess.check_call((
@@ -817,10 +819,10 @@ def install_pyenv():
         ))
     else:
         print(ansi.success('CHECK') + ' existing pyenv installation')
-    env.pyenv = pyenv
-    env.bin_pyenv = bin_pyenv
-    env.set_python_version(env.python_version)
-    
+    env.PYENV = pyenv
+    env.BIN_PYENV = bin_pyenv
+    env.set_python_version(env.PYTHON_VERSION)
+
     if not os.path.exists(virtualenv):
         print(ansi.success('INSTALLING') + ' pyenv virtualenv')
         subprocess.check_call((
@@ -844,7 +846,7 @@ def install_xcode():
 def install_gcc_5():
     if which('gcc-5'):
         return
-    
+
     install_homebrew()
     print(ansi.success('INSTALL') + ' gcc 5 for xgboost')
     subprocess.check_call(('brew', 'install', 'gcc@5'))
@@ -853,7 +855,7 @@ def install_gcc_5():
 def install_bazel():
     if which('bazel'):
         return
-    
+
     install_homebrew()
     print(ansi.success('INSTALL') + ' bazel for tensorflow')
     subprocess.check_call(('brew', 'install', 'bazel'))
@@ -872,43 +874,43 @@ def install_graphviz():
 
 def install_tensorflow():
     description = subprocess.check_output(
-        (env.bin_python, '-m', 'pip', 'show', 'tensorflow')
+        (env.BIN_PYTHON, '-m', 'pip', 'show', 'tensorflow')
     ).decode('utf-8')
     version = re.match(
         '.*^Version: ([^\n]+)', description, re.S | re.M
     ).group(1)
     if not version:
         sys.exit(ansi.error() + ' tensorflow is not in requirements.txt')
-    
+
     print(ansi.success('NATIVE') + ' tensorflow ' + version)
-    
-    python_version = ''.join(env.python_version.split('.')[0:2])
+
+    python_version = ''.join(env.PYTHON_VERSION.split('.')[0:2])
     cached = os.path.join(
-        env.pyenv,
+        env.PYENV,
         'cache',
         'tensorflow_pkg',
         'tensorflow-' + version + '-cp' + python_version + '*'
     )
-    
+
     paths = glob.glob(cached)
-    
+
     if not paths:
         build_tensorflow(version)
         paths = glob.glob(cached)
-    
+
     path = paths[0]
-    
-    subprocess.check_call((env.bin_python, '-m', 'pip', 'uninstall', '-y', 'tensorflow'))
+
+    subprocess.check_call((env.BIN_PYTHON, '-m', 'pip', 'uninstall', '-y', 'tensorflow'))
     print(ansi.success('INSTALL') + ' tensorflow native build')
-    subprocess.check_call((env.bin_python, '-m', 'pip', 'install', path))
+    subprocess.check_call((env.BIN_PYTHON, '-m', 'pip', 'install', path))
 
 
 def build_tensorflow(version):
     install_bazel()
     print(ansi.success('BUILD') + ' tensorflow for this architecture')
-    
-    tensorflow_repo = os.path.join(env.pyenv, 'cache', 'tensorflow')
-    cache = os.path.join(env.pyenv, 'cache', 'tensorflow_pkg')
+
+    tensorflow_repo = os.path.join(env.PYENV, 'cache', 'tensorflow')
+    cache = os.path.join(env.PYENV, 'cache', 'tensorflow_pkg')
     if not os.path.exists(tensorflow_repo):
         subprocess.check_call((
             'git',
@@ -916,7 +918,7 @@ def build_tensorflow(version):
             'https://github.com/tensorflow/tensorflow',
             tensorflow_repo
         ))
-    
+
     subprocess.check_call(
         ('git', 'checkout', '--', '.'),
         cwd=tensorflow_repo
@@ -933,12 +935,12 @@ def build_tensorflow(version):
         ('git', 'checkout', 'v' + version),
         cwd=tensorflow_repo
     )
-    major, minor, patch = env.python_version.split('.')
+    major, minor, patch = env.PYTHON_VERSION.split('.')
     lib = os.path.join('lib', 'python' + major + '.' + minor, 'site-packages')
     new_env = {
         'PATH': os.environ['PATH'],
-        'PYTHON_BIN_PATH': env.bin_python,
-        'PYTHON_LIB_PATH': os.path.join(env.prefix, lib),
+        'PYTHON_BIN_PATH': env.BIN_PYTHON,
+        'PYTHON_LIB_PATH': os.path.join(env.PREFIX, lib),
         'TF_NEED_MKL': '0',
         'CC_OPT_FLAGS': '-march=native -O2',
         'TF_NEED_JEMALLOC': '1',  # only available on linux regardless
@@ -975,7 +977,7 @@ def build_tensorflow(version):
     )
     (stdout, stderr) = pip.communicate()
     pip.wait()
-    
+
     subprocess.check_call((
         'bazel',
         'build',
@@ -983,7 +985,7 @@ def build_tensorflow(version):
         # '--config=cuda',  TODO enable CUDA when appropriate
         'tensorflow/tools/pip_package:build_pip_package',
     ), cwd=tensorflow_repo)
-    
+
     subprocess.check_call((
         'bazel-bin/tensorflow/tools/pip_package/build_pip_package',
         cache
@@ -993,111 +995,114 @@ def build_tensorflow(version):
 def install_python_version():
     if env.launched():
         return
-    
-    if not env.python_version:
+
+    if not env.PYTHON_VERSION:
         env.set_python_version('.'.join(sys.version_info))
         print(ansi.warning() + ' %s does not exist. Creating with %s' %
-              (env.version_path, env.python_version))
-        with open(env.version_path, 'w', encoding='utf-8') as f:
-            f.write(env.python_version + os.linesep)
-    
+              (env.VERSION_PATH, env.PYTHON_VERSION))
+        with open(env.VERSION_PATH, 'w', encoding='utf-8') as f:
+            f.write(env.PYTHON_VERSION + os.linesep)
+
     if platform.system() == 'Windows':
         print(ansi.warning() + ' Lore only uses the installed python version on Windows.')
     else:
-        if not env.pyenv:
+        if not env.PYENV:
             sys.exit(
                 ansi.error() + ' pyenv is not installed. Lore is broken. try:\n'
                                ' $ pip uninstall lore && pip install lore\n'
             )
-        
+
         versions = subprocess.check_output(
-            (env.bin_pyenv, 'versions', '--bare')
+            (env.BIN_PYENV, 'versions', '--bare')
         ).decode('utf-8').split(os.linesep)
-        if env.python_version not in versions:
-            print(ansi.success('INSTALL') + ' python %s' % env.python_version)
+        if env.PYTHON_VERSION not in versions:
+            print(ansi.success('INSTALL') + ' python %s' % env.PYTHON_VERSION)
             if platform.system() == 'Darwin':
                 install_xcode()
-            subprocess.check_call(('git', '-C', env.pyenv, 'pull'))
-            subprocess.check_call((env.bin_pyenv, 'install', env.python_version))
-            subprocess.check_call((env.bin_pyenv, 'rehash'))
+            subprocess.check_call(('git', '-C', env.PYENV, 'pull'))
+            subprocess.check_call((env.BIN_PYENV, 'install', env.PYTHON_VERSION))
+            subprocess.check_call((env.BIN_PYENV, 'rehash'))
 
 
 def create_virtual_env():
-    if env.pyenv:
+    if env.PYENV:
         try:
-            os.unlink(os.path.join(env.pyenv, 'versions', env.project))
+            os.unlink(os.path.join(env.PYENV, 'versions', env.PROJECT))
         except OSError as e:
             pass
-    
-    if os.path.exists(env.bin_python):
+
+    if os.path.exists(env.BIN_PYTHON):
         return
-    
-    print(ansi.success('CREATE') + ' virtualenv: %s' % env.project)
+
+    print(ansi.success('CREATE') + ' virtualenv: %s' % env.PROJECT)
     if platform.system() == 'Windows':
         subprocess.check_call((
             sys.executable,
             '-m',
             'venv',
-            env.prefix
+            env.PREFIX
         ))
     else:
         subprocess.check_call((
-            env.bin_pyenv,
+            env.BIN_PYENV,
             'virtualenv',
-            env.python_version,
-            env.project
+            env.PYTHON_VERSION,
+            env.PROJECT
         ))
+
+    subprocess.check_call((env.BIN_PYTHON, '-m', 'pip', 'install', '--upgrade', 'pip'))
 
 
 def install_requirements(args):
-    source = env.requirements
+    source = env.REQUIREMENTS
     if not os.path.exists(source):
         sys.exit(
             ansi.error() + ' %s is missing. You should check it in to version '
                            'control.' % ansi.underline(source)
         )
-    
+
     pip_install(source, args)
     freeze_requirements()
     install_jupyter_kernel()
 
 
 def install_jupyter_kernel():
-    if os.path.exists(env.jupyter_kernel_path):
+    lore.env.require(lore.dependencies.JUPYTER)
+    if os.path.exists(env.JUPYTER_KERNEL_PATH):
         return
-    
+
     print(ansi.success('INSTALL') + ' jupyter kernel')
-    subprocess.check_call((
-        env.bin_python,
+    subprocess.call((
+        env.BIN_PYTHON,
         '-m',
         'ipykernel',
         'install',
         '--user',
-        '--name=' + env.project
+        '--name=' + env.PROJECT
     ))
 
 
 def freeze_requirements():
-    source = env.requirements
-    
-    print(ansi.success('EXECUTE') + ' ' + env.bin_python + ' -m pip freeze -r ' + source)
+    source = env.REQUIREMENTS
+
+    print(ansi.success('EXECUTE') + ' ' + env.BIN_PYTHON + ' -m pip freeze -r ' + source)
     vcs = split_vcs_lines()
     pip = subprocess.Popen(
-        (env.bin_python, '-m', 'pip', 'freeze', '-r', source),
+        (env.BIN_PYTHON, '-m', 'pip', 'freeze', '-r', source),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
     (stdout, stderr) = pip.communicate()
     pip.wait()
-    
+
     restore_vcs_lines(vcs)
-    
+
     present = stdout.decode('utf-8').split(os.linesep)
     errors = stderr.decode('utf-8').split(os.linesep)
     missing = [line for line in errors if 'package is not installed' in line]
     regex = re.compile(r'contains ([\w\-\_]+)')
     needed = [m.group(1).lower() for l in missing for m in [regex.search(l)] if m]
-    
+
     added_index = present.index('## The following requirements were added by pip freeze:')
     unsafe = None
     if added_index:
@@ -1107,25 +1112,25 @@ def freeze_requirements():
         unsafe = set()
         for package in added:
             name = package.split('==')[0]
-            
+
             for bad in vcs:
                 if name in bad:
                     unsafe.add(package)
                     continue
-            
+
             if name.lower() in needed:
                 needed.remove(name.lower())
-            
+
             safe.add(package)
         present |= safe
         present -= unsafe
-    
+
     if needed:
-        args = [env.bin_python, '-m', 'pip', 'install'] + needed
+        args = [env.BIN_PYTHON, '-m', 'pip', 'install'] + needed
         print(ansi.success('EXECUTE ') + ' '.join(args))
         subprocess.check_call(args)
         return freeze_requirements()
-    
+
     if unsafe:
         if vcs:
             print(
@@ -1134,7 +1139,7 @@ def freeze_requirements():
                                                      'completely frozen by pip. ' + os.linesep + os.linesep +
                 os.linesep.join(vcs)
             )
-        
+
         print(
             ansi.info() + ' You should check the following packages in to ' +
             ansi.underline('requirements.txt') + ' or `lore pip uninstall` them'
@@ -1145,7 +1150,7 @@ def freeze_requirements():
         print(
             os.linesep + os.linesep.join(unsafe) + os.linesep
         )
-    
+
     with open(source, 'w', encoding='utf-8') as f:
         f.write(os.linesep.join(sorted(present, key=lambda s: s.lower())).strip() + os.linesep)
         if vcs:
@@ -1153,43 +1158,43 @@ def freeze_requirements():
 
 
 def split_vcs_lines():
-    with open(env.requirements, 'r', encoding='utf-8') as f:
+    with open(env.REQUIREMENTS, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    
+
     vcs = [line for line in lines if
            re.match(r'^(-e )?(git|svn|hg|bzr).*', line)]
     if not vcs:
         return vcs
-    
-    if os.path.exists(env.requirements_vcs):
-        with open(env.requirements_vcs, 'r', encoding='utf-8') as f:
+
+    if os.path.exists(env.REQUIREMENTS_VCS):
+        with open(env.REQUIREMENTS_VCS, 'r', encoding='utf-8') as f:
             new = set(f.readlines())
             vcs = list(set(vcs).union(new))
-    
+
     lines = list(set(lines) - set(vcs))
-    with open(env.requirements, 'w', encoding='utf-8') as f:
+    with open(env.REQUIREMENTS, 'w', encoding='utf-8') as f:
         f.write(''.join(sorted(lines)))
-    
-    with open(env.requirements_vcs, 'w', encoding='utf-8') as f:
+
+    with open(env.REQUIREMENTS_VCS, 'w', encoding='utf-8') as f:
         f.write(''.join(sorted(vcs)))
     return vcs
 
 
 def restore_vcs_lines(vcs):
-    if not os.path.exists(env.requirements_vcs):
+    if not os.path.exists(env.REQUIREMENTS_VCS):
         return
-    with open(env.requirements, 'r', encoding='utf-8') as f:
+    with open(env.REQUIREMENTS, 'r', encoding='utf-8') as f:
         original = f.read()
-    with open(env.requirements, 'w', encoding='utf-8') as f:
+    with open(env.REQUIREMENTS, 'w', encoding='utf-8') as f:
         f.write(''.join(vcs) + original)
-    os.remove(env.requirements_vcs)
+    os.remove(env.REQUIREMENTS_VCS)
 
 
 def pip_install(path, args):
     if not os.path.exists(path):
         return
-    
-    pip_args = [env.bin_python, '-m', 'pip', 'install', '-r', path]
+
+    pip_args = [env.BIN_PYTHON, '-m', 'pip', 'install', '-r', path]
     if hasattr(args, 'upgrade') and args.upgrade:
         pip_args += ['--upgrade', '--upgrade-strategy=eager']
     print(ansi.success('EXECUTE ') + ' '.join(pip_args))
@@ -1201,7 +1206,6 @@ def pip_install(path, args):
                            'installing failed packages manually, or upgrade failed '
                            'packages with:\n $ lore install --upgrade ' % path
         )
-
 
 if __name__ == '__main__':
     main()

@@ -6,4 +6,4 @@ import lore.env
 
 class TestEnv(unittest.TestCase):
     def test_initialization(self):
-        self.assertEqual(lore.env.name, lore.env.TEST)
+        self.assertEqual(lore.env.NAME, lore.env.TEST)

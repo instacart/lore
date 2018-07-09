@@ -5,14 +5,23 @@ import re
 import logging
 from datetime import timedelta
 
+import lore
+import lore.transformers
+from lore.env import require
+from lore.util import timer
+
+require(
+    lore.dependencies.INFLECTION +
+    lore.dependencies.NUMPY +
+    lore.dependencies.PANDAS +
+    lore.dependencies.SMART_OPEN
+)
+
 import inflection
 import numpy
 import pandas
 from smart_open import smart_open
 
-import lore
-import lore.transformers
-from lore.util import timer
 
 logger = logging.getLogger(__name__)
 TWIN = '_twin'
@@ -54,7 +63,7 @@ class Base(object):
 
     def __str__(self):
         return self.name
-        
+
     def __repr__(self):
         return self.name
 
@@ -78,7 +87,7 @@ class Base(object):
         :param data: representative samples
         """
         pass
-    
+
     @abstractmethod
     def transform(self, data):
         """
@@ -127,16 +136,16 @@ class Base(object):
         """
         if series.dtype == numpy.object:
             return series
-        
+
         return series.fillna(self.missing_value + addition).astype(self.dtype)
-    
+
     @property
     def source_column(self):
         column = self.column
         if isinstance(column, lore.transformers.Base):
             column = column.source_column
         return column
-    
+
     def series(self, data):
         if isinstance(self.column, lore.transformers.Base):
             series = self.column.transform(data)
@@ -176,7 +185,7 @@ class Boolean(Base):
     def __init__(self, column, name=None, dtype=numpy.bool, embed_scale=1, tags=[], twin=False):
         super(Boolean, self).__init__(column, name, dtype, embed_scale, tags, twin)
         self.missing_value = 2
-        
+
     def transform(self, data):
         with timer('transform %s' % (self.name), logging.DEBUG):
             series = self.series(data).astype(numpy.float16)
@@ -184,18 +193,18 @@ class Boolean(Base):
             series[series != 0] = 1
             series[null] = self.missing_value
             return series.astype(numpy.uint8).values
-    
+
     def reverse_transform(self, array):
         return pandas.Series(array).round().astype(bool).values
 
     def cardinality(self):
         return 3
-    
-    
+
+
 class Equals(Base):
     """
     Provides element-wise comparison of left and right "column" and "other"
-    
+
     see also: numpy.equal
     """
     def __init__(self, column, other, name=None, embed_scale=1, tags=[], twin=False):
@@ -214,7 +223,7 @@ class Equals(Base):
     def transform(self, data):
         with timer('transform %s' % self.name, logging.DEBUG):
             return numpy.equal(self.series(data), self.other_series(data)).astype(numpy.uint8).values
-    
+
     def reverse_transform(self, array):
         return numpy.full((len(array),), 'LOSSY')
 
@@ -228,19 +237,19 @@ class Equals(Base):
             other = other.column
 
         return [super(Equals, self).source_column, other]
-    
+
     def other_series(self, data):
         if isinstance(self.other, lore.transformers.Base):
             return self.other.transform(data)
         elif isinstance(data, pandas.Series):
             raise NotImplementedError("Equals require multi column compatible pipeline")
-        
+
         return data[self.other]
 
 
 class Continuous(Base):
     """Abstract Base Class for encoders that return continuous values"""
-    
+
     def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[], twin=False):
         super(Continuous, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale, tags=tags, twin=twin)
 
@@ -249,11 +258,11 @@ class Continuous(Base):
 
 
 class Pass(Continuous):
-    
+
     def __init__(self, column, name=None, dtype=numpy.float16, embed_scale=1, tags=[], twin=False):
         super(Pass, self).__init__(column, name=name, dtype=dtype, embed_scale=embed_scale, tags=tags, twin=twin)
         self.missing_value = 0
-        
+
     def fit(self, data):
         with timer(('fit %s' % self.name), logging.DEBUG):
             self.dtype = self.series(data).dtype
@@ -261,10 +270,10 @@ class Pass(Continuous):
     def transform(self, data):
         """ :return: the series with nans filled"""
         return self.fillna(self.series(data))
-    
+
     def reverse_transform(self, array):
         return array
-        
+
 
 class Uniform(Continuous):
     """
@@ -350,7 +359,7 @@ class Discrete(Base):
     Missing values are encoded distinctly from all others, so cardinality is
     bins + 1.
     """
-    
+
     def __init__(self, column, name=None, bins=10, embed_scale=1, tags=[], twin=False):
         super(Discrete, self).__init__(column, name, embed_scale=embed_scale, tags=tags, twin=twin)
         self.__norm = bins - 1
@@ -385,13 +394,13 @@ class Discrete(Base):
             else:
                 result = numpy.zeros(len(data), dtype=self.dtype)
             return result
-        
+
     def reverse_transform(self, array):
         with timer('reverse_transform %s' % self.name, logging.DEBUG):
             series = pandas.Series(array)
             series[series >= self.missing_value] = float('nan')
             return (series / self.__norm * self.__range) + self.__min
-            
+
     def cardinality(self):
         return self.__norm + 2
 
@@ -428,7 +437,7 @@ class Enum(Base):
             result[(series > self.__max) | (series < 0)] = self.unfit_value
             result[series.isnull()] = self.missing_value
             return result.astype(self.dtype).values
-            
+
     def reverse_transform(self, array):
         with timer('reverse_transform %s' % self.name, logging.DEBUG):
             series = pandas.Series(array)
@@ -443,7 +452,7 @@ class Quantile(Base):
     """Encodes values uniformly across bins. If the encoder is fit data is not
     uniformly distributed enough to have a point in each quantile, duplicate
     quantiles will be dropped.
-    
+
     Values the excede the upper and lower bound fit, will be placed into
     distinct bins, as well nans.
     """
@@ -457,7 +466,7 @@ class Quantile(Base):
         self.upper_bound = None
         self.lower_bound = None
         self.bins = None
-    
+
     def fit(self, data):
         with timer(('fit %s' % self.name), logging.DEBUG):
             series = self.series(data)
@@ -476,7 +485,7 @@ class Quantile(Base):
             cut[series > self.upper_bound] = self.quantiles + 1
             cut[series.isnull()] = self.missing_value
             return cut.astype(self.dtype).values
-    
+
     def reverse_transform(self, array):
         series = pandas.Series(array)
         result = series.apply(lambda i: self.bins[int(i)] if i < self.quantiles else None)
@@ -484,7 +493,7 @@ class Quantile(Base):
         result[series == self.quantiles + 1] = '>' + str(self.upper_bound)
         result[series == self.missing_value] = None
         return result.values
-    
+
     def cardinality(self):
         return self.missing_value + 1
 
@@ -502,7 +511,7 @@ class Unique(Base):
     minimum_occurrences will be computed over the number of unique values of
     the stratify column the encoded value appears with.
     """
-    
+
     def __init__(self, column, name=None, minimum_occurrences=1, stratify=None, embed_scale=1, tags=[], twin=False, correlation=None):
         """
         :param minimum_occurrences: ignore ids with less than this many occurrences
@@ -517,7 +526,7 @@ class Unique(Base):
         self.stratify = stratify
         self.dtype = numpy.uint32
         self.correlation = correlation
-    
+
     def fit(self, data):
         with timer(('fit %s' % self.name), logging.DEBUG):
             if self.stratify:
@@ -540,7 +549,7 @@ class Unique(Base):
 
             self.map = MissingValueMap(qualified.to_dict()['encoded_id'])
             self.missing_value = len(self.map) + 2
-    
+
             self.inverse = {v: k for k, v in self.map.items()}
             self.inverse[self.tail_value] = 'LONG_TAIL'
             self.dtype = self._type_from_cardinality()
@@ -551,14 +560,14 @@ class Unique(Base):
             result[result == 0] = self.tail_value
             result[result.isnull()] = self.missing_value
             return result.astype(self.dtype).values
-    
+
     def reverse_transform(self, array):
         with timer('reverse_transform %s' % self.name, logging.DEBUG):
             series = pandas.Series(array)
             result = series.map(self.inverse, na_action=None)
             result[result.isnull()] = 'MISSING_VALUE'
             return result
-        
+
     def cardinality(self):
         # 1 for tail value, 1 for missing_value, and 1 for preserving 0
         return len(self.map) + 3
@@ -570,7 +579,7 @@ class Token(Unique):
     with the same methodology as the Unique encoder.
     """
     PUNCTUATION_FILTER = re.compile(r'\W+\s\W+|\W+(\s|$)|(\s|^)\W+', re.UNICODE)
-    
+
     def __init__(self, column, name=None, sequence_length=None, minimum_occurrences=1, embed_scale=1, tags=[], twin=False):
         """
         :param sequence_length: truncates tokens after sequence_length. None for unlimited.
@@ -585,11 +594,11 @@ class Token(Unique):
             twin=twin
         )
         self.sequence_length = sequence_length
-    
+
     def fit(self, data):
         with timer(('fit %s' % self.name), logging.DEBUG):
             super(Token, self).fit(self.tokenize(data, fit=True))
-    
+
     def transform(self, data):
         """
         :param data: DataFrame with column to encode
@@ -605,7 +614,7 @@ class Token(Unique):
             for column in data:
                 data[column] = super(Token, self).reverse_transform(data[column])
             return data.T.apply(' '.join)
-        
+
     def get_column(self, encoded, i):
         return encoded.apply(self.get_token, i=i)
 
@@ -613,7 +622,7 @@ class Token(Unique):
         if isinstance(tokens, float) or i >= len(tokens):
             return self.missing_value
         return tokens[i]
-        
+
     def tokenize(self, data, fit=False):
         """
         :param data: a dataframe containing a column to be tokenized
@@ -641,7 +650,7 @@ class Glove(Token):
     """
     map = None
     inverse = None
-    
+
     def __getstate__(self):
         # only pickle the bare necessities, pickling the GloVe encodings is
         # prohibitively inefficient
@@ -662,7 +671,7 @@ class Glove(Token):
             if not Glove.map:
                 Glove.map = {}
                 Glove.inverse = {}
-    
+
                 path = os.path.join('encoders', 'glove.6B.%dd.txt.gz' % self.dimensions)
                 local = lore.io.download(path)
                 for line in smart_open(local):
@@ -696,12 +705,12 @@ class MiddleOut(Base):
         [1, 2, 3, 3, 3, 4, 5]
 
     """
-    
+
     def __init__(self, column, name=None, depth=None, tags=[]):
         super(MiddleOut, self).__init__(column, name, tags=tags)
         self.depth = depth
         self.dtype = self._type_from_cardinality()
-        
+
     def transform(self, data):
         with timer('transform %s' % self.name, logging.DEBUG):
             series = self.series(data)
@@ -711,12 +720,12 @@ class MiddleOut(Base):
             res = numpy.full(max_seq, self.depth, dtype=self.dtype)
             res[:depth] = numpy.arange(depth)
             res[max_seq - depth:max_seq] = self.depth * 2 - numpy.arange(depth)[::-1]
-            
+
             return res
 
     def reverse_transform(self, data):
         # left as an exercise for the reader
         pass
-    
+
     def cardinality(self):
         return self.depth * 2 + 1
