@@ -309,10 +309,14 @@ def load_env_directory():
 
 def set_installed_packages():
     global INSTALLED_PACKAGES, REQUIRED_VERSION
-    INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([BIN_PYTHON, '-m', 'pip', 'freeze']).split()]
-    REQUIRED_VERSION = next((package for package in INSTALLED_PACKAGES if re.match(r'^lore[!<>=]', package)), None)
-    if REQUIRED_VERSION:
-        REQUIRED_VERSION = re.split(r'[!<>=]', REQUIRED_VERSION)[-1]
+    if os.path.exists(BIN_PYTHON):
+        INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([BIN_PYTHON, '-m', 'pip', 'freeze']).split()]
+        REQUIRED_VERSION = next((package for package in INSTALLED_PACKAGES if re.match(r'^lore[!<>=]', package)), None)
+        if REQUIRED_VERSION:
+            REQUIRED_VERSION = re.split(r'[!<>=]', REQUIRED_VERSION)[-1]
+    else:
+        INSTALLED_PACKAGES = None
+        REQUIRED_VERSION = None
 
 
 def set_python_version(python_version):
@@ -444,10 +448,7 @@ if launched():
 else:
     JUPYTER_KERNEL_PATH = 'N/A'
 
-if os.path.exists(BIN_PYTHON):
-    set_installed_packages()
-else:
-    INSTALLED_PACKAGES = None
+set_installed_packages()
 
 COLOR = {
     DEVELOPMENT: ansi.GREEN,

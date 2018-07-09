@@ -45,8 +45,10 @@ jobs:
         paths:
         - /opt/circleci/.pyenv
 
-    - run: PYENV_ROOT=/opt/circleci/.pyenv LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.__init__
-    - run: PYENV_ROOT=/opt/circleci/.pyenv LORE_PYTHON_VERSION=3.6.5 lore test -s tests.unit.__init__
+    - run: LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.__init__
+    - run: git checkout -- requirements.txt
+    - run: LORE_PYTHON_VERSION=3.6.5 lore test -s tests.unit.__init__
+    - run: git checkout -- requirements.txt
     - save_cache:
         key: pyenv-v1-{{ .Branch }}-{{ .Revision }}
         paths:
