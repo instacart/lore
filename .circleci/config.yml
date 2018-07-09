@@ -14,10 +14,10 @@ jobs:
     - checkout
     - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
     - run:
-        working_directory: ~/.pyenv
+        working_directory: /opt/circleci/.pyenv
         command: git pull
     - run:
-        working_directory: ~/.pyenv
+        working_directory: /opt/circleci/.pyenv
         command: [ -e plugins/virtualenv ] || git clone https://github.com/pyenv/pyenv-virtualenv.git plugins/virtualenv
     - run: pyenv install -s 2.7.15
     - run: pyenv install -s 3.6.5
@@ -29,6 +29,7 @@ jobs:
         - v1-dep-{{ .Branch }}-
         - v1-dep-master-
         - v1-dep-
+    - run: createdb lore_test
     - run: pip install -e .
     - run: LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.__init__
     - run: LORE_PYTHON_VERSION=3.6.5 lore test -s tests.unit.__init__
