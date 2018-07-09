@@ -737,7 +737,7 @@ def test(parsed, unknown):
         import unittest
         if parsed.modules:
             names = parsed.modules.split(',')
-            print(ansi.success('RUNNING ') + 'Tests in ' + str(names))
+            print(ansi.success('RUNNING ') + 'Tests in ' + ', '.join(names))
             suite = unittest.TestLoader().loadTestsFromNames(names)
         else:
             print(ansi.success('RUNNING ') + 'Test Suite')

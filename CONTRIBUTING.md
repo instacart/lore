@@ -5,11 +5,12 @@
 * Breaking changes will not be accepted until a major version release.
 
 ### Test locally
-CI is run for all PR's. Contributions should be compatible with recent versions of python 2 & 3. To run tests against a specific version of python:
+CI is run for all PR's. Contributions should be compatible with recent versions of Python 2 & 3. To run tests against a specific version of python:
 
 ```bash
-$ LORE_PYTHON_VERSION=2.7.15 lore test
-$ LORE_PYTHON_VERSION=3.7.0 lore test
+$ lore test
+$ LORE_PYTHON_VERSION=3.6.5 lore test
+$ LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.test_encoders.TestUniform.test_cardinality
 ```
 
 Install a local version of lore in your project's lore env:
