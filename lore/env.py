@@ -65,8 +65,8 @@ os.environ.pop('__PYVENV_LAUNCHER__', None)
 
 
 def require(packages):
-    """Ensures that a pypi package has been installed into the current python environment.
-    If not, the package will be installed in development mode, and your env will be rebooted.
+    """Ensures that a pypi package has been installed into the App's python environment.
+    If not, the package will be installed and your env will be rebooted.
 
     Example:
         ::
@@ -74,12 +74,11 @@ def require(packages):
             lore.env.require('pandas')
             # -> pandas is required. Dependencies added to requirements.txt
 
-    :param package: Name of the package
-    :type package: unicode
+    :param packages: requirements.txt style name and versions of packages
+    :type packages: [unicode]
 
     """
-    global INSTALLED_PACKAGES
-    INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([BIN_PYTHON, '-m', 'pip', 'freeze']).split()]
+    set_installed_packages()
 
     if INSTALLED_PACKAGES is None:
         return
@@ -308,6 +307,14 @@ def load_env_directory():
             os.environ[os.path.basename(var)] = open(var, encoding='utf-8').read()
 
 
+def set_installed_packages():
+    global INSTALLED_PACKAGES, REQUIRED_VERSION
+    INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([BIN_PYTHON, '-m', 'pip', 'freeze']).split()]
+    REQUIRED_VERSION = next((package for package in INSTALLED_PACKAGES if re.match(r'^lore[!<>=]', package)), None)
+    if REQUIRED_VERSION:
+        REQUIRED_VERSION = re.split(r'[!<>=]', REQUIRED_VERSION)[-1]
+
+
 def set_python_version(python_version):
     global PYTHON_VERSION, PYTHON_VERSION_INFO, PREFIX, BIN_PYTHON, BIN_LORE, BIN_JUPYTER, BIN_FLASK, FLASK_APP
 
@@ -392,7 +399,7 @@ else:
                 break
 
 HOME = os.environ.get('HOME', ROOT)  #: :envvar:`HOME` directory of the current user or ``ROOT`` if unset
-PYENV = os.path.join(HOME, '.pyenv')  #: Path to pyenv root
+PYENV = os.environ.get('PYENV_ROOT', os.path.join(HOME, '.pyenv'))  #: Path to pyenv root
 APP = os.environ.get('LORE_APP', ROOT.split(os.sep)[-1])  #: The name of this Lore app
 REQUIREMENTS = os.path.join(ROOT, 'requirements.txt')  #: requirement files
 REQUIREMENTS_VCS = os.path.join(ROOT, 'requirements.vcs.txt')
@@ -442,10 +449,7 @@ else:
     JUPYTER_KERNEL_PATH = 'N/A'
 
 if os.path.exists(BIN_PYTHON):
-    INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([BIN_PYTHON, '-m', 'pip', 'freeze']).split()]
-    REQUIRED_VERSION = next((package for package in INSTALLED_PACKAGES if re.match(r'^lore[!<>=]', package)), None)
-    if REQUIRED_VERSION:
-        REQUIRED_VERSION = re.split(r'[!<>=]', REQUIRED_VERSION)[-1]
+    set_installed_packages()
 else:
     INSTALLED_PACKAGES = None
 
