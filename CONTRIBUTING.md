@@ -13,6 +13,11 @@ $ LORE_PYTHON_VERSION=3.6.5 lore test
 $ LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.test_encoders.TestUniform.test_cardinality
 ```
 
+You may need to allow requirements.txt to be recalculated when building different virtualenvs for python 2 and 3.
+```bash
+$ git checkout -- requirements.txt
+```
+
 Install a local version of lore in your project's lore env:
 
 ```bash
@@ -25,7 +30,7 @@ $ lore test
 ### Release Checklist:
 * Did you add any required properties to Model/Estimator/Pipeline or other Base classes? You need to provide default values for serialized objects during deserialization.
 * Did you add any new modules? You need to specify them in setup.py: packages.
-* Did you add any new dependencies? You need to test against released versions, and specify which are supported in setup.py.
+* Did you add any new dependencies? Do not add them to setup.py. Instead add them in lore/dependencies.py, and require them only in modules that need it.
 
 ### Python coding style
 Changes should conform to Google Python Style Guide, except feel free to exceed 80 char line limit.
