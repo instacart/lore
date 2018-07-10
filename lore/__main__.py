@@ -555,9 +555,13 @@ def execute(parsed, unknown):
 
 
 def print_env(parsed, unknown):
+    print('-- lore.env Varibles --------------------------------------------')
     for key, value in lore.env.__dict__.items():
         if re.match(r'^[A-Z]', key):
             print('%s: %s' % (key, value))
+    print('\n-- Environment Varibles -----------------------------------------')
+    for key, value in os.environ.items():
+        print('%s: %s' % (key, value))
 
 
 def init(parsed, unknown):

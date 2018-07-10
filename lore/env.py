@@ -376,12 +376,6 @@ BIN_JUPYTER = None  #: path to virtualenv jupyter executable
 BIN_FLASK = None  #: path to virtualenv flask executable
 FLASK_APP = None  #: path to the current lore app's flask app
 
-ENV_FILE = '.env'  #: environment variables will be loaded from this file first
-load_env_file()
-
-ENV_DIRECTORY = os.environ.get('ENV_DIRECTORY', '/conf/env')  #: more environment variables will be loaded from files in this directory
-load_env_directory()
-
 VERSION_PATH = 'runtime.txt'  #: Path to the specification of this apps Python version.
 PYTHON_VERSION = os.environ.get('LORE_PYTHON_VERSION', None)  #: Version of python required by this Lore app.
 ROOT = os.environ.get('LORE_ROOT', None)  #: Relative root for all app files. Determined by :envvar:`LORE_ROOT`, or iterating up directories until a :file:`runtime.txt` is found. If no :file:`runtime.txt` is found :any:`os.getcwd` is used.
@@ -413,6 +407,12 @@ if os.path.exists(PYENV):
 BIN_PYENV = os.path.join(PYENV, 'bin', 'pyenv')  #: path to pyenv executable
 
 set_python_version(PYTHON_VERSION)
+
+ENV_FILE = '.env'  #: environment variables will be loaded from this file first
+load_env_file()
+
+ENV_DIRECTORY = os.environ.get('ENV_DIRECTORY', '/conf/env')  #: more environment variables will be loaded from files in this directory
+load_env_directory()
 
 HOST = socket.gethostname()  #: current machine name: :any:`socket.gethostname`
 NAME = os.environ.get('LORE_ENV', TEST if len(sys.argv) > 1 and sys.argv[1] == 'test' else DEVELOPMENT)  #: current environment name, e.g. :code:`'development'`, :code:`'test'`, :code:`'production'`
