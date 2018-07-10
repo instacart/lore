@@ -34,14 +34,20 @@ from io import open
 
 import pkg_resources
 
-import lore.dependencies
 from lore import ansi
 
+
 # -- Python 2/3 Compatability ------------------------------------------------
-try:
-    ModuleNotFoundError
-except NameError:
+
+if hasattr(__builtins__, 'ModuleNotFoundError'):
+    ModuleNotFoundError = __builtins__.ModuleNotFoundError
+else:
     ModuleNotFoundError = ImportError
+
+try:
+    reload
+except NameError:
+    from importlib import reload
 
 try:
     import configparser
@@ -49,10 +55,11 @@ except ModuleNotFoundError:
     import ConfigParser as configparser
 
 try:
-    reload
-except NameError:
-    from importlib import reload
-
+    from urllib.parse import urlparse as parse_url
+    from urllib.request import urlretrieve as retrieve_url
+except ModuleNotFoundError:
+    from urlparse import urlparse as parse_url
+    from urllib import urlretrieve as retrieve_url
 
 # WORKAROUND HACK
 # Python3 inserts __PYVENV_LAUNCHER__, that breaks pyenv virtualenv
@@ -182,7 +189,7 @@ def reboot(*args):
     try:
         os.execv(args[0], args)
     except Exception as e:
-        if args[0] == BIN_LORE and args[1] == 'console':
+        if args[0] == BIN_LORE and args[1] == 'console' and JUPYTER_KERNEL_PATH:
             print(ansi.error() + ' Your jupyter kernel may be corrupt. Please remove it so lore can reinstall:\n $ rm ' + JUPYTER_KERNEL_PATH)
         raise e
 
@@ -275,10 +282,15 @@ def get_config(path):
 
 
 def read_version(path):
+    """Attempts to read a python version string from a runtime.txt file
+
+    :param path: to source of the string
+    :return: python version
+    :rtype: unicode or None
+    """
     version = None
     if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            version = f.read().strip()
+        version = open(path, 'r', encoding='utf-8').read().strip()
 
     if version:
         return re.sub(r'^python-', '', version)
@@ -287,6 +299,8 @@ def read_version(path):
 
 
 def extend_path():
+    """Adds Lore App modules to the path to making importing easy, including :any:`LIB`
+    """
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
 
@@ -295,16 +309,31 @@ def extend_path():
 
 
 def load_env_file():
-    if launched() and os.path.isfile(ENV_FILE):
-        require(lore.dependencies.DOTENV)
-        from dotenv import load_dotenv
-        load_dotenv(ENV_FILE)
+    """Adds environment variables defined in :any:`ENV_FILE` to os.environ.
+       Supports bash style comments and variable interpolation.
+    """
+    if not os.path.exists(ENV_FILE):
+        return
+
+    for line in open(ENV_FILE, 'r'):
+        name, value = line.strip().split('=', 1)
+        if name.startswith('#') or len(name) == 0 or name.isspace():
+            continue
+        if re.match(r'^(["\']).*\1$', value):
+            if value.startswith('"'):
+                value = os.path.expandvars(value)
+            value = value[1:-1]
+        os.environ[name] = value
 
 
 def load_env_directory():
+    """Adds environment variables defined in :any:`ENV_DIRECTORY` to os.environ.
+       Each file will be added to os.environ via filename = contents.
+       Supports bash style comments and variable interpolation.
+    """
     for var in glob.glob(os.path.join(ENV_DIRECTORY, '*')):
         if os.path.isfile(var):
-            os.environ[os.path.basename(var)] = open(var, encoding='utf-8').read()
+            os.environ[os.path.basename(var)] = os.path.expandvars(open(var, encoding='utf-8').read())
 
 
 def set_installed_packages():
@@ -363,6 +392,12 @@ def set_python_version(python_version):
             FLASK_APP = os.path.join(PREFIX, 'lib', python_minor, 'site-packages', 'lore', 'www', '__init__.py')
 
 
+ENV_FILE = os.environ.get('ENV_FILE', '.env')  #: environment variables will be loaded from this file first
+load_env_file()
+
+ENV_DIRECTORY = os.environ.get('ENV_DIRECTORY', '/conf/env')  #: more environment variables will be loaded from files in this directory
+load_env_directory()
+
 TEST = 'test'  #: environment that definitely should reflect exactly what happens in production
 DEVELOPMENT = 'development'  #: environment for mucking about
 PRODUCTION = 'production'  #: environment that actually matters
@@ -408,12 +443,6 @@ BIN_PYENV = os.path.join(PYENV, 'bin', 'pyenv')  #: path to pyenv executable
 
 set_python_version(PYTHON_VERSION)
 
-ENV_FILE = '.env'  #: environment variables will be loaded from this file first
-load_env_file()
-
-ENV_DIRECTORY = os.environ.get('ENV_DIRECTORY', '/conf/env')  #: more environment variables will be loaded from files in this directory
-load_env_directory()
-
 HOST = socket.gethostname()  #: current machine name: :any:`socket.gethostname`
 NAME = os.environ.get('LORE_ENV', TEST if len(sys.argv) > 1 and sys.argv[1] == 'test' else DEVELOPMENT)  #: current environment name, e.g. :code:`'development'`, :code:`'test'`, :code:`'production'`
 WORK_DIR = 'tests' if NAME == TEST else os.environ.get('WORK_DIR', ROOT)  #: root for disk based work
@@ -438,15 +467,12 @@ LIB = os.path.join(ROOT, 'lib')  #: packages in :file:`./lib` are also available
 
 extend_path()
 
-if launched():
-    try:
-        import jupyter_core.paths
-    except ModuleNotFoundError:
-        JUPYTER_KERNEL_PATH = 'N/A'
-    else:
-        JUPYTER_KERNEL_PATH = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', APP)  #: location of jupyter kernels
-else:
-    JUPYTER_KERNEL_PATH = 'N/A'
+JUPYTER_KERNEL_PATH = None
+try:
+    import jupyter_core.paths
+    JUPYTER_KERNEL_PATH = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', APP)  #: location of jupyter kernels
+except ModuleNotFoundError:
+    pass
 
 set_installed_packages()
 

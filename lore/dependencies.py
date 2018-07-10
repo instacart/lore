@@ -1,4 +1,3 @@
-DOTENV = ['python-dotenv>=0.6, <0.7.99']
 DATEUTIL = ['python-dateutil>=2.1, <2.7.0']
 FLASK = ['flask>=0.11.0, <0.12.99']
 FUTURE = ['future>=0.15, <0.16.99']
@@ -37,7 +36,6 @@ XGBOOST = ['xgboost>=0.72, <0.80']
 SKLEARN = ['scikit-learn>=0.19, <0.19.99']
 
 ALL = list(set(
-    DOTENV +
     DATEUTIL +
     FLASK +
     FUTURE +

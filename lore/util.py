@@ -8,6 +8,7 @@ import logging
 import logging.handlers
 import os
 import re
+import shutil
 import sys
 import time
 import threading
@@ -16,16 +17,6 @@ from contextlib import contextmanager
 from datetime import datetime
 
 from lore import ansi, env
-
-try:
-    ModuleNotFoundError
-except NameError:
-    ModuleNotFoundError = ImportError
-
-try:
-    import shutil
-except ModuleNotFoundError:
-    shutil = None
 
 
 class SecretFilter(logging.Filter):
@@ -290,7 +281,7 @@ if env.launched():
 
             numpy.random.seed(1)
             logger.debug('numpy.random.seed(1)')
-    except ModuleNotFoundError as e:
+    except env.ModuleNotFoundError:
         pass
 
     # Rollbar
@@ -323,7 +314,7 @@ if env.launched():
 
             sys.excepthook = report_exception
 
-    except ModuleNotFoundError as e:
+    except env.ModuleNotFoundError:
         def report_exception(exc_type=None, value=None, tb=None):
             global project
             if exc_type is None:
@@ -359,8 +350,7 @@ if env.launched():
         else:
             logger.warning('librato variables not found')
 
-
-    except ModuleNotFoundError as e:
+    except env.ModuleNotFoundError:
         pass
 
 
