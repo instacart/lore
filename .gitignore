@@ -9,7 +9,7 @@
 /*.egg-info
 
 /.eggs
-.tox
+.ipython
 
 # IDE files
 .idea

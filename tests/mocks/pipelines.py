@@ -19,14 +19,14 @@ class Xor(lore.pipelines.holdout.Base):
             'words': ['is false', 'is true', 'is not false', 'is not true'] * 1000,
             'xor': [0, 1, 1, 0] * 1000
         })
-    
+
     def get_encoders(self):
         return (
             Unique('a'),
             Unique('b'),
             Token('words')
         )
-    
+
     def get_output_encoder(self):
         return Pass('xor')
 
@@ -47,6 +47,7 @@ class MockData(lore.pipelines.time_series.Base):
 
     def get_output_encoder(self):
         return Pass('target')
+
 
 class TwinData(lore.pipelines.time_series.Base):
     def get_data(self):
@@ -98,10 +99,10 @@ class Users(lore.pipelines.iterative.Base):
     def _split_data(self):
         self.connection.execute('drop table if exists {name};'.format(name=self.table))
         super(Users, self)._split_data()
-        
+
     def get_data(self):
         return lore.io.main.dataframe(sql='select * from tests_low_memory_users', chunksize=2)
-    
+
     def get_encoders(self):
         return (
             Unique('id'),
@@ -110,6 +111,6 @@ class Users(lore.pipelines.iterative.Base):
             Boolean('subscriber'),
             Enum(DateTime('signup_at', 'dayofweek')),
         )
-    
+
     def get_output_encoder(self):
         return Pass('subscriber')

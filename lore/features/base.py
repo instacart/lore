@@ -1,14 +1,24 @@
 # -*- coding: utf-8 -*-
 import datetime
-from abc import ABCMeta, abstractmethod, abstractproperty
-import pandas as pd
+from abc import ABCMeta, abstractmethod
+
+import lore
+from lore.env import require
+
+require(
+    lore.dependencies.PANDAS +
+    lore.dependencies.INFLECTION
+)
+
+import pandas
 import inflection
+
 
 class Base(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self._data = pd.DataFrame()
+        self._data = pandas.DataFrame()
 
     @abstractmethod
     def key(self):
@@ -30,7 +40,7 @@ class Base(object):
         pass
 
     @property
-    def version(self, version = str(datetime.date.today())):
+    def version(self, version=str(datetime.date.today())):
         """
         Feature version : Override this method if you want to manage versions yourself
         ex 'v1', 'v2'
@@ -61,7 +71,6 @@ class Base(object):
             self._data['cache_key'] = self._data[key_list].apply(lambda xdf: key_prefix + "=" + '#'.join(xdf.astype(str).values), axis=1)
             result[column] = dict(zip(self._data.cache_key.values, self._data[column].values))
         return result
-
 
     def cache_key_prefix(self):
         return ('#').join(self.key())

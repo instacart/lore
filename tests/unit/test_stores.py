@@ -11,20 +11,20 @@ from lore.stores.disk import Disk
 class TestDisk(unittest.TestCase):
     def setUp(self):
         self.one_shot_calls = 0
-        
+
     @query_cached
     def one_shot_function(self, **kwargs):
         if self.one_shot_calls > 0:
             raise "Can't call me twice"
         self.one_shot_calls += 1
         return self.one_shot_calls
-    
+
     def test_disk(self):
-        cache = Disk(os.path.join(lore.env.data_dir, 'cache'))
+        cache = Disk(os.path.join(lore.env.DATA_DIR, 'cache'))
 
         for key in cache.keys():
             del cache[key]
-            
+
         self.assertEqual(len(cache), 0)
         self.assertEqual(cache['a'], None)
         self.assertEqual(cache.keys(), [])
@@ -35,18 +35,18 @@ class TestDisk(unittest.TestCase):
         self.assertEqual(cache.keys(), ['a'])
 
         time.sleep(1)  # disk cache LRU has 1 second precision
-        
+
         cache['b'] = 2
         self.assertEqual(len(cache), 2)
         self.assertEqual(cache.lru(), 'a')
         self.assertEqual(cache['b'], 2)
-        self.assertEqual(cache.keys(), ['a', 'b'])
+        self.assertEqual(sorted(cache.keys()), ['a', 'b'])
 
         cache['b'] = 3
         self.assertEqual(len(cache), 2)
         self.assertEqual(cache.lru(), 'a')
         self.assertEqual(cache['b'], 3)
-        self.assertEqual(cache.keys(), ['a', 'b'])
+        self.assertEqual(sorted(cache.keys()), ['a', 'b'])
 
         del cache['b']
         self.assertEqual(len(cache), 1)
@@ -67,7 +67,7 @@ class TestDisk(unittest.TestCase):
         cache = lore.stores.query_cache
         length = len(cache)
         now = datetime.datetime.now()
-        
+
         # first copy is stored in the cache
         calls = self.one_shot_function(when=now, int=length, str='hi', cache=True)
         self.assertEqual(length + 1, len(cache))

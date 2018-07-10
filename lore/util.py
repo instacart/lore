@@ -37,7 +37,7 @@ class SecretFilter(logging.Filter):
         r'://([^:]+):([^@]+)(@.+)',
         flags=re.IGNORECASE
     )
-    
+
     def filter(self, record):
         if record is None or record.msg is None:
             return True
@@ -56,7 +56,7 @@ class ConsoleFormatter(logging.Formatter):
         logging.ERROR: ansi.error,
         logging.CRITICAL: ansi.critical
     }
-    
+
     def format(self, record):
         timestamp = datetime.fromtimestamp(record.created).strftime('%H:%M:%S')
         timestamp = timestamp + '.%03d' % record.msecs
@@ -72,7 +72,7 @@ class ConsoleFormatter(logging.Formatter):
             except TypeError:
                 logger.debug("BROKEN LOG RECORD FORMATTING")
                 msg = msg + ' % ' + str(record.args)
-                
+
         return '%s  %s %s => %s' % (timestamp, level, location, msg)
 
 
@@ -102,7 +102,7 @@ def add_syslog_handler(address):
     logger.addHandler(syslog)
 
 if env.exists():
-    logfile = os.path.join(env.log_dir, env.name + '.log')
+    logfile = os.path.join(env.LOG_DIR, env.NAME + '.log')
     add_log_file_handler(logfile)
 
 
@@ -112,7 +112,7 @@ class PrintInterceptor(object):
         self.errors = stream.errors
         self.encoding = stream.encoding
         self.level = level
-    
+
     def write(self, value):
         self.stream.write(value)
         if value:
@@ -120,7 +120,7 @@ class PrintInterceptor(object):
                 value = value[:-1]
             if logger.handlers:
                 calling_logger(2).log(self.level, value)
-    
+
     def flush(self):
         self.stream.flush()
 
@@ -131,16 +131,16 @@ log_levels = {
     env.DEVELOPMENT: logging.DEBUG,
     env.TEST: logging.DEBUG,
 }
-logger.setLevel(log_levels.get(env.name, logging.INFO))
+logger.setLevel(log_levels.get(env.NAME, logging.INFO))
 
 
-if env.name != env.DEVELOPMENT and env.name != env.TEST:
+if env.NAME != env.DEVELOPMENT and env.NAME != env.TEST:
     address = None
     for f in ('/dev/log', '/var/run/syslog',):
         if os.path.exists(f):
             address = f
             break
-            
+
     if address:
         add_syslog_handler(address)
 
@@ -156,7 +156,7 @@ def strip_one_off_handlers():
 strip_one_off_handlers()
 
 
-if env.unicode_upgraded:
+if env.UNICODE_UPGRADED:
     logger.warning('The default python locale does not support unicode. Lore has upgraded to en_US.UTF-8. Set $LANG if you really mean it.')
 
 
@@ -169,10 +169,10 @@ _timer_logger = logging.getLogger('lore.util.timer')
 @contextmanager
 def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True):
     global _librato, _nested_timers, _previous_timer_level, _ascii_pipes, _timer_logger
-    
+
     if logger is None:
         logger = _timer_logger
-    
+
     if level < logger.level:
         yield
         return
@@ -187,9 +187,9 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
             librato_name = librato_name.split(':')[0]
             librato_name = re.sub(r'[^A-Za-z0-9\.\-_]', '', librato_name)[0:255]
             librato_record(librato_name, time.total_seconds())
-    
+
         _nested_timers -= 1
-        if _nested_timers == 0 or not env.unicode_locale:
+        if _nested_timers == 0 or not env.UNICODE_LOCALE:
             _ascii_pipes = ''
         else:
             delta = (_nested_timers - _previous_timer_level)
@@ -208,7 +208,7 @@ def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True
 
         _previous_timer_level = _nested_timers
         logger.log(level, (ansi.bold(_ascii_pipes + '[' + str(time) + '] ') + message))
-        
+
 
 def parametrized(decorator):
     def layer(*args, **kwargs):
@@ -225,7 +225,7 @@ def timed(func, level):
     def wrapper(*args, **kwargs):
         with timer('.'.join([func.__module__, func.__name__]), level=level):
             return func(*args, **kwargs)
-    
+
     return wrapper
 
 
@@ -239,11 +239,11 @@ class before_after_callbacks(object):
     def __get__(self, instance, owner):
         self.instance = instance
         return self.__call__
-    
+
     def __call__(self, *args, **kwargs):
         if hasattr(self.instance, 'before_' + self.func.__name__):
             getattr(self.instance, 'before_' + self.func.__name__)(*args, **kwargs)
-        
+
         result = self.func(self.instance, *args, **kwargs)
 
         if hasattr(self.instance, 'after_' + self.func.__name__):
@@ -268,7 +268,7 @@ def calling_logger(height=1):
     Uses the inspect module to find the name of the calling function and its
     position in the module hierarchy. With the optional height argument, logs
     for caller's caller, and so forth.
-    
+
     see: http://stackoverflow.com/a/900404/48251
     """
     stack = inspect.stack()
@@ -287,12 +287,12 @@ if env.launched():
     try:
         with timer('numpy init', logging.DEBUG):
             import numpy
-            
+
             numpy.random.seed(1)
             logger.debug('numpy.random.seed(1)')
     except ModuleNotFoundError as e:
         pass
-    
+
     # Rollbar
     try:
         with timer('rollbar init', logging.DEBUG):
@@ -300,12 +300,12 @@ if env.launched():
             rollbar.init(
                 os.environ.get("ROLLBAR_ACCESS_TOKEN", None),
                 allow_logging_basic_config=False,
-                environment=env.name,
-                enabled=(env.name != env.DEVELOPMENT),
+                environment=env.NAME,
+                enabled=(env.NAME != env.DEVELOPMENT),
                 handler='blocking',
                 locals={"enabled": True}
             )
-            
+
             def report_exception(exc_type=None, value=None, tb=None):
                 global project
                 if exc_type is None:
@@ -316,13 +316,13 @@ if env.launched():
                 try:
                     rollbar.report_exc_info(
                         exc_info=(exc_type, value, tb),
-                        extra_data={"app": env.project}
+                        extra_data={"app": env.APP}
                     )
                 except Exception as e:
                     logger.exception('reporting to rollbar: %s' % e)
-    
+
             sys.excepthook = report_exception
-    
+
     except ModuleNotFoundError as e:
         def report_exception(exc_type=None, value=None, tb=None):
             global project
@@ -331,9 +331,9 @@ if env.launched():
             stacktrace = ''.join(traceback.format_exception(exc_type, value, tb))
             print(stacktrace)
             logger.exception('Exception: %s' % stacktrace)
-        
+
         sys.excepthook = report_exception
-    
+
     # Librato
     try:
         import librato
@@ -358,23 +358,23 @@ if env.launched():
                 _librato = None
         else:
             logger.warning('librato variables not found')
-            
+
 
     except ModuleNotFoundError as e:
         pass
-    
+
 
     def librato_record(name, value):
         global _librato, _librato_lock, _librato_aggregator, _librato_timer, _librato_start
-        
+
         if _librato is None:
             return
         try:
-            name = '.'.join([env.project, env.name, name])
+            name = '.'.join([env.APP, env.NAME, name])
             with _librato_lock:
                 _librato_cancel_timer()
                 if _librato_aggregator is None:
-                    _librato_aggregator = Aggregator(_librato, source=env.host)
+                    _librato_aggregator = Aggregator(_librato, source=env.HOST)
                     _librato_start = time.time()
 
                 _librato_aggregator.add(name, value)
@@ -386,7 +386,7 @@ if env.launched():
                     _librato_timer.start()
         except:
             report_exception()
-    
+
     def librato_submit(background=True):
         global _librato, _librato_lock, _librato_aggregator, _librato_timer, _librato_start
 
