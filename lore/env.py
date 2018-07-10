@@ -364,7 +364,12 @@ def set_python_version(python_version):
             BIN_FLASK = os.path.join(bin_venv, 'flask.exe')
             FLASK_APP = os.path.join(PREFIX, 'lib', 'site-packages', 'lore', 'www', '__init__.py')
         else:
-            if PYENV:
+            sys_prefix = os.path.realpath(sys.prefix)
+            sys_version = '%s.%s.%s' % (sys.version_info[0], sys.version_info[1], sys.version_info[2])
+            if ROOT in sys_prefix and PYTHON_VERSION == sys_version:
+                # launched python installed in a subdirectory of the App that has the correct version
+                PREFIX = sys_prefix
+            else:
                 PREFIX = os.path.join(
                     PYENV,
                     'versions',
@@ -372,9 +377,6 @@ def set_python_version(python_version):
                     'envs',
                     APP
                 )
-            else:
-                PREFIX = os.path.realpath(sys.prefix)
-
             python_major = 'python' + str(PYTHON_VERSION_INFO[0])
             python_minor = python_major + '.' + str(PYTHON_VERSION_INFO[1])
             python_patch = python_minor + '.' + str(PYTHON_VERSION_INFO[2])
@@ -431,6 +433,7 @@ else:
                 ROOT = os.getcwd()
                 break
 
+ROOT = os.path.realpath(ROOT)
 HOME = os.environ.get('HOME', ROOT)  #: :envvar:`HOME` directory of the current user or ``ROOT`` if unset
 APP = os.environ.get('LORE_APP', ROOT.split(os.sep)[-1])  #: The name of this Lore app
 REQUIREMENTS = os.path.join(ROOT, 'requirements.txt')  #: requirement files
