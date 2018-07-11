@@ -71,6 +71,9 @@ except ModuleNotFoundError:
 os.environ.pop('__PYVENV_LAUNCHER__', None)
 
 
+_new_requirements = False
+
+
 def require(packages):
     """Ensures that a pypi package has been installed into the App's python environment.
     If not, the package will be installed and your env will be rebooted.
@@ -85,8 +88,13 @@ def require(packages):
     :type packages: [unicode]
 
     """
+    global INSTALLED_PACKAGES, _new_requirements
+
+    if _new_requirements:
+        INSTALLED_PACKAGES = None
+
     set_installed_packages()
-    if INSTALLED_PACKAGES is None:
+    if not INSTALLED_PACKAGES:
         return
 
     if not isinstance(packages, list):
@@ -104,6 +112,7 @@ def require(packages):
         with open(REQUIREMENTS, mode) as requirements:
             requirements.write('\n' + '\n'.join(missing) + '\n')
         print(ansi.info() + ' Dependencies added to requirements.txt. Rebooting.')
+        _new_requirements = True
         import lore.__main__
         lore.__main__.install(None, None)
         reboot('--env-checked')
