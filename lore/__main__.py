@@ -1059,7 +1059,6 @@ def install_requirements(args):
 
     pip_install(source, args)
     freeze_requirements()
-    install_jupyter_kernel()
 
 
 def install_jupyter_kernel():
