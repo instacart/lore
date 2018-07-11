@@ -92,6 +92,7 @@ def add_syslog_handler(address):
     syslog.addFilter(SecretFilter())
     logger.addHandler(syslog)
 
+
 if env.exists():
     logfile = os.path.join(env.LOG_DIR, env.NAME + '.log')
     add_log_file_handler(logfile)
@@ -158,7 +159,7 @@ _timer_logger = logging.getLogger('lore.util.timer')
 
 
 @contextmanager
-def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True):
+def timer(message='elapsed time:', level=logging.INFO, logger=None, librato=True):
     global _librato, _nested_timers, _previous_timer_level, _ascii_pipes, _timer_logger
 
     if logger is None:

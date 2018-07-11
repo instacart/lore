@@ -86,7 +86,6 @@ def require(packages):
 
     """
     set_installed_packages()
-
     if INSTALLED_PACKAGES is None:
         return
 
@@ -337,15 +336,27 @@ def load_env_directory():
 
 
 def set_installed_packages():
+    """Idempotently caches the list of packages installed in the virtualenv.
+       Can be run safely before the virtualenv is created, and will be rerun
+       afterwards.
+    """
     global INSTALLED_PACKAGES, REQUIRED_VERSION
+    if INSTALLED_PACKAGES:
+        return
+
     if os.path.exists(BIN_PYTHON):
-        INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([BIN_PYTHON, '-m', 'pip', 'freeze']).split()]
+        pip = subprocess.Popen(
+            (BIN_PYTHON, '-m', 'pip', 'freeze'),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        (stdout, stderr) = pip.communicate()
+        pip.wait()
+
+        INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in stdout.split()]
         REQUIRED_VERSION = next((package for package in INSTALLED_PACKAGES if re.match(r'^lore[!<>=]', package)), None)
         if REQUIRED_VERSION:
             REQUIRED_VERSION = re.split(r'[!<>=]', REQUIRED_VERSION)[-1]
-    else:
-        INSTALLED_PACKAGES = None
-        REQUIRED_VERSION = None
 
 
 def set_python_version(python_version):
@@ -394,17 +405,33 @@ def set_python_version(python_version):
             FLASK_APP = os.path.join(PREFIX, 'lib', python_minor, 'site-packages', 'lore', 'www', '__init__.py')
 
 
+# -- Check Local -------------------------------------------------------------
+# It's critical to check locale.getpreferredencoding() before changing os.environ, to see what python actually has configured.
+UNICODE_LOCALE = True  #: does the current python locale support unicode?
+UNICODE_UPGRADED = False  #: did lore change current system locale for unicode support?
+
+if platform.system() != 'Windows':
+    if 'utf' not in locale.getpreferredencoding().lower():
+        if os.environ.get('LANG', None):
+            UNICODE_LOCALE = False
+        else:
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+            UNICODE_UPGRADED = True
+
+# -- Load Environment --------------------------------------------------------
 ENV_FILE = os.environ.get('ENV_FILE', '.env')  #: environment variables will be loaded from this file first
 load_env_file()
 
 ENV_DIRECTORY = os.environ.get('ENV_DIRECTORY', '/conf/env')  #: more environment variables will be loaded from files in this directory
 load_env_directory()
 
+# -- Environment Names -------------------------------------------------------
 TEST = 'test'  #: environment that definitely should reflect exactly what happens in production
 DEVELOPMENT = 'development'  #: environment for mucking about
 PRODUCTION = 'production'  #: environment that actually matters
 DEFAULT_NAME = DEVELOPMENT  #: the environment you get when you just can't be bothered to care
 
+# -- Key Paths ---------------------------------------------------------------
 PYTHON_VERSION_INFO = []  #: Parsed version of python required by this Lore app.
 PREFIX = None  #: path to the Lore app virtualenv
 BIN_PYTHON = None  #: path to virtualenv python executable
@@ -454,18 +481,6 @@ DATA_DIR = os.path.join(WORK_DIR, 'data')  #: disk based caching and data depend
 LOG_DIR = os.path.join(ROOT if NAME == TEST else WORK_DIR, 'logs')  #: log file storage
 TESTS_DIR = os.path.join(ROOT, 'tests')  #: Lore app test suite
 
-
-UNICODE_LOCALE = True  #: does the current python locale support unicode?
-UNICODE_UPGRADED = False  #: did lore change current system locale for unicode support?
-
-if platform.system() != 'Windows':
-    if 'utf' not in locale.getpreferredencoding().lower():
-        if os.environ.get('LANG', None):
-            UNICODE_LOCALE = False
-        else:
-            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-            UNICODE_UPGRADED = True
-
 LIB = os.path.join(ROOT, 'lib')  #: packages in :file:`./lib` are also available for import in the Lore app.
 
 extend_path()
@@ -477,14 +492,18 @@ try:
 except ModuleNotFoundError:
     pass
 
-set_installed_packages()
+# -- Package cache -----------------------------------------------------------
+INSTALLED_PACKAGES = None
+REQUIRED_VERSION = None
 
+# -- UI ----------------------------------------------------------------------
 COLOR = {
     DEVELOPMENT: ansi.GREEN,
     TEST: ansi.BLUE,
     PRODUCTION: ansi.RED,
 }.get(NAME, ansi.YELLOW)  #: color code environment names for logging
 
+# -- Config Files ------------------------------------------------------------
 AWS_CONFIG = get_config('aws.cfg')
 DATABASE_CONFIG = get_config('database.cfg')
 REDIS_CONFIG = get_config('redis.cfg')
