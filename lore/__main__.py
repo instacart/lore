@@ -1067,7 +1067,7 @@ def install_jupyter_kernel():
     if not os.path.exists(env.BIN_JUPYTER):
         return
 
-    if os.path.exists(env.JUPYTER_KERNEL_PATH):
+    if env.JUPYTER_KERNEL_PATH and os.path.exists(env.JUPYTER_KERNEL_PATH):
         return
 
     print(ansi.success('INSTALL') + ' jupyter kernel')

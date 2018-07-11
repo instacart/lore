@@ -20,7 +20,6 @@ require(
 import inflection
 import numpy
 import pandas
-from smart_open import smart_open
 
 
 logger = logging.getLogger(__name__)
@@ -665,6 +664,9 @@ class Glove(Token):
         self.fit(None)
 
     def fit(self, data):
+        require(lore.dependencies.SMART_OPEN)
+        from smart_open import smart_open
+
         with timer('fit %s' % self.name, logging.DEBUG):
             self.missing_value = numpy.asarray([0.0] * self.dimensions, dtype=numpy.float32)
 

@@ -8,6 +8,7 @@ import logging
 import logging.handlers
 import os
 import re
+import shutil
 import sys
 import time
 import threading
@@ -16,16 +17,6 @@ from contextlib import contextmanager
 from datetime import datetime
 
 from lore import ansi, env
-
-try:
-    ModuleNotFoundError
-except NameError:
-    ModuleNotFoundError = ImportError
-
-try:
-    import shutil
-except ModuleNotFoundError:
-    shutil = None
 
 
 class SecretFilter(logging.Filter):
@@ -101,6 +92,7 @@ def add_syslog_handler(address):
     syslog.addFilter(SecretFilter())
     logger.addHandler(syslog)
 
+
 if env.exists():
     logfile = os.path.join(env.LOG_DIR, env.NAME + '.log')
     add_log_file_handler(logfile)
@@ -167,7 +159,7 @@ _timer_logger = logging.getLogger('lore.util.timer')
 
 
 @contextmanager
-def timer(message="elapsed time:", level=logging.INFO, logger=None, librato=True):
+def timer(message='elapsed time:', level=logging.INFO, logger=None, librato=True):
     global _librato, _nested_timers, _previous_timer_level, _ascii_pipes, _timer_logger
 
     if logger is None:
@@ -290,7 +282,7 @@ if env.launched():
 
             numpy.random.seed(1)
             logger.debug('numpy.random.seed(1)')
-    except ModuleNotFoundError as e:
+    except env.ModuleNotFoundError:
         pass
 
     # Rollbar
@@ -323,7 +315,7 @@ if env.launched():
 
             sys.excepthook = report_exception
 
-    except ModuleNotFoundError as e:
+    except env.ModuleNotFoundError:
         def report_exception(exc_type=None, value=None, tb=None):
             global project
             if exc_type is None:
@@ -359,8 +351,7 @@ if env.launched():
         else:
             logger.warning('librato variables not found')
 
-
-    except ModuleNotFoundError as e:
+    except env.ModuleNotFoundError:
         pass
 
 

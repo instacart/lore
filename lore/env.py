@@ -34,14 +34,20 @@ from io import open
 
 import pkg_resources
 
-import lore.dependencies
 from lore import ansi
 
+
 # -- Python 2/3 Compatability ------------------------------------------------
-try:
-    ModuleNotFoundError
-except NameError:
+
+if hasattr(__builtins__, 'ModuleNotFoundError'):
+    ModuleNotFoundError = __builtins__.ModuleNotFoundError
+else:
     ModuleNotFoundError = ImportError
+
+try:
+    reload
+except NameError:
+    from importlib import reload
 
 try:
     import configparser
@@ -49,10 +55,11 @@ except ModuleNotFoundError:
     import ConfigParser as configparser
 
 try:
-    reload
-except NameError:
-    from importlib import reload
-
+    from urllib.parse import urlparse as parse_url
+    from urllib.request import urlretrieve as retrieve_url
+except ModuleNotFoundError:
+    from urlparse import urlparse as parse_url
+    from urllib import urlretrieve as retrieve_url
 
 # WORKAROUND HACK
 # Python3 inserts __PYVENV_LAUNCHER__, that breaks pyenv virtualenv
@@ -62,6 +69,9 @@ except NameError:
 #
 # see https://bugs.python.org/issue22490
 os.environ.pop('__PYVENV_LAUNCHER__', None)
+
+
+_new_requirements = False
 
 
 def require(packages):
@@ -78,9 +88,13 @@ def require(packages):
     :type packages: [unicode]
 
     """
-    set_installed_packages()
+    global INSTALLED_PACKAGES, _new_requirements
 
-    if INSTALLED_PACKAGES is None:
+    if _new_requirements:
+        INSTALLED_PACKAGES = None
+
+    set_installed_packages()
+    if not INSTALLED_PACKAGES:
         return
 
     if not isinstance(packages, list):
@@ -98,6 +112,7 @@ def require(packages):
         with open(REQUIREMENTS, mode) as requirements:
             requirements.write('\n' + '\n'.join(missing) + '\n')
         print(ansi.info() + ' Dependencies added to requirements.txt. Rebooting.')
+        _new_requirements = True
         import lore.__main__
         lore.__main__.install(None, None)
         reboot('--env-checked')
@@ -182,7 +197,7 @@ def reboot(*args):
     try:
         os.execv(args[0], args)
     except Exception as e:
-        if args[0] == BIN_LORE and args[1] == 'console':
+        if args[0] == BIN_LORE and args[1] == 'console' and JUPYTER_KERNEL_PATH:
             print(ansi.error() + ' Your jupyter kernel may be corrupt. Please remove it so lore can reinstall:\n $ rm ' + JUPYTER_KERNEL_PATH)
         raise e
 
@@ -275,10 +290,15 @@ def get_config(path):
 
 
 def read_version(path):
+    """Attempts to read a python version string from a runtime.txt file
+
+    :param path: to source of the string
+    :return: python version
+    :rtype: unicode or None
+    """
     version = None
     if os.path.exists(path):
-        with open(path, 'r', encoding='utf-8') as f:
-            version = f.read().strip()
+        version = open(path, 'r', encoding='utf-8').read().strip()
 
     if version:
         return re.sub(r'^python-', '', version)
@@ -287,6 +307,8 @@ def read_version(path):
 
 
 def extend_path():
+    """Adds Lore App modules to the path to making importing easy, including :any:`LIB`
+    """
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
 
@@ -295,28 +317,55 @@ def extend_path():
 
 
 def load_env_file():
-    if launched() and os.path.isfile(ENV_FILE):
-        require(lore.dependencies.DOTENV)
-        from dotenv import load_dotenv
-        load_dotenv(ENV_FILE)
+    """Adds environment variables defined in :any:`ENV_FILE` to os.environ.
+       Supports bash style comments and variable interpolation.
+    """
+    if not os.path.exists(ENV_FILE):
+        return
+
+    for line in open(ENV_FILE, 'r'):
+        name, value = line.strip().split('=', 1)
+        if name.startswith('#') or len(name) == 0 or name.isspace():
+            continue
+        if re.match(r'^(["\']).*\1$', value):
+            if value.startswith('"'):
+                value = os.path.expandvars(value)
+            value = value[1:-1]
+        os.environ[name] = value
 
 
 def load_env_directory():
+    """Adds environment variables defined in :any:`ENV_DIRECTORY` to os.environ.
+       Each file will be added to os.environ via filename = contents.
+       Supports bash style comments and variable interpolation.
+    """
     for var in glob.glob(os.path.join(ENV_DIRECTORY, '*')):
         if os.path.isfile(var):
-            os.environ[os.path.basename(var)] = open(var, encoding='utf-8').read()
+            os.environ[os.path.basename(var)] = os.path.expandvars(open(var, encoding='utf-8').read())
 
 
 def set_installed_packages():
+    """Idempotently caches the list of packages installed in the virtualenv.
+       Can be run safely before the virtualenv is created, and will be rerun
+       afterwards.
+    """
     global INSTALLED_PACKAGES, REQUIRED_VERSION
+    if INSTALLED_PACKAGES:
+        return
+
     if os.path.exists(BIN_PYTHON):
-        INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in subprocess.check_output([BIN_PYTHON, '-m', 'pip', 'freeze']).split()]
+        pip = subprocess.Popen(
+            (BIN_PYTHON, '-m', 'pip', 'freeze'),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        (stdout, stderr) = pip.communicate()
+        pip.wait()
+
+        INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in stdout.split()]
         REQUIRED_VERSION = next((package for package in INSTALLED_PACKAGES if re.match(r'^lore[!<>=]', package)), None)
         if REQUIRED_VERSION:
             REQUIRED_VERSION = re.split(r'[!<>=]', REQUIRED_VERSION)[-1]
-    else:
-        INSTALLED_PACKAGES = None
-        REQUIRED_VERSION = None
 
 
 def set_python_version(python_version):
@@ -335,7 +384,12 @@ def set_python_version(python_version):
             BIN_FLASK = os.path.join(bin_venv, 'flask.exe')
             FLASK_APP = os.path.join(PREFIX, 'lib', 'site-packages', 'lore', 'www', '__init__.py')
         else:
-            if PYENV:
+            sys_prefix = os.path.realpath(sys.prefix)
+            sys_version = '%s.%s.%s' % (sys.version_info[0], sys.version_info[1], sys.version_info[2])
+            if ROOT in sys_prefix and PYTHON_VERSION == sys_version:
+                # launched python installed in a subdirectory of the App that has the correct version
+                PREFIX = sys_prefix
+            else:
                 PREFIX = os.path.join(
                     PYENV,
                     'versions',
@@ -343,9 +397,6 @@ def set_python_version(python_version):
                     'envs',
                     APP
                 )
-            else:
-                PREFIX = os.path.realpath(sys.prefix)
-
             python_major = 'python' + str(PYTHON_VERSION_INFO[0])
             python_minor = python_major + '.' + str(PYTHON_VERSION_INFO[1])
             python_patch = python_minor + '.' + str(PYTHON_VERSION_INFO[2])
@@ -363,11 +414,33 @@ def set_python_version(python_version):
             FLASK_APP = os.path.join(PREFIX, 'lib', python_minor, 'site-packages', 'lore', 'www', '__init__.py')
 
 
+# -- Check Local -------------------------------------------------------------
+# It's critical to check locale.getpreferredencoding() before changing os.environ, to see what python actually has configured.
+UNICODE_LOCALE = True  #: does the current python locale support unicode?
+UNICODE_UPGRADED = False  #: did lore change current system locale for unicode support?
+
+if platform.system() != 'Windows':
+    if 'utf' not in locale.getpreferredencoding().lower():
+        if os.environ.get('LANG', None):
+            UNICODE_LOCALE = False
+        else:
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+            UNICODE_UPGRADED = True
+
+# -- Load Environment --------------------------------------------------------
+ENV_FILE = os.environ.get('ENV_FILE', '.env')  #: environment variables will be loaded from this file first
+load_env_file()
+
+ENV_DIRECTORY = os.environ.get('ENV_DIRECTORY', '/conf/env')  #: more environment variables will be loaded from files in this directory
+load_env_directory()
+
+# -- Environment Names -------------------------------------------------------
 TEST = 'test'  #: environment that definitely should reflect exactly what happens in production
 DEVELOPMENT = 'development'  #: environment for mucking about
 PRODUCTION = 'production'  #: environment that actually matters
 DEFAULT_NAME = DEVELOPMENT  #: the environment you get when you just can't be bothered to care
 
+# -- Key Paths ---------------------------------------------------------------
 PYTHON_VERSION_INFO = []  #: Parsed version of python required by this Lore app.
 PREFIX = None  #: path to the Lore app virtualenv
 BIN_PYTHON = None  #: path to virtualenv python executable
@@ -396,6 +469,7 @@ else:
                 ROOT = os.getcwd()
                 break
 
+ROOT = os.path.realpath(ROOT)
 HOME = os.environ.get('HOME', ROOT)  #: :envvar:`HOME` directory of the current user or ``ROOT`` if unset
 APP = os.environ.get('LORE_APP', ROOT.split(os.sep)[-1])  #: The name of this Lore app
 REQUIREMENTS = os.path.join(ROOT, 'requirements.txt')  #: requirement files
@@ -408,12 +482,6 @@ BIN_PYENV = os.path.join(PYENV, 'bin', 'pyenv')  #: path to pyenv executable
 
 set_python_version(PYTHON_VERSION)
 
-ENV_FILE = '.env'  #: environment variables will be loaded from this file first
-load_env_file()
-
-ENV_DIRECTORY = os.environ.get('ENV_DIRECTORY', '/conf/env')  #: more environment variables will be loaded from files in this directory
-load_env_directory()
-
 HOST = socket.gethostname()  #: current machine name: :any:`socket.gethostname`
 NAME = os.environ.get('LORE_ENV', TEST if len(sys.argv) > 1 and sys.argv[1] == 'test' else DEVELOPMENT)  #: current environment name, e.g. :code:`'development'`, :code:`'test'`, :code:`'production'`
 WORK_DIR = 'tests' if NAME == TEST else os.environ.get('WORK_DIR', ROOT)  #: root for disk based work
@@ -422,40 +490,29 @@ DATA_DIR = os.path.join(WORK_DIR, 'data')  #: disk based caching and data depend
 LOG_DIR = os.path.join(ROOT if NAME == TEST else WORK_DIR, 'logs')  #: log file storage
 TESTS_DIR = os.path.join(ROOT, 'tests')  #: Lore app test suite
 
-
-UNICODE_LOCALE = True  #: does the current python locale support unicode?
-UNICODE_UPGRADED = False  #: did lore change current system locale for unicode support?
-
-if platform.system() != 'Windows':
-    if 'utf' not in locale.getpreferredencoding().lower():
-        if os.environ.get('LANG', None):
-            UNICODE_LOCALE = False
-        else:
-            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-            UNICODE_UPGRADED = True
-
 LIB = os.path.join(ROOT, 'lib')  #: packages in :file:`./lib` are also available for import in the Lore app.
 
 extend_path()
 
-if launched():
-    try:
-        import jupyter_core.paths
-    except ModuleNotFoundError:
-        JUPYTER_KERNEL_PATH = 'N/A'
-    else:
-        JUPYTER_KERNEL_PATH = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', APP)  #: location of jupyter kernels
-else:
-    JUPYTER_KERNEL_PATH = 'N/A'
+JUPYTER_KERNEL_PATH = None
+try:
+    import jupyter_core.paths
+    JUPYTER_KERNEL_PATH = os.path.join(jupyter_core.paths.jupyter_data_dir(), 'kernels', APP)  #: location of jupyter kernels
+except ModuleNotFoundError:
+    pass
 
-set_installed_packages()
+# -- Package cache -----------------------------------------------------------
+INSTALLED_PACKAGES = None
+REQUIRED_VERSION = None
 
+# -- UI ----------------------------------------------------------------------
 COLOR = {
     DEVELOPMENT: ansi.GREEN,
     TEST: ansi.BLUE,
     PRODUCTION: ansi.RED,
 }.get(NAME, ansi.YELLOW)  #: color code environment names for logging
 
+# -- Config Files ------------------------------------------------------------
 AWS_CONFIG = get_config('aws.cfg')
 DATABASE_CONFIG = get_config('database.cfg')
 REDIS_CONFIG = get_config('redis.cfg')

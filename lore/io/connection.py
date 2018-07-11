@@ -41,13 +41,6 @@ jinja2_env = jinja2.Environment(
     lstrip_blocks=True
 )
 
-try:
-    from urllib.parse import urlparse as parse_url
-    from urllib.request import urlretrieve as retrieve_url
-except lore.env.ModuleNotFoundError as ex:
-    from urlparse import urlparse as parse_url
-    from urllib import urlretrieve as retrieve_url
-
 
 logger = logging.getLogger(__name__)
 
@@ -71,11 +64,15 @@ class Connection(object):
         if not sqlalchemy:
             raise lore.env.ModuleNotFoundError('No module named sqlalchemy. Please add it to requirements.txt.')
 
-        parsed = parse_url(url)
+        parsed = lore.env.parse_url(url)
         self.adapter = parsed.scheme
 
         if self.adapter == 'postgres':
             require(lore.dependencies.POSTGRES)
+        if self.adapter == 'snowflake':
+            require(lore.dependencies.SNOWFLAKE)
+            if 'numpy' not in parsed.query:
+                logger.error('You should add `?numpy=True` query param to your snowflake connection url to ensure proper compatibility')
 
         for int_value in ['pool_size', 'pool_recycle', 'max_overflow']:
             if int_value in kwargs:
@@ -84,10 +81,6 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         if '__name__' in kwargs:
             del kwargs['__name__']
-        if self.adapter == 'snowflake':
-            require(lore.dependencies.SNOWFLAKE)
-            if 'numpy' not in parsed.query:
-                logger.error('You should add `?numpy=True` query param to your snowflake connection url to ensure proper compatibility')
 
         self._engine = sqlalchemy.create_engine(url, **kwargs).execution_options(autocommit=True)
         self._metadata = None
@@ -359,8 +352,6 @@ class Connection(object):
                 with open(sql_filename) as file:
                     sql = file.read()
             elif os.path.exists(template_filename):
-                if not jinja2_env:
-                    raise lore.env.ModuleNotFoundError('No module named jinja2. Please add it to requirements.txt.')
                 logger.debug('READ SQL TEMPLATE: ' + template_filename)
                 sql = jinja2_env.get_template(extract + '.sql.j2').render(**kwargs)
             else:

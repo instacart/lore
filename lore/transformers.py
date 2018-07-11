@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import unicode_literals, absolute_import
 from abc import ABCMeta, abstractmethod
 
 import csv
@@ -23,16 +23,6 @@ import inflection
 import numpy
 import pandas
 
-
-try:
-    ModuleNotFoundError
-except NameError:
-    ModuleNotFoundError = ImportError
-
-try:
-    import geoip2.database
-except ModuleNotFoundError:
-    geoip2 = False
 
 logger = logging.getLogger(__name__)
 
@@ -289,8 +279,10 @@ class GeoIP(Base):
     reader = None
 
     def __init__(self, column, operator):
-        if not geoip2:
-            raise ModuleNotFoundError('"geoip2" is not installed. Add it to your requirements.txt and `lore install`')
+        import lore  # This is crazy, why is this statement necessary?
+        require(lore.dependencies.GEOIP)
+        import geoip2.database
+
         if GeoIP.reader is None:
             import lore.io
             import glob
@@ -320,6 +312,7 @@ class GeoIP(Base):
 
     @staticmethod
     def get_latitude(ip):
+        import geoip2
         try:
             return GeoIP.reader._db_reader.get(ip)['location']['latitude']
         except (KeyError, TypeError, ValueError, geoip2.errors.AddressNotFoundError):
@@ -327,6 +320,7 @@ class GeoIP(Base):
 
     @staticmethod
     def get_longitude(ip):
+        import geoip2
         try:
             return GeoIP.reader._db_reader.get(ip)['location']['longitude']
         except (KeyError, TypeError, ValueError, geoip2.errors.AddressNotFoundError):
@@ -334,6 +328,7 @@ class GeoIP(Base):
 
     @staticmethod
     def get_accuracy(ip):
+        import geoip2
         try:
             return GeoIP.reader._db_reader.get(ip)['location']['accuracy_radius']
         except (KeyError, TypeError, ValueError, geoip2.errors.AddressNotFoundError):
