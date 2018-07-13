@@ -617,7 +617,7 @@ _jinja2_env = None
 def _render_template(name, **kwargs):
     global _jinja2_env
     if _jinja2_env is None:
-        require(lore.dependencies.JINJA)
+        env.require(lore.dependencies.JINJA)
         import jinja2
 
         _jinja2_env = jinja2.Environment(
@@ -1062,7 +1062,7 @@ def install_requirements(args):
 
 
 def install_jupyter_kernel():
-    lore.env.require(lore.dependencies.JUPYTER)
+    env.require(lore.dependencies.JUPYTER)
     if not os.path.exists(env.BIN_JUPYTER):
         return
 
