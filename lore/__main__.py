@@ -639,6 +639,7 @@ def generate_scaffold(parsed, unknown):
 
 
 def _generate_template(type, parsed, **kwargs):
+    env.require(lore.dependencies.INFLECTION)
     import inflection
     name = parsed.name
     kwargs = kwargs or {}

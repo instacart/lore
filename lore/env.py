@@ -45,7 +45,7 @@ else:
     ModuleNotFoundError = ImportError
 
 try:
-    reload
+    reload = reload
 except NameError:
     from importlib import reload
 
