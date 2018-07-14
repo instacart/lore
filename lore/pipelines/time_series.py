@@ -1,4 +1,3 @@
-
 from __future__ import absolute_import
 
 from abc import ABCMeta
@@ -13,7 +12,7 @@ logger = logging.getLogger(__name__)
 class Base(lore.pipelines.holdout.Base):
     __metaclass__ = ABCMeta
 
-    def __init__(self, test_size = 0.1, sort_by = None):
+    def __init__(self, test_size=0.1, sort_by=None):
         super(Base, self).__init__()
         self.sort_by = sort_by
         self.test_size = test_size

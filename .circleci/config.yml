@@ -1,0 +1,65 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/instacart/lore
+    parallelism: 1
+    shell: /bin/bash --login
+    environment:
+      PYENV_ROOT: /opt/circleci/.pyenv
+      CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
+      CIRCLE_TEST_REPORTS: /tmp/circleci-test-results
+    docker:
+    - image: circleci/build-image:ubuntu-14.04-XXL-upstart-1189-5614f37
+      command: /sbin/init
+    steps:
+    - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
+
+    - restore_cache:
+        keys:
+          - source-v1-{{ .Branch }}-{{ .Revision }}
+          - source-v1-{{ .Branch }}-
+          - source-v1-
+    - checkout
+    - save_cache:
+        key: source-v1-{{ .Branch }}-{{ .Revision }}
+        paths:
+        - ".git"
+
+    - restore_cache:
+        keys:
+          - pyenv-v1-{{ .Branch }}-{{ .Revision }}
+          - pyenv-v1-{{ .Branch }}-
+          - pyenv-v1-
+    - run:
+        working_directory: /opt/circleci/.pyenv
+        command: git pull
+    - run: pyenv install -s 2.7.15
+    - run: pyenv global 2.7.15
+    - run: pip install --upgrade pip
+    - run: pyenv install -s 3.6.5
+    - run: pyenv global 3.6.5
+    - run: pip install --upgrade pip
+    - run: pip install -e .
+    - save_cache:
+        key: pyenv-v1-{{ .Branch }}-{{ .Revision }}
+        paths:
+        - /opt/circleci/.pyenv
+
+    - run: LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.__init__
+    - run: git checkout -- requirements.txt
+    - run: LORE_PYTHON_VERSION=3.6.5 lore test -s tests.unit.__init__
+    - run: git checkout -- requirements.txt
+    - save_cache:
+        key: pyenv-v1-{{ .Branch }}-{{ .Revision }}
+        paths:
+        - /opt/circleci/.pyenv
+
+    - run: createdb lore_test
+    - run: LORE_PYTHON_VERSION=2.7.15 lore test
+    - run: LORE_PYTHON_VERSION=3.6.5 lore test
+    - store_test_results:
+        path: /tmp/circleci-test-results
+    - store_artifacts:
+        path: /tmp/circleci-artifacts
+    - store_artifacts:
+        path: /tmp/circleci-test-results

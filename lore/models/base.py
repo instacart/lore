@@ -7,23 +7,20 @@ from os.path import join
 import pickle
 import re
 
-from tabulate import tabulate
 import lore.ansi
 import lore.estimators
-import lore.serializers
+from lore.env import require
 from lore.util import timer, timed
 
+require(
+    lore.dependencies.TABULATE +
+    lore.dependencies.SKLEARN +
+    lore.dependencies.SHAP
+)
+import shap
+from tabulate import tabulate
 from sklearn.model_selection import RandomizedSearchCV
 
-try:
-    ModuleNotFoundError
-except NameError:
-    ModuleNotFoundError = ImportError
-
-try:
-    import shap
-except ModuleNotFoundError:
-    shap = None
 
 logger = logging.getLogger(__name__)
 
@@ -41,12 +38,12 @@ class Base(object):
         self.fitting = None
         self.pipeline = pipeline
         self._shap_explainer = None
-    
+
     def __getstate__(self):
         state = dict(self.__dict__)
         state['_shap_explainer'] = None
         return state
-    
+
     def __setstate__(self, state):
         self.__dict__ = state
         backward_compatible_defaults = {
@@ -59,13 +56,13 @@ class Base(object):
     @property
     def estimator(self):
         return self._estimator
-    
+
     @estimator.setter
     def estimator(self, value):
         self._estimator = value
-        
+
         # Keras models require access to the pipeline during build,
-        # and the serializer during fit for extended functionality
+        # and fit for extended functionality
         if hasattr(self._estimator, 'model'):
             self._estimator.model = self
 
@@ -89,7 +86,7 @@ class Base(object):
         self.save(stats=self.stats)
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
-        
+
     @timed(logging.INFO)
     def predict(self, dataframe):
         predictions = self.estimator.predict(self.pipeline.encode_x(dataframe))
@@ -151,40 +148,40 @@ class Base(object):
             **fit_params
         )
         self.estimator = result.best_estimator_
-        
+
         return result
 
     @classmethod
     def local_path(cls):
-        return join(lore.env.models_dir, cls.remote_path())
-    
+        return join(lore.env.MODELS_DIR, cls.remote_path())
+
     @classmethod
     def remote_path(cls):
         return join(cls.__module__, cls.__name__)
-    
+
     @classmethod
     def last_fitting(cls):
         if not os.path.exists(cls.local_path()):
             return 0
-        
+
         fittings = [int(d) for d in os.listdir(cls.local_path()) if re.match(r'^\d+$', d)]
         if not fittings:
             return 0
-        
+
         return sorted(fittings)[-1]
-    
+
     def fitting_path(self):
         if self.fitting is None:
             self.fitting = self.last_fitting()
-        
+
         return join(self.local_path(), str(self.fitting))
-    
+
     def model_path(self):
         return join(self.fitting_path(), 'model.pickle')
-    
+
     def remote_model_path(self):
         return join(self.remote_path(), 'model.pickle')
-    
+
     def save(self, stats=None):
         if self.fitting is None:
             raise ValueError("This model has not been fit yet. There is no point in saving.")
@@ -198,7 +195,7 @@ class Base(object):
         with timer('pickle model'):
             with open(self.model_path(), 'wb') as f:
                 pickle.dump(self, f)
-        
+
         with open(join(self.fitting_path(), 'params.json'), 'w') as f:
             params = {}
             for child in [self.estimator, self.pipeline]:
@@ -212,7 +209,7 @@ class Base(object):
                     if not key.startswith('_'):
                         params[param][key] = value.__repr__()
             json.dump(params, f, indent=2, sort_keys=True)
-        
+
         if stats:
             with open(join(self.fitting_path(), 'stats.json'), 'w') as f:
                 json.dump(stats, f, indent=2, sort_keys=True)
@@ -224,18 +221,18 @@ class Base(object):
             model.fitting = model.last_fitting()
         else:
             model.fitting = int(fitting)
-        
+
         with timer('unpickle model'):
             with open(model.model_path(), 'rb') as f:
                 loaded = pickle.load(f)
                 loaded.fitting = model.fitting
                 return loaded
-    
+
     def upload(self):
         self.fitting = 0
         self.save()
         lore.io.upload(self.model_path(), self.remote_model_path())
-     
+
     @classmethod
     def download(cls, fitting=0):
         model = cls(None, None)
@@ -247,21 +244,19 @@ class Base(object):
         instance = self.pipeline.encoded_test_data.x.iloc[i, :]
         display = self.pipeline.decode(instance.to_frame().transpose()).iloc[0, :]
         return self.shap_explainer.shap_values(instance, nsamples=nsamples), display
-    
+
     def shap_force_plot(self, i, nsamples=1000):
         return shap.force_plot(*self.shap_values(i, nsamples))
-    
+
     @property
     def shap_explainer(self):
-        if shap is None:
-            raise
         if self._shap_explainer is None:
             with timer('fitting shap'):
                 shap_data = self.pipeline.encoded_training_data.x.sample(100)
-    
+
                 def f(X):
                     return self.estimator.predict([X[:, i] for i in range(X.shape[1])]).flatten()
-    
+
                 self._shap_explainer = shap.KernelExplainer(f, shap_data)
-        
+
         return self._shap_explainer

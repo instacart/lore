@@ -1,9 +1,12 @@
+import lore
+from lore.env import require
+from lore.util import timer
+
 import logging
 from datetime import datetime
 
+require(lore.dependencies.KERAS)
 import keras.callbacks
-
-from lore.util import timer
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +40,7 @@ class ReloadBest(keras.callbacks.ModelCheckpoint):
         logger.info('=============================================')
         logger.info('|    epoch |     time |    train | validate |')
         logger.info('---------------------------------------------')
-    
+
     def on_train_end(self, logs=None):
         super(ReloadBest, self).on_train_end(logs)
         logger.info('=============================================')
@@ -47,7 +50,7 @@ class ReloadBest(keras.callbacks.ModelCheckpoint):
                 self.model.load_weights(
                     self.filepath.format(epoch=self.best_epoch)
                 )
-    
+
     def on_epoch_end(self, epoch, logs=None):
         super(ReloadBest, self).on_epoch_end(epoch, logs)
         time = datetime.utcnow() - self.train_begin

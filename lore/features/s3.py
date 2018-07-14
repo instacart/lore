@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from lore.features.base import Base
 from abc import ABCMeta, abstractmethod
-from lore.io import upload
 import json
 import tempfile
+
+import lore
+from lore.features.base import Base
+from lore.io import upload
+
 
 class S3(Base):
     __metaclass__ = ABCMeta
@@ -14,7 +17,7 @@ class S3(Base):
         pass
 
     def publish(self):
-        temp_file, temp_path = tempfile.mkstemp()
+        temp_file, temp_path = tempfile.mkstemp(dir=lore.env.WORK_DIR)
         data = self.get_data()
 
         if self.serialization() == 'csv':

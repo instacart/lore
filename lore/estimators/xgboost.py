@@ -4,11 +4,16 @@ import logging
 import warnings
 import threading
 
-from sklearn.base import BaseEstimator
-import xgboost
-
 import lore.env
 from lore.util import timed
+
+lore.env.require(
+    lore.dependencies.XGBOOST +
+    lore.dependencies.SKLEARN
+)
+
+from sklearn.base import BaseEstimator
+import xgboost
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +30,7 @@ class Base(object):
         state = super(Base, self).__getstate__()
         state['xgboost_lock'] = None
         return state
-    
+
     def __setstate__(self, state):
         self.__dict__ = state
         self.xgboost_lock = threading.RLock()
@@ -44,7 +49,7 @@ class Base(object):
         if validation_x is not None and validation_y is not None:
             eval_set += [(validation_x, validation_y)]
         if verbose is None:
-            verbose = True if lore.env.name == lore.env.DEVELOPMENT else False
+            verbose = True if lore.env.NAME == lore.env.DEVELOPMENT else False
 
         try:
             super(Base, self).fit(
@@ -128,7 +133,7 @@ class Regression(Base, xgboost.XGBRegressor):
         if 'n_jobs' not in kwargs and 'nthread' in kwargs:
             kwargs['n_jobs'] = kwargs.pop('nthread')
         super(Regression, self).__init__(**kwargs)
-        
+
 
 class BinaryClassifier(Base, xgboost.XGBClassifier):
     def __init__(
