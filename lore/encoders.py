@@ -630,37 +630,6 @@ class OneHot(Base):
         return (self.name + '_%i' + suffix) % i
 
 
-class CompressedOneHot(Unique):
-    """Performs a compressed one hot encoding. Data is first passed through
-       the Unique encoder to prune infrequent values (check documention for Unique).
-       Then a one hot encoding is performed"""
-    def __init__(self, *args, **kwargs):
-        uniq_kwargs = get_relevant_args(Unique.__init__, kwargs)
-        ohe_kwargs = get_relevant_args(OneHot.__init__, kwargs)
-        super(CompressedOneHot, self).__init__(*args, **uniq_kwargs)
-        self.ohe = OneHot(*args, **ohe_kwargs)
-
-    def fit(self, data):
-        super(CompressedOneHot, self).fit(data)
-        uniqued = super(CompressedOneHot, self).transform(data)
-        df = pandas.DataFrame({self.column: uniqued}, index=data.index)
-        self.ohe.fit(df)
-        self.sequence_length = self.ohe.sequence_length
-
-    def transform(self, data):
-        series = super(CompressedOneHot, self).transform(data)
-        df = pandas.DataFrame({self.column: series}, index=data.index)
-        return self.ohe.transform(df)
-
-    def reverse_transform(self, data): pass
-
-    def cardinality(self):
-        try:
-            return self.ohe.cardinality()
-        except AttributeError:
-            return super(CompressedOneHot, self).cardinality()
-
-
 class Token(Unique):
     """
     Breaks strings into individual words, and encodes each word individually,
