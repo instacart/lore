@@ -115,3 +115,13 @@ class TestBinaryClassifier(unittest.TestCase):
         model.estimator.sequence_embedding = 'flatten'
         model.fit(epochs=1)
         assert True
+
+
+class TestOneHotBinaryClassifier(unittest.TestCase):
+    def test_lifecycle(self):
+        model = tests.mocks.models.OneHotBinaryClassifier()
+        model.fit()
+        model.save()
+
+        loaded = tests.mocks.models.OneHotBinaryClassifier.load()
+        self.assertEqual(loaded.fitting, model.fitting)

@@ -70,3 +70,10 @@ class BinaryClassifier(lore.models.keras.Base):
             cudnn=False
         )
     )
+
+
+class OneHotBinaryClassifier(lore.models.xgboost.Base):
+    def __init__(self):
+        super(OneHotBinaryClassifier, self).__init__(
+            tests.mocks.pipelines.OneHotPipeline(),
+            lore.estimators.xgboost.BinaryClassifier())

@@ -20,7 +20,10 @@ require(
 import inflection
 import numpy
 import pandas
-
+from smart_open import smart_open
+import lore
+import lore.transformers
+from lore.util import timer, get_relevant_args
 
 logger = logging.getLogger(__name__)
 TWIN = '_twin'
@@ -570,6 +573,61 @@ class Unique(Base):
     def cardinality(self):
         # 1 for tail value, 1 for missing_value, and 1 for preserving 0
         return len(self.map) + 3
+
+
+class OneHot(Base):
+    """
+    Performs one hot encoding
+    """
+    def __init__(self, column, name=None, minimum_occurrences=None, compressed=False, **kwargs):
+        if compressed is True and minimum_occurrences is None:
+            raise ValueError('minimum_occurrences must be specified when compressed is True')
+        elif compressed is False and minimum_occurrences is not None:
+            logger.warning('minimum_occurrences has no effect when compressed is False')
+        self.minimum_occurrences = minimum_occurrences
+        self.compressed = compressed
+        super(OneHot, self).__init__(column, name, **kwargs)
+
+    def fit(self, data):
+        ids = pandas.DataFrame({'id': self.series(data)})
+        if self.compressed:
+            counts = pandas.DataFrame({'n': ids.groupby('id').size()})
+            qualified = counts[counts.n >= self.minimum_occurrences].copy()
+            self.categories = list(qualified.index)
+        else:
+            self.categories = list(ids.id.unique())
+
+        with timer(('fit one-hot %s:' % self.name), logging.DEBUG):
+            self.dummy_columns = self.get_dummies(data).columns.values
+            self.sequence_length = len(self.dummy_columns)
+
+    def get_dummies(self, data):
+        data = self.series(data)
+        data = data.astype('category')
+        data = data.cat.set_categories(self.categories)
+        return pandas.get_dummies(data, prefix=self.column)
+
+    def transform(self, data):
+        with timer('transform one_hot %s:' % self.name, logging.DEBUG):
+            dummies = self.get_dummies(data)
+            for col in [c for c in self.dummy_columns if c not in dummies.columns]:
+                dummies[col] = 0
+            return dummies[self.dummy_columns]
+
+    def get_column(self, encoded, i):
+        dummy = self.dummy_columns[i]
+        if dummy in encoded:
+            return encoded[dummy]
+        else:
+            return pandas.Series([0] * len(encoded))
+
+    def reverse_transform(self, data): pass
+
+    def cardinality(self):
+        return self.sequence_length
+
+    def sequence_name(self, i, suffix=''):
+        return (self.name + '_%i' + suffix) % i
 
 
 class Token(Unique):
