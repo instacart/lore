@@ -501,6 +501,8 @@ try:
 except ModuleNotFoundError:
     pass
 
+STDOUT_EXCEPTIONS = True  #: exceptions are always logged, in addition they can be printed to any:`sys.stdout`
+
 # -- Package cache -----------------------------------------------------------
 INSTALLED_PACKAGES = None
 REQUIRED_VERSION = None

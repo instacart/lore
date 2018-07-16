@@ -299,12 +299,12 @@ if env.launched():
             )
 
             def report_exception(exc_type=None, value=None, tb=None):
-                global project
                 if exc_type is None:
                     exc_type, value, tb = sys.exc_info()
-                stacktrace = ''.join(traceback.format_exception(exc_type, value, tb))
-                print(stacktrace)
-                logger.exception('Exception: %s' % stacktrace)
+                message = ''.join(traceback.format_exception(exc_type, value, tb))
+                if env.STDOUT_EXCEPTIONS:
+                    print(message)
+                logger.exception(message)
                 try:
                     rollbar.report_exc_info(
                         exc_info=(exc_type, value, tb),
@@ -317,12 +317,12 @@ if env.launched():
 
     except env.ModuleNotFoundError:
         def report_exception(exc_type=None, value=None, tb=None):
-            global project
             if exc_type is None:
                 exc_type, value, tb = sys.exc_info()
-            stacktrace = ''.join(traceback.format_exception(exc_type, value, tb))
-            print(stacktrace)
-            logger.exception('Exception: %s' % stacktrace)
+            message = ''.join(traceback.format_exception(exc_type, value, tb))
+            if env.STDOUT_EXCEPTIONS:
+                print(message)
+            logger.exception(message)
 
         sys.excepthook = report_exception
 
