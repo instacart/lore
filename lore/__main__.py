@@ -48,6 +48,7 @@ def main(args=None):
     init_parser.add_argument('name', metavar='NAME', help='the name of the project')
     init_parser.add_argument('--git-ignore', default=True)
     init_parser.add_argument('--python-version', default=None)
+    init_parser.add_argument('--bare', action='store_true')
 
     api_parser = commands.add_parser(
         'api',
@@ -565,26 +566,44 @@ def print_env(parsed, unknown):
 
 
 def init(parsed, unknown):
-    template = os.path.join(os.path.dirname(__file__), 'template', 'init')
+    root = os.path.normpath(os.path.realpath(parsed.name))
+    name = os.path.basename(root)
+    if os.path.exists(root):
+        print(ansi.info() + ' converting existing directory to a Lore App')
+    else:
+        print(ansi.info() + ' creating new Lore App!')
 
-    if os.path.exists(parsed.name):
-        sys.exit(
-            ansi.error() + ' "' + parsed.name + '" already exists in this directoy! Lore can not create a new project with this name.')
+    if parsed.bare:
+        if not os.path.exists(root):
+            os.makedirs(root)
+    else:
+        template = os.path.join(os.path.dirname(__file__), 'template', 'init')
+        if os.path.exists(root):
+            sys.exit(
+                ansi.error() + ' "' + parsed.name + '" already exists in this directoy! Add --bare to avoid clobbering existing files.')
+        shutil.copytree(template, root, symlinks=False, ignore=None)
+        shutil.move(os.path.join(root, 'app'), os.path.join(root, name))
 
-    shutil.copytree(template, parsed.name, symlinks=False, ignore=None)
-    os.chdir(parsed.name)
-    shutil.move('app', parsed.name)
+    os.chdir(root)
 
-    requirements = 'lore'
-    if unknown:
-        requirements += '[' + ','.join([r[2:] for r in unknown]) + ']'
-    with open('requirements.txt', 'wt') as file:
-        file.write(requirements)
+    with open('requirements.txt', 'a+') as file:
+        file.seek(0)
+        lines = file.readlines()
+        if next((line for line in lines if re.match(r'^lore[!<>=]', line)), None) is None:
+            file.write('lore' + os.linesep)
 
-    python_version = parsed.python_version or '3.6.4'
+    python_version = parsed.python_version or lore.env.read_version('runtime.txt') or '3.6.6'
+    open('runtime.txt', 'w').write('python-' + python_version + '\n')
 
-    with open('runtime.txt', 'wt') as file:
-        file.write('python-' + python_version + '\n')
+    module = os.path.join(root, name, '__init__.py')
+    if not os.path.exists(os.path.dirname(module)):
+        os.makedirs(os.path.dirname(module))
+    with open(module, 'a+') as file:
+        file.seek(0)
+        lines = file.readlines()
+        if next((line for line in lines if re.match(r'\bimport lore\b', line)), None) is None:
+            file.write('import lore' + os.linesep)
+
     lore.env.reload(lore.env)
     install(parsed, unknown)
 
