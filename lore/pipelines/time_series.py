@@ -5,6 +5,7 @@ import logging
 
 import lore
 from lore.util import timed
+import lore.pipelines.holdout
 
 logger = logging.getLogger(__name__)
 

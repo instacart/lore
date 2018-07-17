@@ -89,7 +89,7 @@ def download(remote_url, local_path=None, cache=True, extract=False):
         raise ValueError("You can't pass lore.io.download(extract=True), unless you also pass cache=True")
 
     with timer('DOWNLOAD: %s' % remote_url):
-        temp_file, temp_path = tempfile.mkstemp()
+        temp_file, temp_path = tempfile.mkstemp(dir=lore.env.WORK_DIR)
         try:
             if protocol == 'http':
                 lore.env.retrieve_url(remote_url, temp_path)
