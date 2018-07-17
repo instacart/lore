@@ -3,7 +3,7 @@ import datetime
 import pandas
 import sqlalchemy
 
-from lore.encoders import Unique, Pass, Token, Boolean, Enum, Continuous
+from lore.encoders import Unique, Pass, Token, Boolean, Enum, Continuous, OneHot
 from lore.transformers import DateTime
 import lore.io
 import lore.pipelines.holdout
@@ -114,3 +114,23 @@ class Users(lore.pipelines.iterative.Base):
 
     def get_output_encoder(self):
         return Pass('subscriber')
+
+
+class OneHotPipeline(lore.pipelines.holdout.Base):
+    def get_data(self):
+        return pandas.DataFrame({
+            'a': [1, 1, 2, 3] * 1000,
+            'b': [0, 0, 1, 1] * 1000,
+            'words': ['is false', 'is true', 'is not false', 'is not true'] * 1000,
+            'xor': [0, 1, 1, 0] * 1000
+        })
+
+    def get_encoders(self):
+        return (
+            OneHot('a', minimum_occurrences=1001, compressed=True),
+            OneHot('b'),
+            Token('words')
+        )
+
+    def get_output_encoder(self):
+        return Pass('xor')
