@@ -327,7 +327,16 @@ class Connection(object):
     @query_cached
     def _dataframe(self, sql, bindings, chunksize=None):
         with timer("dataframe:"):
-            return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+            try:
+                return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+            except sqlalchemy.exc.DBAPIError as e:
+                if e.connection_invalidated:
+                    lore.util.report_exception()
+                    logger.info('Reconnect and retry due to invalid connection')
+                    self.close()
+                    return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                else:
+                    raise
 
     def temp_table(self, tablename, sql=None, extract=None, filename=None, drop=True, **kwargs):
         tablename = self.quote_identifier(tablename)
