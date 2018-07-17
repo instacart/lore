@@ -363,4 +363,13 @@ class Connection(object):
         return sql
 
     def __execute(self, sql, bindings):
-        return self._connection.execute(sql, bindings)
+        try:
+            return self._connection.execute(sql, bindings)
+        except sqlalchemy.exc.DBAPIError as e:
+            if e.connection_invalidated:
+                lore.util.report_exception()
+                logger.info('Reconnect and retry due to invalid connection')
+                self.close()
+                return self._connection.execute(sql, bindings)
+            else:
+                raise
