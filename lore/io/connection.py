@@ -41,6 +41,12 @@ jinja2_env = jinja2.Environment(
     lstrip_blocks=True
 )
 
+try:
+    from psycopg2 import OperationalError as Psycopg2OperationalError
+except lore.env.ModuleNotFoundError:
+    class Psycopg2OperationalError(sys.StandardError):
+        pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -329,8 +335,8 @@ class Connection(object):
         with timer("dataframe:"):
             try:
                 return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
-            except sqlalchemy.exc.DBAPIError as e:
-                if e.connection_invalidated:
+            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+                if isinstance(e, Psycopg2OperationalError) or e.connection_invalidated:
                     lore.util.report_exception()
                     logger.info('Reconnect and retry due to invalid connection')
                     self.close()
@@ -374,8 +380,8 @@ class Connection(object):
     def __execute(self, sql, bindings):
         try:
             return self._connection.execute(sql, bindings)
-        except sqlalchemy.exc.DBAPIError as e:
-            if e.connection_invalidated:
+        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+            if isinstance(e, Psycopg2OperationalError) or e.connection_invalidated:
                 lore.util.report_exception()
                 logger.info('Reconnect and retry due to invalid connection')
                 self.close()
