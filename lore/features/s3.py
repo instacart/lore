@@ -2,6 +2,7 @@
 
 from abc import ABCMeta, abstractmethod
 import json
+import os
 import tempfile
 
 import lore
@@ -17,7 +18,7 @@ class S3(Base):
         pass
 
     def publish(self):
-        temp_file, temp_path = tempfile.mkstemp(dir=lore.env.WORK_DIR)
+        temp_file, temp_path = tempfile.mkstemp(dir=lore.env.DATA_DIR)
         data = self.get_data()
 
         if self.serialization() == 'csv':
@@ -31,6 +32,8 @@ class S3(Base):
         with open(temp_path, 'w') as f:
             f.write(json.dumps(self.metadata()))
         upload(temp_path, self.metadata_path())
+        os.close(temp_file)
+        os.remove(temp_path)
 
     def data_path(self):
         return "{}/{}/data.{}".format(self.version, self.name(), self.serialization())
