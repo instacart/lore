@@ -93,7 +93,7 @@ class Base(object):
                 if self.multiprocessing:
                     pool = multiprocessing.Pool(self.workers)
                     results = []
-                    for encoder in self.encoders:
+                    for encoder in self._encoders:
                         results.append(pool.apply_async(self.fit, (encoder, self.training_data)))
                     self._encoders = [result.get() for result in results]
 
