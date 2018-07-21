@@ -129,11 +129,14 @@ class Connection(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        transaction = self._transactions.pop()
-        if type is None:
-            transaction.commit()
+        if self._transactions:
+            transaction = self._transactions.pop()
+            if type is None:
+                transaction.commit()
+            else:
+                transaction.rollback()
         else:
-            transaction.rollback()
+            logger.warning("Closed connection aborted transaction")
 
     @property
     def _connection(self):
@@ -172,6 +175,10 @@ class Connection(object):
             )
 
     def close(self):
+        for transaction in reversed(self._transactions):
+            logger.warning("Closing connection with active transactions causes rollback")
+            transaction.rollback()
+        self._transactions = []
         self.__thread_local = threading.local()
         self._engine.dispose()
 
@@ -336,7 +343,7 @@ class Connection(object):
             try:
                 return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
             except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
-                if isinstance(e, Psycopg2OperationalError) or e.connection_invalidated:
+                if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                     lore.util.report_exception()
                     logger.info('Reconnect and retry due to invalid connection')
                     self.close()
@@ -381,7 +388,7 @@ class Connection(object):
         try:
             return self._connection.execute(sql, bindings)
         except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
-            if isinstance(e, Psycopg2OperationalError) or e.connection_invalidated:
+            if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                 lore.util.report_exception()
                 logger.info('Reconnect and retry due to invalid connection')
                 self.close()
