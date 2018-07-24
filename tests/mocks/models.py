@@ -72,6 +72,26 @@ class BinaryClassifier(lore.models.keras.Base):
     )
 
 
+class SaimeseTwinsClassifier(lore.models.keras.Base):
+    def __init__(
+        self,
+        embed_size=10,
+        sequence_embed_size=50,
+    ):
+        super(SaimeseTwinsClassifier, self).__init__(
+        tests.mocks.pipelines.TwinDataWithVaryingEmbedScale(test_size=0.5),
+        lore.estimators.keras.BinaryClassifier(
+            batch_size=1024,
+            embed_size=embed_size,
+            sequence_embed_size=sequence_embed_size,
+            sequence_embedding='lstm',
+            hidden_layers=1,
+            hidden_width=100,
+            cudnn=False
+        )
+    )
+
+
 class OneHotBinaryClassifier(lore.models.xgboost.Base):
     def __init__(self):
         super(OneHotBinaryClassifier, self).__init__(
