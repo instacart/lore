@@ -117,6 +117,24 @@ class TestBinaryClassifier(unittest.TestCase):
         assert True
 
 
+class TestSiameseArchitectureBinaryClassifier(unittest.TestCase):
+
+    def test_siamese_architecture_twin_sequence_pair_shapes(self):
+        model = tests.mocks.models.SaimeseTwinsClassifier()
+        model.fit()
+        model.save()
+
+        keras_model = model.estimator.keras
+        twin_layers = [l.name for l in keras_model.layers if "twin" in l.name]
+
+        for twin_layer_name in twin_layers:
+            original_layer_name = twin_layer_name.replace("_twin", "")
+            siamese_original_layer = keras_model.get_layer(original_layer_name)
+            siamese_twin_layer = keras_model.get_layer(twin_layer_name)
+            self.assertEqual(siamese_twin_layer.input_shape, siamese_original_layer.input_shape)
+            self.assertEqual(siamese_twin_layer.output_shape, siamese_original_layer.output_shape)
+
+
 class TestOneHotBinaryClassifier(unittest.TestCase):
     def test_lifecycle(self):
         model = tests.mocks.models.OneHotBinaryClassifier()

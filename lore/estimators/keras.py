@@ -241,7 +241,7 @@ class Base(BaseEstimator):
         return Concatenate(name=concatenate_name)(list(embeddings.values()))
 
     def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer=None):
-        sequence_embed_size = self.embed_size
+        sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
         sequence = []
         for i in range(encoder.sequence_length):
             sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
@@ -258,7 +258,6 @@ class Base(BaseEstimator):
         if self.sequence_embedding == 'flatten' and not layer:
             layer = Flatten
         elif self.sequence_embedding in ['lstm', 'gru', 'simple_rnn'] and not layer:
-            sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
             if self.sequence_embedding == 'lstm':
                 layer = LSTM
                 if self.cudnn:
