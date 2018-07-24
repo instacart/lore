@@ -62,6 +62,7 @@ class Base(BaseEstimator):
         hidden_activity_regularizer=None,
         hidden_bias_regularizer=None,
         hidden_kernel_regularizer=None,
+        kernel_initializer='glorot_uniform',
         output_activation=None,
         monitor='val_loss',
         loss=None,
@@ -89,6 +90,7 @@ class Base(BaseEstimator):
         self.hidden_activity_regularizer = hidden_activity_regularizer
         self.hidden_bias_regularizer = hidden_bias_regularizer
         self.hidden_kernel_regularizer = hidden_kernel_regularizer
+        self.kernel_initializer = kernel_initializer,
         self.output_activation = output_activation
         self.monitor = monitor
         self.loss = loss
@@ -225,7 +227,7 @@ class Base(BaseEstimator):
                 embeddings[embed_name] = inputs[encoder.name]
             else:
                 if isinstance(encoder, Continuous):
-                    embedding = Dense(embed_size, activation='relu', name=embed_name)
+                    embedding = Dense(embed_size, activation='relu', kernel_initializer=self.kernel_initializer, name=embed_name)
                 else:
                     embedding = Embedding(encoder.cardinality(), embed_size, name=embed_name)
 
@@ -300,6 +302,7 @@ class Base(BaseEstimator):
                                   activity_regularizer=self.hidden_activity_regularizer,
                                   kernel_regularizer=self.hidden_kernel_regularizer,
                                   bias_regularizer=self.hidden_bias_regularizer,
+                                  kernel_initializer=self.kernel_initializer,
                                   name=name)(hidden_layers)
             if self.dropout > 0:
                 if self.short_names:
@@ -333,7 +336,7 @@ class Base(BaseEstimator):
         else:
             name = '%i_output' % tower
 
-        return Dense(1, activation=self.output_activation, name=name)(hidden_layers)
+        return Dense(1, activation=self.output_activation, kernel_initializer=self.kernel_initializer, name=name)(hidden_layers)
 
     @before_after_callbacks
     @timed(logging.INFO)
@@ -497,6 +500,7 @@ class Regression(Base):
             hidden_activity_regularizer=None,
             hidden_bias_regularizer=None,
             hidden_kernel_regularizer=None,
+            kernel_initializer='glorot_uniform',
             output_activation='linear',
             monitor='val_loss',
             loss='mean_squared_error',
@@ -531,6 +535,7 @@ class BinaryClassifier(Base):
             hidden_activity_regularizer=None,
             hidden_bias_regularizer=None,
             hidden_kernel_regularizer=None,
+            kernel_initializer='glorot_uniform',
             output_activation='sigmoid',
             monitor='val_loss',
             loss='binary_crossentropy',
@@ -565,6 +570,7 @@ class MultiClassifier(Base):
             hidden_activity_regularizer=None,
             hidden_bias_regularizer=None,
             hidden_kernel_regularizer=None,
+            kernel_initializer='glorot_uniform',
             output_activation='softmax',
             monitor='val_loss',
             loss='categorical_crossentropy',
@@ -584,6 +590,7 @@ class MultiClassifier(Base):
         return Dense(
             self.model.pipeline.output_encoder.cardinality(),
             activation=self.output_activation,
+            kernel_initializer=self.kernel_initializer,
             name='%i_output' % tower
         )(hidden_layers)
 

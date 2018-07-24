@@ -64,6 +64,12 @@ class TestKeras(unittest.TestCase):
         model.estimator.build()
         assert True
 
+    def test_kernel_initializer(self):
+        model = tests.mocks.models.Keras()
+        model.estimator.kernel_initializer = 'he_uniform'
+        model.estimator.build()
+        assert True
+
 
 class TestXGBoostRegression(unittest.TestCase):
     def test_lifecycle(self):
