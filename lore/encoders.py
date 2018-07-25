@@ -13,14 +13,12 @@ from lore.util import timer
 require(
     lore.dependencies.INFLECTION +
     lore.dependencies.NUMPY +
-    lore.dependencies.PANDAS +
-    lore.dependencies.SMART_OPEN
+    lore.dependencies.PANDAS
 )
 
 import inflection
 import numpy
 import pandas
-from smart_open import smart_open
 import lore
 import lore.transformers
 from lore.util import timer, get_relevant_args
