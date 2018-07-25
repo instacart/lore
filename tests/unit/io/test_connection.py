@@ -12,7 +12,6 @@ import sqlalchemy
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import pandas
-import psycopg2
 
 import lore
 
@@ -171,7 +170,7 @@ class TestConnection(unittest.TestCase):
 
         def raise_dbapi_error_on_first_call(sql, bindings):
             lore.io.main._connection.execute = original_execute
-            e = psycopg2.OperationalError('server closed the connection unexpectedly. This probably means the server terminated abnormally before or while processing the request.')
+            e = lore.io.connection.Psycopg2OperationalError('server closed the connection unexpectedly. This probably means the server terminated abnormally before or while processing the request.')
             raise sqlalchemy.exc.DBAPIError('select 1', [], e, True)
 
         exceptions = lore.env.STDOUT_EXCEPTIONS

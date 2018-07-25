@@ -44,7 +44,7 @@ jinja2_env = jinja2.Environment(
 try:
     from psycopg2 import OperationalError as Psycopg2OperationalError
 except lore.env.ModuleNotFoundError:
-    class Psycopg2OperationalError(sys.StandardError):
+    class Psycopg2OperationalError(lore.env.StandardError):
         pass
 
 

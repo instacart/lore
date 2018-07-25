@@ -50,6 +50,11 @@ except NameError:
     from importlib import reload
 
 try:
+    StandardError = StandardError
+except NameError:
+    StandardError = Exception
+
+try:
     import configparser
 except ModuleNotFoundError:
     import ConfigParser as configparser
