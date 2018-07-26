@@ -2,7 +2,7 @@ import logging
 
 from lore.env import require
 from lore.util import timed
-import lore.estimators.holt_winters.holtwinters
+from lore.estimators.holt_winters.holtwinters import additive
 
 require(lore.dependencies.SKLEARN)
 
@@ -20,7 +20,7 @@ class HoltWinters(BaseEstimator):
 
   @timed(logging.INFO)
   def fit(self, x, y=None):
-    results = holtwinters.additive(x, self.periodicity, self.forecasts,
+    results = additive(x, self.periodicity, self.forecasts,
       alpha=self.kwargs.get('alpha'),
       beta=self.kwargs.get('beta'),
       gamma=self.kwargs.get('gamma'))
@@ -30,5 +30,4 @@ class HoltWinters(BaseEstimator):
 
   @timed(logging.INFO)
   def predict(self, X):
-    return holtwinters.additive(X, self.periodicity, self.forecasts,
-      **self.params)[0]
+    return additive(X, self.periodicity, self.forecasts, **self.params)[0]
