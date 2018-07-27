@@ -523,6 +523,7 @@ def hyper_fit(parsed, unknown):
 
 
 def server(parsed, unknown):
+    env.require(lore.dependencies.FLASK)
     host = parsed.host or os.environ.get('HOST') or '0.0.0.0'
     port = parsed.port or os.environ.get('PORT') or '5000'
     args = [env.BIN_FLASK, 'run', '--port', port, '--host', host] + unknown
