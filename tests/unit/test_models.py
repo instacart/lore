@@ -64,6 +64,11 @@ class TestKeras(unittest.TestCase):
         model.estimator.build()
         assert True
 
+    def test_multi(self):
+        model = tests.mocks.models.KerasMulti()
+        model.fit(epochs=1)
+        assert True
+
 
 class TestXGBoostRegression(unittest.TestCase):
     def test_lifecycle(self):
