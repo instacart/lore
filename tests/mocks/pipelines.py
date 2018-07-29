@@ -33,7 +33,7 @@ class Xor(lore.pipelines.holdout.Base):
 
 class XorMulti(Xor):
     def get_output_encoder(self):
-        return Unique('xor')
+        return OneHot('xor')
 
 
 class MockData(lore.pipelines.time_series.Base):

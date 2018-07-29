@@ -64,6 +64,8 @@ class TestKeras(unittest.TestCase):
         model.estimator.build()
         assert True
 
+
+class TestKerasMulti(unittest.TestCase):
     def test_multi(self):
         model = tests.mocks.models.KerasMulti()
         model.fit(epochs=1)
