@@ -48,6 +48,19 @@ class NestedKeras(lore.models.keras.Base):
         )
 
 
+class KerasMulti(lore.models.keras.Base):
+    def __init__(self):
+        super(KerasMulti, self).__init__(
+            tests.mocks.pipelines.XorMulti(),
+            lore.estimators.keras.MultiClassifier(
+                batch_size=1024,
+                embed_size=10,
+                hidden_layers=1,
+                hidden_width=100
+            )
+        )
+
+
 class XGBoostBinaryClassifier(lore.models.xgboost.Base):
     def __init__(self):
         super(XGBoostBinaryClassifier, self).__init__(
