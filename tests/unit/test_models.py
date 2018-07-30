@@ -65,6 +65,13 @@ class TestKeras(unittest.TestCase):
         assert True
 
 
+class TestKerasMulti(unittest.TestCase):
+    def test_multi(self):
+        model = tests.mocks.models.KerasMulti()
+        model.fit(epochs=1)
+        assert True
+
+
 class TestXGBoostRegression(unittest.TestCase):
     def test_lifecycle(self):
         model = tests.mocks.models.XGBoostRegression()
