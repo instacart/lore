@@ -1,5 +1,4 @@
 from lore.stores.base import Base
-import lore.io
 
 
 class Redis(Base):

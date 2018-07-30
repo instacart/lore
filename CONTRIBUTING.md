@@ -5,17 +5,23 @@
 * Breaking changes will not be accepted until a major version release.
 
 ### Test locally
-CI is run for all PR's.
+CI is run for all PR's. Contributions should be compatible with recent versions of Python 2 & 3. To run tests against a specific version of python:
 
 ```bash
-$ python2 setup.py test
-$ python3 setup.py test
+$ lore test
+$ LORE_PYTHON_VERSION=3.6.5 lore test
+$ LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.test_encoders.TestUniform.test_cardinality
+```
+
+You may need to allow requirements.txt to be recalculated when building different virtualenvs for python 2 and 3.
+```bash
+$ git checkout -- requirements.txt
 ```
 
 Install a local version of lore in your project's lore env:
 
 ```bash
-$ git clone https://github.com/instacart/lore ~/repos/lore 
+$ git clone https://github.com/instacart/lore ~/repos/lore
 $ cd my_project
 $ lore pip install -e ~/repos/lore
 $ lore test
@@ -24,7 +30,7 @@ $ lore test
 ### Release Checklist:
 * Did you add any required properties to Model/Estimator/Pipeline or other Base classes? You need to provide default values for serialized objects during deserialization.
 * Did you add any new modules? You need to specify them in setup.py: packages.
-* Did you add any new dependencies? You need to test against released versions, and specify which are supported in setup.py.
+* Did you add any new dependencies? Do not add them to setup.py. Instead add them in lore/dependencies.py, and require them only in modules that need it.
 
 ### Python coding style
 Changes should conform to Google Python Style Guide, except feel free to exceed 80 char line limit.
@@ -35,9 +41,9 @@ Do not fall prey to the 80 char line length limit. It leads to short, bad names 
 Use pylint to check your Python changes. To install pylint and retrieve Lore's custom style definition:
 ```bash
 $ pip install pylint
-$ wget -O /tmp/pylintrc https://raw.githubusercontent.com/instacart/lore/master/pylint.rc
+$ wget -O /tmp/pylintrc https://raw.githubusercontent.com/instacart/lore/master/pylintrc
 ```
 To check a file with pylint:
 ```bash
-$ pylint --rcfile=/tmp/pylint.rc myfile.py
+$ pylint myfile.py
 ```

@@ -14,47 +14,39 @@ import threading
 
 from datetime import datetime
 
-import pandas
-
 import lore
+from lore.env import require
 from lore.util import timer
 from lore.stores import query_cached
 
-if not (sys.version_info.major == 3 and sys.version_info.minor >= 6):
-    ModuleNotFoundError = ImportError
-try:
-    import sqlalchemy
-    from sqlalchemy import event
-    from sqlalchemy.engine import Engine
-    from sqlalchemy.schema import DropTable
-    from sqlalchemy.ext.compiler import compiles
-except ModuleNotFoundError as e:
-    sqlalchemy = False
+require(
+    lore.dependencies.PANDAS +
+    lore.dependencies.SQL +
+    lore.dependencies.JINJA
+)
+
+import pandas
+
+import sqlalchemy
+from sqlalchemy import event
+from sqlalchemy.schema import DropTable
+from sqlalchemy.ext.compiler import compiles
+
+import jinja2
+jinja2_env = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(
+        os.path.join(lore.env.ROOT, lore.env.APP, 'extracts')
+    ),
+    trim_blocks=True,
+    lstrip_blocks=True
+)
 
 try:
-    import jinja2
-    jinja2_env = jinja2.Environment(
-        loader=jinja2.FileSystemLoader(
-            os.path.join(lore.env.root, lore.env.project, 'extracts')
-        ),
-        trim_blocks=True,
-        lstrip_blocks=True
-    )
-except ModuleNotFoundError as ex:
-    jinja2_env = False
-
-try:
-    from urllib.parse import urlparse as parse_url
-except ModuleNotFoundError as ex:
-    from urlparse import urlparse as parse_url
-
-try:
-    from snowflake.connector.errors import ProgrammingError as SnowflakeProgrammingError
-    import snowflake.connector.sqlstate
-    import snowflake.connector.errorcode
-except ModuleNotFoundError as ex:
-    class SnowflakeProgrammingError(BaseException):
+    from psycopg2 import OperationalError as Psycopg2OperationalError
+except lore.env.ModuleNotFoundError:
+    class Psycopg2OperationalError(lore.env.StandardError):
         pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +54,8 @@ if sqlalchemy:
     @compiles(DropTable, 'postgresql')
     def _compile_drop_table(element, compiler, **kwargs):
         return compiler.visit_drop_table(element) + ' CASCADE'
-    
-    
+
+
     _after_replace_callbacks = []
     def after_replace(func):
         global _after_replace_callbacks
@@ -71,15 +63,22 @@ if sqlalchemy:
 
 
 class Connection(object):
-    UNLOAD_PREFIX = os.path.join(lore.env.name, 'unloads')
+    UNLOAD_PREFIX = os.path.join(lore.env.NAME, 'unloads')
     IAM_ROLE = os.environ.get('IAM_ROLE', None)
-    
+
     def __init__(self, url, name='connection', **kwargs):
         if not sqlalchemy:
-            raise ModuleNotFoundError('No module named sqlalchemy. Please add it to requirements.txt.')
-        
-        parsed = parse_url(url)
+            raise lore.env.ModuleNotFoundError('No module named sqlalchemy. Please add it to requirements.txt.')
+
+        parsed = lore.env.parse_url(url)
         self.adapter = parsed.scheme
+
+        if self.adapter == 'postgres':
+            require(lore.dependencies.POSTGRES)
+        if self.adapter == 'snowflake':
+            require(lore.dependencies.SNOWFLAKE)
+            if 'numpy' not in parsed.query:
+                logger.error('You should add `?numpy=True` query param to your snowflake connection url to ensure proper compatibility')
 
         for int_value in ['pool_size', 'pool_recycle', 'max_overflow']:
             if int_value in kwargs:
@@ -88,9 +87,6 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         if '__name__' in kwargs:
             del kwargs['__name__']
-        if self.adapter == 'snowflake':
-            if 'numpy' not in parsed.query:
-                logger.error('You should add `?numpy=True` query param to your snowflake connection url to ensure proper compatibility')
 
         self._engine = sqlalchemy.create_engine(url, **kwargs).execution_options(autocommit=True)
         self._metadata = None
@@ -106,23 +102,23 @@ class Connection(object):
                 stack = [(x.filename, x.lineno, x.function) for x in stack]
             else:
                 stack = [(x[1], x[2], x[3]) for x in stack]
-        
+
             paths = [x[0] for x in stack]
-            origin = next((x for x in paths if x.startswith(lore.env.root)), None)
+            origin = next((x for x in paths if x.startswith(lore.env.ROOT)), None)
             if origin is None:
                 origin = next((x for x in paths if 'sqlalchemy' not in x), None)
             if origin is None:
                 origin = paths[0]
             caller = next(x for x in stack if x[0] == origin)
-        
-            statement = "/* %s | %s:%d in %s */\n" % (lore.env.project, caller[0], caller[1], caller[2]) + statement
+
+            statement = "/* %s | %s:%d in %s */\n" % (lore.env.APP, caller[0], caller[1], caller[2]) + statement
             return statement, parameters
-    
+
         @event.listens_for(self._engine, "after_cursor_execute")
         def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
             total = datetime.now() - conn.info['query_start_time'].pop(-1)
             logger.info("SQL: %s" % total)
-    
+
         @event.listens_for(self._engine, "connect")
         def receive_connect(dbapi_connection, connection_record):
             if hasattr(dbapi_connection, 'get_dsn_parameters'):
@@ -131,23 +127,26 @@ class Connection(object):
     def __enter__(self):
         self._transactions.append(self._connection.begin())
         return self
-    
+
     def __exit__(self, type, value, traceback):
-        transaction = self._transactions.pop()
-        if type is None:
-            transaction.commit()
+        if self._transactions:
+            transaction = self._transactions.pop()
+            if type is None:
+                transaction.commit()
+            else:
+                transaction.rollback()
         else:
-            transaction.rollback()
+            logger.warning("Closed connection aborted transaction")
 
     @property
     def _connection(self):
         if not hasattr(self.__thread_local, 'connection') or self.__thread_local.connection is None:
             self.__thread_local.connection = self._engine.connect()
         return self.__thread_local.connection
-    
+
     @staticmethod
     def path(extract, extension='.sql'):
-        return os.path.join(lore.env.root, lore.env.project, 'extracts', extract + extension)
+        return os.path.join(lore.env.ROOT, lore.env.APP, 'extracts', extract + extension)
 
     def execute(self, sql=None, extract=None, filename=None, **kwargs):
         self.__execute(self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs), kwargs)
@@ -176,13 +175,17 @@ class Connection(object):
             )
 
     def close(self):
+        for transaction in reversed(self._transactions):
+            logger.warning("Closing connection with active transactions causes rollback")
+            transaction.rollback()
+        self._transactions = []
         self.__thread_local = threading.local()
         self._engine.dispose()
-        
+
     def replace(self, table, dataframe, batch_size=10 ** 5):
         import migrate.changeset
         global _after_replace_callbacks
-        
+
         with timer('REPLACE ' + table):
             suffix = datetime.now().strftime('_%Y%m%d%H%M%S').encode('utf-8')
             self.metadata
@@ -218,10 +221,10 @@ class Connection(object):
                     index.rename(index.name[0:-2] + '_b', connection=self._connection)
                 for index in destination.indexes:
                     index.rename(original_names[index.name], connection=self._connection)
-        
+
         for func in _after_replace_callbacks:
             func(destination, source)
-        
+
     @property
     def metadata(self):
         if not self._metadata:
@@ -241,7 +244,7 @@ class Connection(object):
         cache = kwargs.pop('cache', False)
         sql = self.__prepare(sql=sql, extract=extract, filename=filename)
         return self._unload(sql, kwargs, cache=cache)
-    
+
     @query_cached
     def _unload(self, sql, bindings):
         key = hashlib.sha1(str(sql).encode('utf-8')).hexdigest()
@@ -290,9 +293,9 @@ class Connection(object):
                 lore.io.bucket.download_file(entry.key, temp.name)
                 with gzip.open(temp.name, 'rt') as gz:
                     result += list(csv.reader(gz, delimiter='|', quotechar='"'))
-        
+
             return result
-    
+
     @query_cached
     def load_dataframe(self, key, columns):
         with timer('load_dataframe'):
@@ -319,7 +322,7 @@ class Connection(object):
             logger.info(buffer.getvalue())
             logger.info(result.head())
             return result
-        
+
     def dataframe(self, sql=None, extract=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
         chunksize = kwargs.pop('chunksize', None)
@@ -333,11 +336,20 @@ class Connection(object):
             logger.info(buffer.getvalue())
             logger.info(dataframe.head())
         return dataframe
-        
+
     @query_cached
     def _dataframe(self, sql, bindings, chunksize=None):
         with timer("dataframe:"):
-            return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+            try:
+                return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+                if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
+                    lore.util.report_exception()
+                    logger.info('Reconnect and retry due to invalid connection')
+                    self.close()
+                    return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                else:
+                    raise
 
     def temp_table(self, tablename, sql=None, extract=None, filename=None, drop=True, **kwargs):
         tablename = self.quote_identifier(tablename)
@@ -345,10 +357,10 @@ class Connection(object):
             if drop:
                 self.execute(sql='DROP TABLE IF EXISTS ' + tablename)
             self.__execute('CREATE TEMPORARY TABLE ' + tablename + ' AS ' + self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs), kwargs)
-        
+
     def quote_identifier(self, identifier):
         return self._engine.dialect.identifier_preparer.quote(identifier)
-        
+
     def __prepare(self, sql=None, extract=None, filename=None, **kwargs):
         if extract is None:
             extract = filename
@@ -362,13 +374,11 @@ class Connection(object):
                 with open(sql_filename) as file:
                     sql = file.read()
             elif os.path.exists(template_filename):
-                if not jinja2_env:
-                    raise ModuleNotFoundError('No module named jinja2. Please add it to requirements.txt.')
                 logger.debug('READ SQL TEMPLATE: ' + template_filename)
                 sql = jinja2_env.get_template(extract + '.sql.j2').render(**kwargs)
             else:
                 raise IOError('There is no template or sql file for %s' % extract)
-            
+
         # support mustache style bindings
         sql = re.sub(r'\{(\w+?)\}', r'%(\1)s', sql)
 
@@ -377,11 +387,11 @@ class Connection(object):
     def __execute(self, sql, bindings):
         try:
             return self._connection.execute(sql, bindings)
-        except SnowflakeProgrammingError as ex:
-            # retry after reconnect
-            if (
-                ex.errno == snowflake.connector.errorcode.ER_FAILED_TO_RENEW_SESSION
-                and ex.sqlstate == snowflake.connector.sqlstate.SQLSTATE_CONNECTION_WAS_NOT_ESTABLISHED
-            ):
+        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+            if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
+                lore.util.report_exception()
+                logger.info('Reconnect and retry due to invalid connection')
                 self.close()
                 return self._connection.execute(sql, bindings)
+            else:
+                raise

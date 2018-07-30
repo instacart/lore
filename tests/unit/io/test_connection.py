@@ -14,7 +14,6 @@ from sqlalchemy.engine import Engine
 import pandas
 
 import lore
-import psycopg2
 
 calls = 0
 @event.listens_for(Engine, "after_cursor_execute")
@@ -54,7 +53,7 @@ class TestConnection(unittest.TestCase):
 
     def test_connection(self):
         self.assertTrue(hasattr(lore.io, 'main'))
-    
+
     def test_replace(self):
         lore.io.main.replace(self.table.name, self.dataframe)
         selected = lore.io.main.dataframe(sql='select * from tests_users')
@@ -126,11 +125,11 @@ class TestConnection(unittest.TestCase):
     def test_out_of_transaction_does_not_block_concurrent_writes(self):
         lore.io.main.execute(sql='drop table if exists tests_autocommit')
         lore.io.main.execute(sql='create table tests_autocommit(id integer not null primary key)')
-    
+
         priors = []
         posts = []
         thrown = []
-    
+
         def insert(delay=0):
             try:
                 priors.append(lore.io.main.select(sql='select count(*) from tests_autocommit')[0][0])
@@ -139,19 +138,19 @@ class TestConnection(unittest.TestCase):
                 time.sleep(delay)
             except sqlalchemy.exc.IntegrityError as ex:
                 thrown.append(True)
-    
+
         slow = Thread(target=insert, args=(1,))
         fast = Thread(target=insert, args=(0,))
 
         slow.start()
         time.sleep(0.5)
         fast.start()
-    
+
         fast.join()
         fast_done = datetime.datetime.now()
         slow.join()
         slow_done = datetime.datetime.now()
-    
+
         self.assertEqual(priors, [0, 3])
         self.assertEqual(posts, [3])
         self.assertEqual(thrown, [True])
@@ -165,3 +164,22 @@ class TestConnection(unittest.TestCase):
         self.assertEquals(reopened, [(1,)])
         with self.assertRaises(sqlalchemy.exc.ProgrammingError):
             lore.io.main.select(sql='select count(*) from tests_close')
+
+    def test_reconnect_and_retry(self):
+        original_execute = lore.io.main._connection.execute
+
+        def raise_dbapi_error_on_first_call(sql, bindings):
+            lore.io.main._connection.execute = original_execute
+            e = lore.io.connection.Psycopg2OperationalError('server closed the connection unexpectedly. This probably means the server terminated abnormally before or while processing the request.')
+            raise sqlalchemy.exc.DBAPIError('select 1', [], e, True)
+
+        exceptions = lore.env.STDOUT_EXCEPTIONS
+        lore.env.STDOUT_EXCEPTIONS = False
+        connection = lore.io.main._connection
+        lore.io.main._connection.execute = raise_dbapi_error_on_first_call
+
+        result = lore.io.main.select(sql='select 1')
+        lore.env.STDOUT_EXCEPTIONS = exceptions
+
+        self.assertNotEquals(connection, lore.io.main._connection)
+        self.assertEquals(result[0][0], 1)

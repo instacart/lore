@@ -5,7 +5,7 @@ from lore.stores.ram import Ram
 
 
 cache = Ram()
-query_cache = Disk(os.path.join(lore.env.data_dir, 'query_cache'))
+query_cache = Disk(os.path.join(lore.env.DATA_DIR, 'query_cache'))
 
 
 def cached(func):

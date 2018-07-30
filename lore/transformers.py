@@ -1,4 +1,4 @@
-from __future__ import unicode_literals
+from __future__ import unicode_literals, absolute_import
 from abc import ABCMeta, abstractmethod
 
 import csv
@@ -6,30 +6,30 @@ import datetime
 import logging
 import os
 import re
+
+import lore
+from lore.util import timer
+from lore.env import require
+
+require(
+    lore.dependencies.NUMPY +
+    lore.dependencies.INFLECTION +
+    lore.dependencies.PANDAS
+)
+
 from numpy import sin, cos, sqrt, arctan2, radians
 
 import inflection
 import numpy
 import pandas
 
-from lore.util import timer
-
-try:
-    ModuleNotFoundError
-except NameError:
-    ModuleNotFoundError = ImportError
-
-try:
-    import geoip2.database
-except ModuleNotFoundError:
-    geoip2 = False
 
 logger = logging.getLogger(__name__)
 
 
 class Base(object):
     __metaclass__ = ABCMeta
-    
+
     def __init__(self, column):
         self.column = column
         if isinstance(self.column, Base):
@@ -60,7 +60,7 @@ class Base(object):
     def other_series(self, data):
         if (not hasattr(self, 'other')) or self.other is None:
             return None
-        
+
         if isinstance(self.other, Base):
             return self.other.transform(data)
         else:
@@ -99,7 +99,7 @@ class DateTime(Base):
     For available operators see:
     https://pandas.pydata.org/pandas-docs/stable/generated/pandas.DatetimeIndex.html#pandas.DatetimeIndex
     """
-    
+
     def __init__(self, column, operator):
         super(DateTime, self).__init__(column)
         self.operator = operator
@@ -129,15 +129,15 @@ class Age(Base):
             elif other.dtype != 'datetime64[ns]':
                 logger.warning('%s is not a datetime. Converting to datetime64[ns]' % self.column)
                 other = pandas.to_datetime(other).astype('datetime64[ns]')
-    
+
             if series.dtype != 'datetime64[ns]':
                 logger.warning('%s is not a datetime. Converting to datetime64[ns]' % self.column)
                 other = pandas.to_datetime(other).astype('datetime64[ns]')
-    
+
             age = (other - self.series(data))
             if self.unit in ['nanosecond', 'nanoseconds']:
                 return age
-            
+
             seconds = age.dt.total_seconds()
             if self.unit in ['second', 'seconds']:
                 return seconds
@@ -153,10 +153,10 @@ class Age(Base):
                 return seconds / 2592000
             if self.unit in ['year', 'years']:
                 return seconds / 31536000
-    
+
             raise NameError('Unknown unit: %s' % self.unit)
-        
-        
+
+
 class String(Base):
     def __init__(self, column, operator, *args, **kwargs):
         super(String, self).__init__(column)
@@ -199,7 +199,7 @@ class LogPlusOne(Base):
 
 class AreaCode(Base):
     """Transforms various phone number formats into area codes (strings)
-    
+
     e.g. '12345678901' => '234'
          '+1 (234) 567-8901' => '234'
          '1234567' => ''
@@ -224,7 +224,7 @@ class AreaCode(Base):
 
 class EmailDomain(Base):
     """Transforms email addresses into their full domain name
-    
+
     e.g. 'bob@bob.com' => 'bob.com'
     """
     NAIVE = re.compile(r'^[^@]+@(.+)$', re.UNICODE)
@@ -251,7 +251,7 @@ class NameAge(Map):
 
 class NamePopulation(NameAge):
     MAP = {}
-    
+
     with open(os.path.join(os.path.dirname(__file__), 'data', 'names.csv'), 'r') as file:
         reader = csv.reader(file)
         for line in reader:
@@ -260,7 +260,7 @@ class NamePopulation(NameAge):
 
 class NameSex(NameAge):
     MAP = {}
-    
+
     with open(os.path.join(os.path.dirname(__file__), 'data', 'names.csv'), 'r') as file:
         reader = csv.reader(file)
         for line in reader:
@@ -269,7 +269,7 @@ class NameSex(NameAge):
 
 class NameFamilial(Base):
     NAIVE = re.compile(r'\b(mom|dad|mother|father|mama|papa|bro|brother|sis|sister)\b', re.UNICODE | re.IGNORECASE)
-    
+
     def transform(self, data):
         with timer('transform %s' % self.name, logging.DEBUG):
             return ~self.series(data).str.extract(NameFamilial.NAIVE, expand=False).isnull()
@@ -279,8 +279,10 @@ class GeoIP(Base):
     reader = None
 
     def __init__(self, column, operator):
-        if not geoip2:
-            raise ModuleNotFoundError('"geoip2" is not installed. Add it to your requirements.txt and `lore install`')
+        import lore  # This is crazy, why is this statement necessary?
+        require(lore.dependencies.GEOIP)
+        import geoip2.database
+
         if GeoIP.reader is None:
             import lore.io
             import glob
@@ -289,14 +291,14 @@ class GeoIP(Base):
                 cache=True,
                 extract=True
             )
-    
+
             path = [file for file in glob.glob(file.split('.')[0] + '*') if os.path.isdir(file)][0]
             GeoIP.reader = geoip2.database.Reader(os.path.join(path, 'GeoLite2-City.mmdb'))
 
         super(GeoIP, self).__init__(column)
         self.operator = operator
         self.name += '_' + self.operator
-    
+
     def transform(self, data):
         with timer('transform %s' % self.name, logging.DEBUG):
             if self.operator in {'lat', 'latitude'}:
@@ -305,18 +307,20 @@ class GeoIP(Base):
                 return self.series(data).apply(GeoIP.get_longitude)
             elif self.operator in {'acc', 'accuracy'}:
                 return self.series(data).apply(GeoIP.get_accuracy)
-    
+
             raise NameError('Unknown GeoIP operator [lat, lon, acc]: %s' % self.operator)
 
     @staticmethod
     def get_latitude(ip):
+        import geoip2
         try:
             return GeoIP.reader._db_reader.get(ip)['location']['latitude']
         except (KeyError, TypeError, ValueError, geoip2.errors.AddressNotFoundError):
             return float('nan')
-        
+
     @staticmethod
     def get_longitude(ip):
+        import geoip2
         try:
             return GeoIP.reader._db_reader.get(ip)['location']['longitude']
         except (KeyError, TypeError, ValueError, geoip2.errors.AddressNotFoundError):
@@ -324,6 +328,7 @@ class GeoIP(Base):
 
     @staticmethod
     def get_accuracy(ip):
+        import geoip2
         try:
             return GeoIP.reader._db_reader.get(ip)['location']['accuracy_radius']
         except (KeyError, TypeError, ValueError, geoip2.errors.AddressNotFoundError):
@@ -352,13 +357,13 @@ class Distance(Base):
             lat_b = self.radians(data, self.lat_b)
             lon_a = self.radians(data, self.lon_a)
             lon_b = self.radians(data, self.lon_b)
-    
+
             lon = lon_b - lon_a
             lat = lat_b - lat_a
-            
+
             a = sin(lat / 2)**2 + cos(lat_a) * cos(lat_b) * sin(lon / 2)**2
             c = 2 * arctan2(sqrt(a), sqrt(1 - a))
-       
+
             return c * 6373.0  # approximate radius of earth in km
 
     def radians(self, data, column):
@@ -369,7 +374,7 @@ class Distance(Base):
                 series = data
             else:
                 series = data[column]
-                
+
         if self.input == 'degrees':
             null = series.isnull()
             series = radians(series.fillna(0))
@@ -377,5 +382,5 @@ class Distance(Base):
             return series
         elif self.input == 'radians':
             return series
-        
+
         raise NameError('Unknown Distance input [degrees, radians]: %s' % self.input)

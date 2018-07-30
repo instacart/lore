@@ -3,9 +3,13 @@ import inspect
 import logging
 import warnings
 
-from sklearn.base import BaseEstimator
-
+import lore
+from lore.env import require
 from lore.util import timed
+
+require(lore.dependencies.SKLEARN)
+
+from sklearn.base import BaseEstimator
 
 
 class Base(BaseEstimator):

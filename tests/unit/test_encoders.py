@@ -267,6 +267,33 @@ class TestUnique(unittest.TestCase):
         self.assertEqual(encoder.cardinality(), 4)
 
 
+class TestOneHot(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.encoder = lore.encoders.OneHot('test')
+        cls.input_df = pandas.DataFrame({'test': [i for s in [[j]*j for j in range(1, 4)] for i in s]})
+        cls.test_df = pandas.DataFrame({'test': [i for s in [[j]*j for j in range(1, 5)] for i in s]})
+        cls.encoder.fit(cls.input_df)
+
+    def test_onehot(self):
+        output_df = self.encoder.transform(self.test_df)
+        result_matrix = numpy.zeros((10, 3))
+        for j in range(result_matrix.shape[1]):
+            for i in range(int(j*(j + 1)/2), int(j*(j+1)/2) + j + 1):
+                result_matrix[i, j] = 1
+        self.assertEqual((output_df.values == result_matrix).all(), True)
+
+    def test_compessed_one_hot(self):
+        self.encoder = lore.encoders.OneHot('test', compressed=True, minimum_occurrences=2)
+        self.encoder.fit(self.input_df)
+        output_df = self.encoder.transform(self.test_df)
+        result_matrix = numpy.zeros((10, 2))
+        for j in range(result_matrix.shape[1]):
+            for i in range(int((j + 1)*(j + 2)/2), int((j + 1)*(j+2)/2) + j + 2):
+                result_matrix[i, j] = 1
+        self.assertEqual((output_df.values == result_matrix).all(), True)
+
+
 class TestToken(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -390,4 +417,3 @@ class TestNestedNorm(unittest.TestCase):
                           [2.0, 2.0, 2.0],
                           [2.0, 2.0, 2.0],
                           ], b)
-

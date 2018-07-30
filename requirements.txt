@@ -1,2 +1,1 @@
-tox
--e git+https://github.com/instacart/lore.git@61899bade60f9ea877d8e85ddaab462ee4cfbac1#egg=lore[devel]
+-e .

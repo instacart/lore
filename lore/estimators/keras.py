@@ -3,7 +3,20 @@ import atexit
 import inspect
 import logging
 import warnings
-import base64
+
+import lore.io
+from lore.callbacks import ReloadBest
+from lore.encoders import Continuous, Pass
+from lore.pipelines import Observations
+from lore.util import timed, before_after_callbacks
+from lore.env import require
+
+require(
+    lore.dependencies.KERAS +
+    lore.dependencies.NUMPY +
+    lore.dependencies.PANDAS +
+    lore.dependencies.SKLEARN
+)
 
 import keras
 import keras.backend
@@ -15,14 +28,9 @@ import pandas
 from sklearn.base import BaseEstimator
 import tensorflow
 from tensorflow.python.client.timeline import Timeline
-
-import lore.io
-from lore.callbacks import ReloadBest
-from lore.encoders import Continuous, Pass
-from lore.pipelines import Observations
-from lore.util import timed, before_after_callbacks
-
 from tensorflow.python.client import device_lib
+
+
 available_gpus = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
 
 if available_gpus:
@@ -66,7 +74,7 @@ class Base(BaseEstimator):
         super(Base, self).__init__()
         if output_activation == 'sigmoid' and loss in ['mse', 'mae', 'mean_squared_error', 'mean_absolute_error']:
             logger.warning("Passing output_activation='sigmoid' restricts predictions between 0 and 1. If you have a binary classification problem, you should consider passing loss='binary_crossentropy'. Otherwise you should consider setting output_activation='linear'")
-            
+
         self.towers = towers
         self.embed_size = embed_size
         self.hidden_width = hidden_width
@@ -94,7 +102,7 @@ class Base(BaseEstimator):
         self.multi_gpu_model = multi_gpu_model
         self.short_names = short_names
         self.batch_norm = batch_norm
-    
+
     def __getstate__(self):
         state = super(Base, self).__getstate__()
         # bloat can be restored via self.__init__() + self.build()
@@ -140,7 +148,7 @@ class Base(BaseEstimator):
             ),
             '==================================================================='
         ])
-    
+
     def callbacks(self):
         return []
 
@@ -169,7 +177,7 @@ class Base(BaseEstimator):
                     embedding_layer = self.build_embedding_layer(inputs, i)
                     hidden_layers = self.build_hidden_layers(embedding_layer, i)
                     outputs.append(self.build_output_layer(hidden_layers, i))
-        
+
             self.keras = keras.models.Model(inputs=list(inputs.values()), outputs=outputs)
             if self.multi_gpu_model and available_gpus > 0:
                 self.keras = keras.utils.multi_gpu_model(self.keras, gpus=available_gpus)
@@ -238,7 +246,7 @@ class Base(BaseEstimator):
         return Concatenate(name=concatenate_name)(list(embeddings.values()))
 
     def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer=None, reshape=None):
-        sequence_embed_size = self.embed_size
+        sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
         sequence = []
         for i in range(encoder.sequence_length):
             if reshape:
@@ -258,7 +266,6 @@ class Base(BaseEstimator):
         if self.sequence_embedding == 'flatten' and not layer:
             layer = Flatten
         elif self.sequence_embedding in ['lstm', 'gru', 'simple_rnn'] and not layer:
-            sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
             if self.sequence_embedding == 'lstm':
                 layer = LSTM
                 if self.cudnn:
@@ -322,11 +329,11 @@ class Base(BaseEstimator):
                 hidden_width *= self.layer_shrink
             else:
                 hidden_width -= self.layer_shrink
-            
+
             hidden_width = max(1, hidden_width)
-            
+
         return hidden_layers
-    
+
     @timed(logging.INFO)
     def build_output_layer(self, hidden_layers, tower):
         if self.short_names:
@@ -335,20 +342,20 @@ class Base(BaseEstimator):
             name = '%i_output' % tower
 
         return Dense(1, activation=self.output_activation, name=name)(hidden_layers)
-    
+
     @before_after_callbacks
     @timed(logging.INFO)
     def fit(self, x, y, validation_x=None, validation_y=None, epochs=100, patience=0, verbose=None, min_delta=0, tensorboard=False, timeline=False, **keras_kwargs):
 
         if isinstance(x, pandas.DataFrame):
             x = x.to_dict(orient='series')
-        
+
         if isinstance(validation_x, pandas.DataFrame):
             validation_x = validation_x.to_dict(orient='series')
-            
+
         if not self.keras or not self.optimizer:
             self.build()
-            
+
         with self.session.as_default():
             if timeline:
                 run_metadata = tensorflow.RunMetadata()
@@ -363,8 +370,8 @@ class Base(BaseEstimator):
                 run_metadata=run_metadata
             )
         if verbose is None:
-            verbose = 1 if lore.env.name == lore.env.DEVELOPMENT else 0
-        
+            verbose = 1 if lore.env.NAME == lore.env.DEVELOPMENT else 0
+
         logger.info(
             '\n'.join([
                 '\n\n\n  Fitting',
@@ -380,13 +387,13 @@ class Base(BaseEstimator):
                 '==============================\n\n'
             ])
         )
-        
+
         reload_best = ReloadBest(
             filepath=self.model.checkpoint_path(),
             monitor=self.monitor,
             mode='auto',
         )
-        
+
         callbacks = self.callbacks()
         callbacks += [
             reload_best,
@@ -453,23 +460,23 @@ class Base(BaseEstimator):
             result = numpy.mean(result, axis=0).squeeze()
 
         return result
-    
+
     @before_after_callbacks
     @timed(logging.INFO)
     def evaluate(self, x, y):
         if isinstance(x, pandas.DataFrame):
             x = x.to_dict(orient='series')
-        
+
         if self.towers > 1:
             y = [y] * self.towers
 
         result = self.keras_evaluate(x, y)
-        
+
         if self.towers > 1:
             result = numpy.mean(result, axis=0) / self.towers
-    
+
         return result.squeeze()
-    
+
     def keras_evaluate(self, x, y):
         with self.session.as_default():
             return self.keras.evaluate(x, y, batch_size=self.batch_size, verbose=0)
@@ -477,59 +484,6 @@ class Base(BaseEstimator):
     @before_after_callbacks
     def score(self, x, y):
         return 1 / self.evaluate(x, y)
-
-
-class Keras(Base):
-
-    def __init__(
-        self,
-        model=None,
-        embed_size=10,
-        sequence_embedding='flatten',
-        sequence_embed_size=10,
-        hidden_width=1024,
-        hidden_layers=4,
-        layer_shrink=0.5,
-        dropout=0,
-        batch_size=32,
-        learning_rate=0.001,
-        decay=0.,
-        optimizer=None,
-        hidden_activation='relu',
-        hidden_activity_regularizer=None,
-        hidden_bias_regularizer=None,
-        hidden_kernel_regularizer=None,
-        output_activation='sigmoid',
-        monitor='val_loss',
-        loss='categorical_crossentropy',
-        towers=1,
-        cudnn=True,
-        multi_gpu_model=True,
-    ):
-        kwargs = locals()
-        kwargs.pop('self')
-        kwargs.pop('__class__')
-
-        super(Keras, self).__init__(**kwargs)
-
-        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
-        warnings.showwarning('lore.estimators.keras.Keras is deprecated. Please use "from lore.estimators.keras import Base"',
-                             DeprecationWarning,
-                             filename, line_number)
-
-    @timed(logging.DEBUG)
-    def predict(self, dataframe):
-        if isinstance(dataframe, pandas.DataFrame):
-            dataframe = dataframe.to_dict(orient='series')
-        with self.session.as_default():
-            return self.keras.predict(dataframe, batch_size=self.batch_size)
-
-    @timed(logging.INFO)
-    def score(self, x, y):
-        if isinstance(x, pandas.DataFrame):
-            x = x.to_dict(orient='series')
-        with self.session.as_default():
-            return 1 / self.keras.evaluate(x, y, batch_size=self.batch_size)
 
 
 class Regression(Base):

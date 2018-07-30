@@ -11,11 +11,15 @@ import sqlite3
 import types
 import threading
 
-import pandas
 
 import lore
+from lore.env import require
 from lore.util import timer, timed
 from lore.pipelines import Observations
+
+require(lore.dependencies.PANDAS)
+import pandas
+
 
 
 logger = logging.getLogger(__name__)
@@ -38,64 +42,64 @@ class Base(lore.pipelines.holdout.Base):
         self._datetime_columns = None
         self._connection = None
         self._connected_on_thread = None
-    
+
     @property
     def connection(self):
         current_thread = threading.current_thread().ident
         if self._connected_on_thread and self._connected_on_thread != current_thread:
             logger.warning('Pipeline accessed via thread, reconnecting to sqlite (generators can not be shared)')
             self._connection = None
-        
+
         if not self._connection:
-            self._connection = sqlite3.connect(os.path.join(lore.env.data_dir, 'low_memory.sqlite'),
+            self._connection = sqlite3.connect(os.path.join(lore.env.DATA_DIR, 'low_memory.sqlite'),
                                                isolation_level=None)
             self._connection.execute('PRAGMA synchronous = OFF')
             self._connection.execute('PRAGMA journal_mode = MEMORY')
             self._connected_on_thread = current_thread
-        
+
         return self._connection
-    
+
     @property
     def table(self):
         if self._table is None:
             self._table = 'pipeline_' + self.__class__.__name__.lower() + '_' + hashlib.sha1(
                 str(self.__dict__).encode('utf-8')).hexdigest()
-        
+
         return self._table
-    
+
     @property
     def table_training(self):
         return self.table + '_training'
-    
+
     @property
     def table_validation(self):
         return self.table + '_validation'
-    
+
     @property
     def table_test(self):
         return self.table + '_test'
-    
+
     @property
     def training_data(self):
         return self.generator(self.table_training)
-    
+
     @property
     def validation_data(self):
         return self.generator(self.table_validation)
-    
+
     @property
     def test_data(self):
         return self.generator(self.table_test)
-    
+
     @property
     def datetime_columns(self):
         if not self.loaded:
             self._split_data()
-        
+
         if self._datetime_columns is None:
             with open(self.metadata_path, 'rb') as f:
                 self._datetime_columns = pickle.load(f)
-        
+
         return self._datetime_columns
 
     @property
@@ -105,7 +109,7 @@ class Base(lore.pipelines.holdout.Base):
                 self._encoders = self.get_encoders()
                 for encoder in self._encoders:
                     encoder.fit(self.read_column(self.table_training, encoder.source_column))
-    
+
         return self._encoders
 
     @property
@@ -114,25 +118,25 @@ class Base(lore.pipelines.holdout.Base):
             with timer('fit output encoder'):
                 self._output_encoder = self.get_output_encoder()
                 self._output_encoder.fit(self.read_column(self.table_training, self._output_encoder.source_column))
-    
+
         return self._output_encoder
 
     @property
     def encoded_training_data(self):
         return self.generator(self.table_training, encoded=True)
-    
+
     @property
     def encoded_validation_data(self):
         return self.generator(self.table_validation, encoded=True)
-    
+
     @property
     def encoded_test_data(self):
         return self.generator(self.table_test, encoded=True)
-    
+
     def generator(self, table, orient='row', encoded=False, stratify=False, chunksize=None):
         if not self.loaded:
             self._split_data()
-        
+
         if orient == 'column':
             if encoded:
                 for encoder in self.encoders:
@@ -153,7 +157,7 @@ class Base(lore.pipelines.holdout.Base):
             if stratify:
                 if not self.stratify:
                     raise ValueError("Can't stratify a generator for a pipeline with no stratify")
-                
+
                 if chunksize is None:
                     chunksize = 1
                 min, max = self.connection.execute(
@@ -186,7 +190,7 @@ class Base(lore.pipelines.holdout.Base):
                     if encoded:
                         dataframe = Observations(x=self.encode_x(dataframe), y=self.encode_y(dataframe))
                     yield dataframe
-                    
+
                     min, max = self.connection.execute(
                         """
                             SELECT min({stratify}), max({stratify})
@@ -203,7 +207,7 @@ class Base(lore.pipelines.holdout.Base):
                         ),
                         {'max': max, 'chunksize': chunksize}
                     ).fetchone()
-            
+
             else:
                 if chunksize is None:
                     chunksize = self.chunksize
@@ -218,12 +222,12 @@ class Base(lore.pipelines.holdout.Base):
                     yield dataframe
         else:
             raise ValueError('orient "%s" not in "[row, column]"' % orient)
-    
+
     @timed(logging.INFO)
     def read_column(self, table, column):
         if isinstance(table, pandas.DataFrame):
             return super(Base, self).read_column(table, column)
-        
+
         return pandas.read_sql(
             'SELECT {column} FROM {table}'.format(
                 column=self.quote(column),
@@ -232,18 +236,18 @@ class Base(lore.pipelines.holdout.Base):
             self.connection,
             parse_dates=set(self.datetime_columns).intersection([column])
         )
-    
+
     @timed(logging.INFO)
     def decode(self, predictions):
         return {encoder.name: encoder.reverse_transform(predictions) for encoder in self.encoder}
-    
+
     @property
     def metadata_path(self):
-        return os.path.join(lore.env.data_dir, self.table + '.pickle')
-    
+        return os.path.join(lore.env.DATA_DIR, self.table + '.pickle')
+
     def _split_data(self):
         self.loaded = True
-        
+
         if self.connection.execute(
                 """
                     SELECT name
@@ -255,15 +259,15 @@ class Base(lore.pipelines.holdout.Base):
                 )
         ).fetchone():
             return
-        
+
         self._data = self.get_data()
-        
+
         if not isinstance(self._data, types.GeneratorType):
             raise TypeError(
                 'Iterative pipelines must be passed a generator rather than a dataframe. Did you forget to pass a `chunksize` to lore.io.Connection.dataframe()?')
-        
+
         self.length = 0
-        
+
         # This loop is unfortunately CPU limited rather than IO bound, based on dataframe creation
         # TODO parrallelize with multiple processes?
         for i, dataframe in enumerate(self._data):
@@ -274,15 +278,15 @@ class Base(lore.pipelines.holdout.Base):
                 dataframe.info(buf=buffer, memory_usage='deep')
                 logger.info(buffer.getvalue())
                 logger.info(dataframe.head())
-                
+
                 self._datetime_columns = [col for col, type in dataframe.dtypes.iteritems() if type == 'datetime64[ns]']
                 with open(self.metadata_path, 'wb') as f:
                     pickle.dump(self.datetime_columns, f, pickle.HIGHEST_PROTOCOL)
-            
+
             logger.info('appending %i rows to sqlite' % len(dataframe))
             self.length += len(dataframe)
             dataframe.to_sql(self.table, self.connection, index=False, if_exists="append")
-        
+
         if self.subsample:
             with timer('subsample'):
                 self.connection.executescript(
@@ -306,23 +310,23 @@ class Base(lore.pipelines.holdout.Base):
                     )
                 )
             self.length = self.subsample
-        
+
         self._random_split(self.table_training, 0, 0.8, stratify=self.stratify)
         self._random_split(self.table_validation, 0.8, 0.9, stratify=self.stratify)
         self._random_split(self.table_test, 0.9, 1, stratify=self.stratify)
-        
+
         logger.debug('data: %i | training: %i | validation: %i | test: %i' % (
             self.length,
             self.table_length(self.table_training),
             self.table_length(self.table_validation),
             self.table_length(self.table_test),
         ))
-    
+
     def __len__(self):
         if self._length is None:
             self._length = self.table_length(self.table)
         return self._length
-    
+
     @timed(logging.INFO)
     def table_length(self, name):
         return self.connection.execute(
@@ -330,25 +334,25 @@ class Base(lore.pipelines.holdout.Base):
                 table=self.quote(name)
             )
         ).fetchone()[0]
-    
+
     @property
     def columns(self):
         if not self.loaded:
             self._split_data()
-        
+
         if self._columns is None:
             self._columns = [
                 row[1] for row in self.connection.execute(
                     'PRAGMA table_info({table});'.format(table=self.quote(self.table))
                 ).fetchall()
             ]
-        
+
         return self._columns
-    
+
     @timed(logging.INFO)
     def _random_split(self, name, start, stop, stratify=None):
         random = self.quote(name + '_random')
-        
+
         if stratify is not None:
             self.connection.execute("""
                 CREATE TABLE IF NOT EXISTS {random} AS
@@ -361,7 +365,7 @@ class Base(lore.pipelines.holdout.Base):
                 stratify=self.quote(stratify)
             ))
             random_column = self.quote(stratify)
-        
+
         else:
             self.connection.execute("""
                 CREATE TABLE IF NOT EXISTS {random} AS
@@ -374,7 +378,7 @@ class Base(lore.pipelines.holdout.Base):
             ))
             stratify = '_rowid_'
             random_column = 'other_rowid'
-        
+
         self.connection.execute("""
             CREATE TABLE IF NOT EXISTS {split} AS
             SELECT {source}.*
@@ -393,7 +397,7 @@ class Base(lore.pipelines.holdout.Base):
             'start': start,
             'stop': stop
         })
-        
+
         if self.stratify:
             self.connection.execute("""
                 CREATE INDEX IF NOT EXISTS {name} ON {table} ({column})
@@ -402,7 +406,7 @@ class Base(lore.pipelines.holdout.Base):
                 table=self.quote(name),
                 column=self.quote(self.stratify),
             ))
-    
+
     def quote(self, identifier, errors="strict"):
         """
         https://stackoverflow.com/questions/6514274/how-do-you-escape-strings-for-sqlite-table-column-names-in-python
@@ -413,11 +417,11 @@ class Base(lore.pipelines.holdout.Base):
         """
         if identifier is None:
             return None
-        
+
         encodable = identifier.encode("utf-8", errors).decode("utf-8")
-        
+
         nul_index = encodable.find("\x00")
-        
+
         if nul_index >= 0:
             error = UnicodeEncodeError(
                 "NUL-terminated utf-8",
@@ -429,5 +433,5 @@ class Base(lore.pipelines.holdout.Base):
             error_handler = codecs.lookup_error(errors)
             replacement, _ = error_handler(error)
             encodable = encodable.replace("\x00", replacement)
-        
+
         return "\"" + encodable.replace("\"", "\"\"") + "\""
