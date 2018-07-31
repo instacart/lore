@@ -36,12 +36,7 @@ class KerasSingle(lore.models.keras.Base):
     ):
         super(KerasSingle, self).__init__(
             tests.mocks.pipelines.XorSingle(type=type),
-            lore.estimators.keras.Base(
-                batch_size=1024,
-                embed_size=10,
-                hidden_layers=1,
-                hidden_width=100
-            )
+            lore.estimators.keras.Base()
         )
 
 
