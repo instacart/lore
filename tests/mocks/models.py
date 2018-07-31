@@ -36,7 +36,7 @@ class KerasSingle(lore.models.keras.Base):
     ):
         super(KerasSingle, self).__init__(
             tests.mocks.pipelines.XorSingle(type=type),
-            lore.estimators.keras.Base()
+            lore.estimators.keras.Base(loss='binary_crossentropy')
         )
 
 
