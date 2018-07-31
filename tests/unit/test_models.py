@@ -65,6 +65,20 @@ class TestKeras(unittest.TestCase):
         assert True
 
 
+class TestKerasSingle(unittest.TestCase):
+    def test_single_encoder_a(self):
+        model = tests.mocks.models.KerasSingle_a()
+        model.estimator.build()
+
+    def test_single_encoder_b(self):
+        model = tests.mocks.models.KerasSingle_b()
+        model.estimator.build()
+
+    def test_single_encoder_c(self):
+        model = tests.mocks.models.KerasSingle_c()
+        model.estimator.build()
+
+
 class TestXGBoostRegression(unittest.TestCase):
     def test_lifecycle(self):
         model = tests.mocks.models.XGBoostRegression()

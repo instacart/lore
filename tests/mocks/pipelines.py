@@ -31,6 +31,25 @@ class Xor(lore.pipelines.holdout.Base):
         return Pass('xor')
 
 
+class XorSingle_a(Xor):
+    def get_encoders(self):
+        return (
+            Unique('a'),
+        )
+
+
+class XorSingle_b(Xor):
+    def get_encoders(self):
+        return (
+            Unique('a')
+        )
+
+
+class XorSingle_c(Xor):
+    def get_encoders(self):
+        return Unique('a')
+
+
 class MockData(lore.pipelines.time_series.Base):
     def get_data(self):
         return pandas.DataFrame({

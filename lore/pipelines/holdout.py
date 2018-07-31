@@ -90,6 +90,12 @@ class Base(object):
         if self._encoders is None:
             with timer('fit encoders'):
                 self._encoders = self.get_encoders()
+
+                # Ensure we have an iterable for all single encoder cases
+                if self._encoders.__class__ is not tuple:
+                    if len((self._encoders, )) == 1:
+                        self._encoders = (self._encoders, )
+
                 if self.multiprocessing:
                     pool = multiprocessing.Pool(self.workers)
                     results = []
