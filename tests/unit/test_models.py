@@ -67,15 +67,15 @@ class TestKeras(unittest.TestCase):
 
 class TestKerasSingle(unittest.TestCase):
     def test_single_encoder_a(self):
-        model = tests.mocks.models.KerasSingle_a()
+        model = tests.mocks.models.KerasSingle(type='tuple')
         model.estimator.build()
 
     def test_single_encoder_b(self):
-        model = tests.mocks.models.KerasSingle_b()
+        model = tests.mocks.models.KerasSingle(type='len1')
         model.estimator.build()
 
     def test_single_encoder_c(self):
-        model = tests.mocks.models.KerasSingle_c()
+        model = tests.mocks.models.KerasSingle(type='single')
         model.estimator.build()
 
 

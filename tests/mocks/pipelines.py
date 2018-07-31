@@ -31,23 +31,26 @@ class Xor(lore.pipelines.holdout.Base):
         return Pass('xor')
 
 
-class XorSingle_a(Xor):
+class XorSingle(Xor):
+    def __init__(
+        self,
+        type
+    ):
+        super(XorSingle, self).__init__()
+        self.type = type
+
     def get_encoders(self):
-        return (
-            Unique('a'),
-        )
-
-
-class XorSingle_b(Xor):
-    def get_encoders(self):
-        return (
-            Unique('a')
-        )
-
-
-class XorSingle_c(Xor):
-    def get_encoders(self):
-        return Unique('a')
+        # Turn this into a switch or case statement?
+        if self.type == 'tuple':
+            return (
+                Unique('a'),
+            )
+        if self.type == 'len1':
+            return (
+                Unique('a')
+            )
+        if self.type == 'single':
+            return Unique('a')
 
 
 class MockData(lore.pipelines.time_series.Base):

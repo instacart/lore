@@ -29,48 +29,16 @@ class Keras(lore.models.keras.Base):
         )
 
 
-class KerasSingle_a(lore.models.keras.Base):
+class KerasSingle(lore.models.keras.Base):
     def __init__(
         self,
-        embed_size=10
+        type
     ):
-        super(KerasSingle_a, self).__init__(
-            tests.mocks.pipelines.XorSingle_a(),
+        super(KerasSingle, self).__init__(
+            tests.mocks.pipelines.XorSingle(type=type),
             lore.estimators.keras.Base(
                 batch_size=1024,
-                embed_size=embed_size,
-                hidden_layers=1,
-                hidden_width=100
-            )
-        )
-
-
-class KerasSingle_b(lore.models.keras.Base):
-    def __init__(
-        self,
-        embed_size=10
-    ):
-        super(KerasSingle_b, self).__init__(
-            tests.mocks.pipelines.XorSingle_b(),
-            lore.estimators.keras.Base(
-                batch_size=1024,
-                embed_size=embed_size,
-                hidden_layers=1,
-                hidden_width=100
-            )
-        )
-
-
-class KerasSingle_c(lore.models.keras.Base):
-    def __init__(
-        self,
-        embed_size=10
-    ):
-        super(KerasSingle_c, self).__init__(
-            tests.mocks.pipelines.XorSingle_c(),
-            lore.estimators.keras.Base(
-                batch_size=1024,
-                embed_size=embed_size,
+                embed_size=10,
                 hidden_layers=1,
                 hidden_width=100
             )
