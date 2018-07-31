@@ -40,16 +40,15 @@ class XorSingle(Xor):
         self.type = type
 
     def get_encoders(self):
-        # Turn this into a switch or case statement?
         if self.type == 'tuple':
             return (
                 Unique('a'),
             )
-        if self.type == 'len1':
+        elif self.type == 'len1':
             return (
                 Unique('a')
             )
-        if self.type == 'single':
+        elif self.type == 'single':
             return Unique('a')
 
 
