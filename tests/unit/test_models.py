@@ -65,7 +65,6 @@ class TestKeras(unittest.TestCase):
         assert True
 
 
-
 class TestNestedKeras(unittest.TestCase):
     def test_lifecycle(self):
         model = tests.mocks.models.NestedKeras()
