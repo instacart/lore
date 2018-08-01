@@ -174,8 +174,8 @@ class MockNestedData(lore.pipelines.time_series.Base):
             'a': [['a', 'b'], ['a', 'b', 'c'], ['c', 'd'], ['a', 'e'], None],
             'b': [[0, 1, 2], None, [2, 3, 4, 5], [1], [-1, 10]],
             'target': [1, 0, 1, 0, 1]
+            })
 
-          
     def get_encoders(self):
         return (
             NestedUnique('a'),
