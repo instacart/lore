@@ -1,8 +1,6 @@
 from __future__ import absolute_import
 import atexit
-import inspect
 import logging
-import warnings
 
 import lore.io
 from lore.callbacks import ReloadBest
@@ -90,7 +88,7 @@ class Base(BaseEstimator):
         self.hidden_activity_regularizer = hidden_activity_regularizer
         self.hidden_bias_regularizer = hidden_bias_regularizer
         self.hidden_kernel_regularizer = hidden_kernel_regularizer
-        self.kernel_initializer = kernel_initializer,
+        self.kernel_initializer = kernel_initializer
         self.output_activation = output_activation
         self.monitor = monitor
         self.loss = loss
@@ -126,6 +124,7 @@ class Base(BaseEstimator):
             'output_activation': 'sigmoid',
             'short_names': False,
             'batch_norm': False,
+            'kernel_initializer': 'glorot_uniform'
         }
         for key, default in backward_compatible_defaults.items():
             if key not in self.__dict__.keys():
