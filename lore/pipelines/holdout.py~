@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from abc import ABCMeta, abstractmethod
-from collections import OrderedDict, Iterable
+from collections import OrderedDict
 import gc
 import logging
 import multiprocessing
@@ -92,7 +92,7 @@ class Base(object):
                 self._encoders = self.get_encoders()
 
                 # Ensure we have an iterable for all single encoder cases
-                if not isinstance(self._encoders, Iterable):
+                if self._encoders.__class__ is not tuple:
                     if len((self._encoders, )) == 1:
                         self._encoders = (self._encoders, )
 
