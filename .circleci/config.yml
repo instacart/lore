@@ -1,4 +1,17 @@
 version: 2
+
+notify:
+  webhooks:
+    - url: https://www.instacart.com/circleci/notify
+  branches:
+    only:
+      - /.*/
+
+general:
+  branches:
+    ignore:
+      - /.*\/ci_skip.*/ # end your branch name in /ci_skip and it won't be built by CircleCI
+
 jobs:
   build:
     working_directory: ~/instacart/lore
@@ -44,6 +57,7 @@ jobs:
         key: pyenv-v1-{{ .Branch }}-{{ .Revision }}
         paths:
         - /opt/circleci/.pyenv
+        - /opt/circleci/python
 
     - run: LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.__init__
     - run: git checkout -- requirements.txt
@@ -53,6 +67,7 @@ jobs:
         key: pyenv-v1-{{ .Branch }}-{{ .Revision }}
         paths:
         - /opt/circleci/.pyenv
+        - /opt/circleci/python
 
     - run: createdb lore_test
     - run: LORE_PYTHON_VERSION=2.7.15 lore test
