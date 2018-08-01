@@ -203,6 +203,7 @@ class Base(BaseEstimator):
     @timed(logging.INFO)
     def build_embedding_layer(self, inputs, tower):
         embeddings = {}
+
         for i, encoder in enumerate(self.model.pipeline.encoders):
             if self.short_names:
                 number = i * self.towers + tower
@@ -230,7 +231,11 @@ class Base(BaseEstimator):
                     embedding = Embedding(encoder.cardinality(), embed_size, name=embed_name)
 
                 if hasattr(encoder, 'sequence_length'):
-                    embeddings[embed_name], layer = self.build_sequence_embedding(encoder, embedding, inputs, embed_name)
+                    if isinstance(encoder, Continuous):
+                        reshape = Reshape(target_shape=(1, embed_size), name=reshape_name)
+                        embeddings[embed_name], layer = self.build_sequence_embedding(encoder, embedding, inputs, embed_name, reshape=reshape)
+                    else:
+                        embeddings[embed_name], layer = self.build_sequence_embedding(encoder, embedding, inputs, embed_name)
                     if encoder.twin:
                         embeddings[embed_name_twin], _ = self.build_sequence_embedding(encoder, embedding, inputs, embed_name, suffix=suffix, layer=layer)
                 else:
@@ -245,11 +250,14 @@ class Base(BaseEstimator):
 
         return final
 
-    def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer=None):
+    def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer=None, reshape=None):
         sequence_embed_size = encoder.embed_scale * self.sequence_embed_size
         sequence = []
         for i in range(encoder.sequence_length):
-            sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
+            if reshape:
+                sequence.append(reshape(embedding(inputs[encoder.sequence_name(i, suffix)])))
+            else:
+                sequence.append(embedding(inputs[encoder.sequence_name(i, suffix)]))
 
         if self.short_names:
             embed_sequence_name = embed_name + 's' + suffix

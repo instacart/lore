@@ -3,7 +3,7 @@ import datetime
 import pandas
 import sqlalchemy
 
-from lore.encoders import Unique, Pass, Token, Boolean, Enum, Continuous, OneHot
+from lore.encoders import Unique, Pass, Token, Boolean, Enum, Continuous, OneHot, NestedUnique, NestedNorm
 from lore.transformers import DateTime
 import lore.io
 import lore.pipelines.holdout
@@ -168,6 +168,24 @@ class Users(lore.pipelines.iterative.Base):
         return Pass('subscriber')
 
 
+class MockNestedData(lore.pipelines.time_series.Base):
+    def get_data(self):
+        return pandas.DataFrame({
+            'a': [['a', 'b'], ['a', 'b', 'c'], ['c', 'd'], ['a', 'e'], None],
+            'b': [[0, 1, 2], None, [2, 3, 4, 5], [1], [-1, 10]],
+            'target': [1, 0, 1, 0, 1]
+
+          
+    def get_encoders(self):
+        return (
+            NestedUnique('a'),
+            NestedNorm('b'),
+        )
+
+    def get_output_encoder(self):
+        return Pass('target')
+
+          
 class OneHotPipeline(lore.pipelines.holdout.Base):
     def get_data(self):
         return pandas.DataFrame({
