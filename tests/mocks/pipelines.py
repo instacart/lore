@@ -52,6 +52,11 @@ class XorSingle(Xor):
             return Unique('a')
 
 
+class XorMulti(Xor):
+    def get_output_encoder(self):
+        return OneHot('xor')
+
+
 class MockData(lore.pipelines.time_series.Base):
     def get_data(self):
         return pandas.DataFrame({
