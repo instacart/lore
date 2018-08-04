@@ -82,7 +82,7 @@ Pipelines are the unsexy, but essential component of most machine learning appli
 
    # my_app/pipelines/subscribers.py
    import lore.io
-   import lore.pipelines
+   import lore.pipelines.holdout
    from lore.encoders import Norm, Discrete, Boolean, Unique
    from lore.transformers import NameAge, NameSex, Log
 
