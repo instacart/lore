@@ -244,7 +244,12 @@ class Base(BaseEstimator):
                     if encoder.twin:
                         embeddings[embed_name_twin] = Reshape(target_shape=(embed_size,), name=reshape_name_twin)(embedding(inputs[encoder.twin_name]))
 
-        return Concatenate(name=concatenate_name)(list(embeddings.values()))
+        if len(embeddings) > 1:
+            final = Concatenate(name=concatenate_name)(list(embeddings.values()))
+        else:
+            final = embeddings[embed_name]
+
+        return final
 
     def build_sequence_embedding(self, encoder, embedding, inputs, embed_name, suffix='', layer=None, reshape=None):
         sequence_embed_size = encoder.embed_scale * self.sequence_embed_size

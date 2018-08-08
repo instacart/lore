@@ -70,6 +70,19 @@ class TestKeras(unittest.TestCase):
         model.estimator.build()
         assert True
 
+class TestKerasSingle(unittest.TestCase):
+    def test_single_encoder_a(self):
+        model = tests.mocks.models.KerasSingle(type='tuple')
+        model.estimator.build()
+
+    def test_single_encoder_b(self):
+        model = tests.mocks.models.KerasSingle(type='len1')
+        model.estimator.build()
+
+    def test_single_encoder_c(self):
+        model = tests.mocks.models.KerasSingle(type='single')
+        model.estimator.build()
+
 
 class TestNestedKeras(unittest.TestCase):
     def test_lifecycle(self):

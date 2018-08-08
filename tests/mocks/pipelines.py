@@ -31,6 +31,27 @@ class Xor(lore.pipelines.holdout.Base):
         return Pass('xor')
 
 
+class XorSingle(Xor):
+    def __init__(
+        self,
+        type
+    ):
+        super(XorSingle, self).__init__()
+        self.type = type
+
+    def get_encoders(self):
+        if self.type == 'tuple':
+            return (
+                Unique('a'),
+            )
+        elif self.type == 'len1':
+            return (
+                Unique('a')
+            )
+        elif self.type == 'single':
+            return Unique('a')
+
+
 class XorMulti(Xor):
     def get_output_encoder(self):
         return OneHot('xor')

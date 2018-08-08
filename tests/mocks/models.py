@@ -29,6 +29,17 @@ class Keras(lore.models.keras.Base):
         )
 
 
+class KerasSingle(lore.models.keras.Base):
+    def __init__(
+        self,
+        type
+    ):
+        super(KerasSingle, self).__init__(
+            tests.mocks.pipelines.XorSingle(type=type),
+            lore.estimators.keras.Base(loss='binary_crossentropy')
+        )
+
+          
 class NestedKeras(lore.models.keras.Base):
     def __init__(
         self,
