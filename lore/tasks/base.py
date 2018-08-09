@@ -1,2 +1,7 @@
+from abc import ABCMeta, abstractmethod
+
+
 class Base(object):
-    pass
+    @abstractmethod
+    def main(self, **kwargs):
+        pass

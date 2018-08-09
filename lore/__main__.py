@@ -343,6 +343,12 @@ def main(args=None):
     )
     test_parser.set_defaults(func=test)
 
+    spark_parser = commands.add_parser(
+        'spark',
+        help='open a pyspark console'
+    )
+    spark_parser.set_defaults(func=spark)
+
     (known, unknown) = parser.parse_known_args(args)
     if '--env-launched' in unknown:
         unknown.remove('--env-launched')
@@ -786,6 +792,13 @@ def lab(parsed, unknown):
     args = [env.BIN_JUPYTER, 'lab'] + unknown
     print(ansi.success('JUPYTER') + ' ' + str(env.BIN_JUPYTER))
     os.execv(env.BIN_JUPYTER, args)
+
+
+def spark(parsed, unknown):
+    args = [env.BIN_SPARK] + unknown
+    print(ansi.success('SPARK') + ' ' + str(env.BIN_SPARK))
+    os.environ['PATH'] = os.path.join(env.PREFIX, 'bin') + ':' + os.environ['PATH']
+    os.execve(env.BIN_SPARK, args, env=os.environ)
 
 
 def install_darwin():

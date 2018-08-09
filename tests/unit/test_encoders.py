@@ -4,11 +4,11 @@ from __future__ import unicode_literals
 import unittest
 from datetime import datetime
 
+import lore
 import lore.encoders
+
 import numpy
 import pandas
-
-import lore
 
 
 class TestEquals(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestEquals(unittest.TestCase):
             'left': [None, 1, 2, 2],
             'right': [None, None, 1, 2]
         })
-        
+
         self.encoder.fit(data)
         encoded = self.encoder.transform(data)
         self.assertEqual(list(encoded), [0., 0., 0., 1.])
@@ -147,15 +147,15 @@ class TestDiscrete(unittest.TestCase):
 class TestBoolean(unittest.TestCase):
     def setUp(self):
         self.encoder = lore.encoders.Boolean('test')
-    
+
     def test_cardinality(self):
         self.assertEqual(self.encoder.cardinality(), 3)
-    
+
     def test_handles_nans(self):
         a = self.encoder.transform(pandas.DataFrame({'test': [
             0, False, 123, True, float('nan'), None, float('inf')
         ]}))
-        
+
         self.assertEqual(a.tolist(), [0, 0, 1, 1, 2, 2, 1])
 
 
@@ -163,10 +163,10 @@ class TestEnum(unittest.TestCase):
     def setUp(self):
         self.encoder = lore.encoders.Enum('test')
         self.encoder.fit(pandas.DataFrame({'test': [0, 1, 4]}))
-        
+
     def test_cardinality(self):
         self.assertEqual(self.encoder.cardinality(), 7)
-        
+
     def test_outliers_are_unfit(self):
         a = self.encoder.transform(pandas.DataFrame({'test': [100, -1]})).tolist()
         self.assertEqual(a, [self.encoder.unfit_value, self.encoder.unfit_value])
@@ -191,10 +191,10 @@ class TestQuantile(unittest.TestCase):
     def setUp(self):
         self.encoder = lore.encoders.Quantile('test', quantiles=5)
         self.encoder.fit(pandas.DataFrame({'test': [1, 2, 3, 4, 5, 6, 10, 20, 30, 40, 50, 100, 1000]}))
-    
+
     def test_cardinality(self):
         self.assertEqual(self.encoder.cardinality(), 8)
-    
+
     def test_unfit_data(self):
         a = self.encoder.transform(pandas.DataFrame({'test': [0, 1, 2, 3, 4, 5, 1110000, float('inf'), None, float('nan')]})).tolist()
         self.assertEqual(a, [5, 0, 0, 0, 1, 1, 6, 6, 7, 7])
@@ -316,7 +316,7 @@ class TestToken(unittest.TestCase):
             self.encoder.transform(pandas.DataFrame({'test': a}))
         ).tolist()
         self.assertEqual(b, ['LONG_TAIL LONG_TAIL MISSING_VALUE'])
-        
+
     def test_handles_missing_labels(self):
         a = ['thisisnotavalidwordintheembeddings', float('nan'), None]
         b = self.encoder.reverse_transform(

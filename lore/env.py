@@ -312,8 +312,8 @@ def extend_path():
     if ROOT not in sys.path:
         sys.path.insert(0, ROOT)
 
-    if LIB not in sys.path:
-        sys.path.insert(0, LIB)
+    if LIB_DIR not in sys.path:
+        sys.path.insert(0, LIB_DIR)
 
 
 def load_env_file():
@@ -369,7 +369,7 @@ def set_installed_packages():
 
 
 def set_python_version(python_version):
-    global PYTHON_VERSION, PYTHON_VERSION_INFO, PREFIX, BIN_PYTHON, BIN_LORE, BIN_JUPYTER, BIN_FLASK, FLASK_APP
+    global PYTHON_VERSION, PYTHON_VERSION_INFO, PREFIX, BIN_PYTHON, BIN_LORE, BIN_JUPYTER, BIN_FLASK, FLASK_APP, BIN_SPARK
 
     PYTHON_VERSION = python_version
 
@@ -382,6 +382,7 @@ def set_python_version(python_version):
             BIN_LORE = os.path.join(bin_venv, 'lore.exe')
             BIN_JUPYTER = os.path.join(bin_venv, 'jupyter.exe')
             BIN_FLASK = os.path.join(bin_venv, 'flask.exe')
+            BIN_SPARK = os.path.join(bin_venv, 'pyspark.exe')
             FLASK_APP = os.path.join(PREFIX, 'lib', 'site-packages', 'lore', 'www', '__init__.py')
         else:
             sys_prefix = os.path.realpath(sys.prefix)
@@ -411,6 +412,7 @@ def set_python_version(python_version):
             BIN_LORE = os.path.join(PREFIX, 'bin', 'lore')
             BIN_JUPYTER = os.path.join(PREFIX, 'bin', 'jupyter')
             BIN_FLASK = os.path.join(PREFIX, 'bin', 'flask')
+            BIN_SPARK = os.path.join(PREFIX, 'bin', 'pyspark')
             FLASK_APP = os.path.join(PREFIX, 'lib', python_minor, 'site-packages', 'lore', 'www', '__init__.py')
 
 
@@ -448,6 +450,7 @@ BIN_LORE = None  #: path to virtualenv lore executable
 BIN_JUPYTER = None  #: path to virtualenv jupyter executable
 BIN_FLASK = None  #: path to virtualenv flask executable
 FLASK_APP = None  #: path to the current lore app's flask app
+BIN_SPARK = None  #: path to virtualenv pyspark executable
 
 VERSION_PATH = 'runtime.txt'  #: Path to the specification of this apps Python version.
 PYTHON_VERSION = os.environ.get('LORE_PYTHON_VERSION', None)  #: Version of python required by this Lore app.
@@ -489,8 +492,8 @@ MODELS_DIR = os.path.join(WORK_DIR, 'models')  #: disk based model store
 DATA_DIR = os.path.join(WORK_DIR, 'data')  #: disk based caching and data dependencies
 LOG_DIR = os.path.join(ROOT if NAME == TEST else WORK_DIR, 'logs')  #: log file storage
 TESTS_DIR = os.path.join(ROOT, 'tests')  #: Lore app test suite
-
-LIB = os.path.join(ROOT, 'lib')  #: packages in :file:`./lib` are also available for import in the Lore app.
+APP_DIR = os.path.join(ROOT, APP)  #: Lore app python module
+LIB_DIR = os.path.join(ROOT, 'lib')  #: packages in :file:`./lib` are also available for import in the Lore app.
 
 extend_path()
 
