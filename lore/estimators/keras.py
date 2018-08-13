@@ -480,9 +480,9 @@ class Base(BaseEstimator):
         result = self.keras_evaluate(x, y)
 
         if self.towers > 1:
-            result = numpy.mean(result, axis=0) / self.towers
+            result = (numpy.mean(result, axis=0) / self.towers).squeeze()
 
-        return result.squeeze()
+        return result
 
     def keras_evaluate(self, x, y):
         with self.session.as_default():
