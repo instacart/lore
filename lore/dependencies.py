@@ -34,6 +34,7 @@ KERAS = [
     'graphviz>=0.8.2, <0.8.99'] + H5PY
 XGBOOST = ['xgboost>=0.72, <0.80']
 SKLEARN = ['scikit-learn>=0.19, <0.19.99']
+PYSPARK = ['pyspark>=2.3.1']
 
 ALL = list(set(
     DATEUTIL +
@@ -57,7 +58,8 @@ ALL = list(set(
     H5PY +
     KERAS +
     XGBOOST +
-    SKLEARN
+    SKLEARN +
+    PYSPARK
 ))
 
 TEST = ALL + [
