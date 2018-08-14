@@ -24,24 +24,22 @@ class Pipelines(object):
             input_name = encoder.column            
             encoded_name = "{}_enc".format(encoder.column)
 
+            # Normalizer, Standard Scaler, MinMaxScaler act on vector and not scalars
+            if isinstance(encoder, (Uniform, Unique)):
+                vectorized = "{}_vectorized".format(input_name)
+                assembler = VectorAssembler(inputCols=[input_name],outputCol=vectorized)
+                indexers.append(assembler)
+
             if isinstance(encoder, Unique):                
                 indexer = StringIndexer(inputCol=input_name, outputCol=encoded_name)
-                indexers.append(indexer)
-            elif isinstance(encoder, Uniform):
-                vectorized = "{}_vectorized".format(input_name)
-                assembler = VectorAssembler(inputCols=[input_name],outputCol=vectorized)
-                indexers.append(assembler)
+            elif isinstance(encoder, Uniform):                                
                 indexer = MinMaxScaler(inputCol=vectorized, outputCol=encoded_name)
-                indexers.append(indexer)
             elif isinstance(encoder, Norm):
-                vectorized = "{}_vectorized".format(input_name)
-                assembler = VectorAssembler(inputCols=[input_name],outputCol=vectorized)
-                indexers.append(assembler)
-                indexer = StandardScaler(withStd=True, withMean=True, inputCol=input_name, outputCol=encoded_name)
-                indexers.append(indexer)
+                indexer = StandardScaler(withStd=True, withMean=True, inputCol=input_name, outputCol=encoded_name)                
             elif isinstance(encoder, Quantile):
-                indexer = QuantileDiscretizer(numBuckets=encoder.quantiles, inputCol=encoder.column, outputCol=encoded_name)
-                indexers.append(indexer)
+                indexer = QuantileDiscretizer(numBuckets=encoder.quantiles, inputCol=encoder.column, outputCol=encoded_name)            
+
+            indexers.append(indexer)
         pipeline = Pipeline(stages=indexers)
         self._pipeline = pipeline.fit(data)
         return self._pipeline
