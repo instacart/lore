@@ -255,7 +255,7 @@ Integrated Libraries
 Use your favorite library in a lore project, just like you'd use them in any other python project. They'll play nicely together.
 
 - `Keras <https://keras.io/>`_ (TensorFlow/Theano/CNTK) + `Tensorboard <https://www.tensorflow.org/programmers_guide/summaries_and_tensorboard>`_
-- `XGBoost <https://https://xgboost.readthedocs.io/>`_
+- `XGBoost <https://xgboost.readthedocs.io/>`_
 - `SciKit-Learn <http://scikit-learn.org/stable/>`_
 - `Jupyter Notebook <http://jupyter.org/>`_
 - `Pandas <https://pandas.pydata.org/>`_
