@@ -515,6 +515,7 @@ STDOUT_EXCEPTIONS = True  #: exceptions are always logged, in addition they can 
 INSTALLED_PACKAGES = None
 REQUIRED_VERSION = None
 
+
 # -- UI ----------------------------------------------------------------------
 COLOR = {
     DEVELOPMENT: ansi.GREEN,
