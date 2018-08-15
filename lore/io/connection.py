@@ -61,6 +61,13 @@ if sqlalchemy:
         global _after_replace_callbacks
         _after_replace_callbacks.append(func)
 
+    sqlalchemy_logger = logging.getLogger('sqlalchemy.engine')
+    log_levels = {
+        lore.env.DEVELOPMENT: logging.INFO,
+        lore.env.TEST: logging.INFO,
+    }
+    sqlalchemy_logger.setLevel(log_levels.get(lore.env.NAME, logging.WARN))
+
 
 class Connection(object):
     UNLOAD_PREFIX = os.path.join(lore.env.NAME, 'unloads')
@@ -87,7 +94,8 @@ class Connection(object):
             kwargs['poolclass'] = getattr(sqlalchemy.pool, kwargs['poolclass'])
         if '__name__' in kwargs:
             del kwargs['__name__']
-
+        if 'echo' not in kwargs:
+            kwargs['echo'] = False
         self._engine = sqlalchemy.create_engine(url, **kwargs).execution_options(autocommit=True)
         self._metadata = None
         self.name = name
