@@ -9,7 +9,7 @@ from pyspark.sql import SparkSession
 
 SPARK_MASTER = os.environ.get('SPARK_MASTER', 'local[4]')
 
-spark_conf = SparkConf().setAppName(lore.env.APP).setMaster(SPARK_MASTER).set('spark.driver.memory', '5G')       
+spark_conf = SparkConf().setAppName(lore.env.APP).setMaster(SPARK_MASTER).set('spark.driver.memory', '5G').set('spark.jars.packages', 'net.snowflake:snowflake-jdbc:3.6.7,net.snowflake:spark-snowflake_2.11:2.4.3')
 
 spark_context = SparkContext(conf=spark_conf)
 spark = SparkSession(spark_context)
