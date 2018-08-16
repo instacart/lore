@@ -352,8 +352,7 @@ class Connection(object):
                 return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
             except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
                 if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
-                    lore.util.report_exception()
-                    logger.info('Reconnect and retry due to invalid connection')
+                    logger.warning('Reconnect and retry due to invalid connection')
                     self.close()
                     return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
                 else:
@@ -397,8 +396,7 @@ class Connection(object):
             return self._connection.execute(sql, bindings)
         except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
             if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
-                lore.util.report_exception()
-                logger.info('Reconnect and retry due to invalid connection')
+                logger.warning('Reconnect and retry due to invalid connection')
                 self.close()
                 return self._connection.execute(sql, bindings)
             else:

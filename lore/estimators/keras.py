@@ -597,6 +597,7 @@ class MultiClassifier(Base):
         kwargs.pop('__class__', None)
         super(MultiClassifier, self).__init__(**kwargs)
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def build_output_layer(self, hidden_layers, tower):
         return Dense(
@@ -606,6 +607,7 @@ class MultiClassifier(Base):
             name='%i_output' % tower
         )(hidden_layers)
 
+    @before_after_callbacks
     @timed(logging.DEBUG)
     def predict(self, dataframe):
         result = super(MultiClassifier, self).predict(dataframe)
