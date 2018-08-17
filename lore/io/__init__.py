@@ -1,4 +1,3 @@
-import configparser
 import logging
 import os
 import pickle
@@ -8,7 +7,7 @@ import tempfile
 
 
 import lore
-from lore.env import require
+from lore.env import require, configparser
 from lore.util import timer
 from lore.io.connection import Connection
 
