@@ -573,13 +573,11 @@ def init(parsed, unknown):
         print(ansi.info() + ' converting existing directory to a Lore App')
     else:
         print(ansi.info() + ' creating new Lore App!')
+        os.makedirs(root)
 
-    if parsed.bare:
-        if not os.path.exists(root):
-            os.makedirs(root)
-    else:
+    if not parsed.bare:
         template = os.path.join(os.path.dirname(__file__), 'template', 'init')
-        if os.path.exists(root):
+        if os.listdir(root):
             sys.exit(
                 ansi.error() + ' "' + parsed.name + '" already exists in this directoy! Add --bare to avoid clobbering existing files.')
         shutil.copytree(template, root, symlinks=False, ignore=None)
