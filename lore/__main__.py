@@ -4,6 +4,7 @@ from __future__ import absolute_import, unicode_literals
 
 import argparse
 import datetime
+import distutils.dir_util as dir_util
 import glob
 from io import open
 import importlib
@@ -573,16 +574,14 @@ def init(parsed, unknown):
         print(ansi.info() + ' converting existing directory to a Lore App')
     else:
         print(ansi.info() + ' creating new Lore App!')
+        os.makedirs(root)
 
-    if parsed.bare:
-        if not os.path.exists(root):
-            os.makedirs(root)
-    else:
+    if not parsed.bare:
         template = os.path.join(os.path.dirname(__file__), 'template', 'init')
-        if os.path.exists(root):
+        if os.listdir(root):
             sys.exit(
-                ansi.error() + ' "' + parsed.name + '" already exists in this directoy! Add --bare to avoid clobbering existing files.')
-        shutil.copytree(template, root, symlinks=False, ignore=None)
+                ansi.error() + ' "' + parsed.name + '" already exists, and is not empty! Add --bare to avoid clobbering existing files.')
+        dir_util.copy_tree(template, root)
         shutil.move(os.path.join(root, 'app'), os.path.join(root, name))
 
     os.chdir(root)
