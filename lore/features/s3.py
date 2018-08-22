@@ -17,14 +17,14 @@ class S3(Base):
     def serialization(self):
         pass
 
-    def publish(self):
+    def publish(self, compression='gzip'):
         temp_file, temp_path = tempfile.mkstemp(dir=lore.env.DATA_DIR)
         data = self.get_data()
 
         if self.serialization() == 'csv':
-            data.to_csv(temp_path, index=False)
+            data.to_csv(temp_path, index=False, compression=compression)
         elif self.serialization() == 'pickle':
-            data.to_pickle(temp_path)
+            data.to_pickle(temp_path, compression=compression)
         else:
             raise "Invalid serialization"
         upload(temp_path, self.data_path())
