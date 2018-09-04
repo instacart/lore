@@ -132,9 +132,9 @@ class Age(Base):
 
             if series.dtype != 'datetime64[ns]':
                 logger.warning('%s is not a datetime. Converting to datetime64[ns]' % self.column)
-                other = pandas.to_datetime(other).astype('datetime64[ns]')
+                series = pandas.to_datetime(series).astype('datetime64[ns]')
 
-            age = (other - self.series(data))
+            age = (other - series)
             if self.unit in ['nanosecond', 'nanoseconds']:
                 return age
 
