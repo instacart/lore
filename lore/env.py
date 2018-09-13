@@ -419,7 +419,8 @@ def set_python_version(python_version):
             BIN_LORE = os.path.join(PREFIX, 'bin', 'lore')
             BIN_JUPYTER = os.path.join(PREFIX, 'bin', 'jupyter')
             BIN_FLASK = os.path.join(PREFIX, 'bin', 'flask')
-            FLASK_APP = os.path.join(PREFIX, 'lib', python_minor, 'site-packages', 'lore', 'www', '__init__.py')
+            FLASK_APP = os.path.join(os.path.dirname(__file__), 'www', '__init__.py')
+            # FLASK_APP = os.path.join(PREFIX, 'lib', python_minor, 'site-packages', 'lore', 'www', '__init__.py')
 
 
 # -- Check Local -------------------------------------------------------------
@@ -432,8 +433,12 @@ if platform.system() != 'Windows':
         if os.environ.get('LANG', None):
             UNICODE_LOCALE = False
         else:
-            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-            UNICODE_UPGRADED = True
+            try:
+                locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+                UNICODE_UPGRADED = True
+            except StandardError:
+                UNICODE_LOCALE = False
+
 
 # -- Load Environment --------------------------------------------------------
 ENV_FILE = os.environ.get('ENV_FILE', '.env')  #: environment variables will be loaded from this file first

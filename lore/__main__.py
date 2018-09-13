@@ -528,6 +528,7 @@ def server(parsed, unknown):
     port = parsed.port or os.environ.get('PORT') or '5000'
     args = [env.BIN_FLASK, 'run', '--port', port, '--host', host] + unknown
     os.environ['FLASK_APP'] = env.FLASK_APP
+    os.environ['FLASK_ENV'] = os.environ.get('FLASK_ENV', env.NAME)
     os.execv(env.BIN_FLASK, args)
 
 
