@@ -5,18 +5,17 @@ import warnings
 
 import lore
 from lore.env import require
-from lore.util import timed
+from lore.util import timed, before_after_callbacks
 
 require(lore.dependencies.SKLEARN)
 
-from sklearn.base import BaseEstimator
 
-
-class Base(BaseEstimator):
+class Base(lore.estimators.Base):
     def __init__(self, estimator):
         super(Base, self).__init__()
         self.sklearn = estimator
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def fit(self, x, y, validation_x=None, validation_y=None, **sklearn_kwargs):
         self.sklearn.fit(x, y=y, **sklearn_kwargs)
@@ -24,15 +23,18 @@ class Base(BaseEstimator):
         # TODO interesting SKLearn fitting stats
         return {}
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def predict(self, dataframe):
         return self.sklearn.predict(dataframe)
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def evaluate(self, x, y):
         # TODO
         return 0
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def score(self, x, y):
         # TODO
