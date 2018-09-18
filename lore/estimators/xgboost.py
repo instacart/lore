@@ -5,6 +5,7 @@ import warnings
 import threading
 
 import lore.env
+import lore.estimators
 from lore.util import timed, before_after_callbacks
 
 lore.env.require(

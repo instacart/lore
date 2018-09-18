@@ -4,6 +4,7 @@ import logging
 import warnings
 
 import lore
+import lore.estimators
 from lore.env import require
 from lore.util import timed, before_after_callbacks
 

@@ -3,6 +3,7 @@ import atexit
 import logging
 
 import lore.io
+import lore.estimators
 from lore.callbacks import ReloadBest
 from lore.encoders import Continuous, Pass
 from lore.pipelines import Observations
