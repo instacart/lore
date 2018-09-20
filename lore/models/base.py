@@ -180,7 +180,7 @@ class Base(object):
         return join(self.fitting_path(), 'model.pickle')
 
     def remote_model_path(self):
-        return join(self.remote_path(), 'model.pickle')
+        return join(self.remote_path(), str(self.fitting), 'model.pickle')
 
     def save(self, stats=None):
         if self.fitting is None:
@@ -229,13 +229,14 @@ class Base(object):
                 return loaded
 
     def upload(self):
-        self.fitting = 0
         self.save()
         lore.io.upload(self.model_path(), self.remote_model_path())
 
     @classmethod
-    def download(cls, fitting=0):
+    def download(cls, fitting=None):
         model = cls(None, None)
+        if not fitting:
+            fitting = model.last_fitting()
         model.fitting = int(fitting)
         lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         return cls.load(fitting)

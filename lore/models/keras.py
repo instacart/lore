@@ -36,7 +36,7 @@ class Base(lore.models.base.Base):
         return join(self.fitting_path(), 'timeline.json')
 
     def remote_weights_path(self):
-        return join(self.remote_path(), 'weights.h5')
+        return join(self.remote_path(), str(self.fitting), 'weights.h5')
 
     @property
     def fitting(self):
