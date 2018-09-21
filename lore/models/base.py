@@ -10,7 +10,7 @@ import re
 import lore.ansi
 import lore.estimators
 from lore.env import require
-from lore.util import timer, timed
+from lore.util import timer, timed, before_after_callbacks
 
 require(
     lore.dependencies.TABULATE +
@@ -66,6 +66,8 @@ class Base(object):
         if hasattr(self._estimator, 'model'):
             self._estimator.model = self
 
+    @before_after_callbacks
+    @timed(logging.INFO)
     def fit(self, test=True, score=True, **estimator_kwargs):
         self.fitting = self.__class__.last_fitting() + 1
 
@@ -87,11 +89,13 @@ class Base(object):
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def predict(self, dataframe):
         predictions = self.estimator.predict(self.pipeline.encode_x(dataframe))
         return self.pipeline.output_encoder.reverse_transform(predictions)
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def evaluate(self, dataframe):
         return self.estimator.evaluate(
@@ -99,6 +103,7 @@ class Base(object):
             self.pipeline.encode_y(dataframe)
         )
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def score(self, dataframe):
         return self.estimator.score(
