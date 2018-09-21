@@ -13,6 +13,19 @@ class TestKeras(unittest.TestCase):
         loaded = tests.mocks.models.Keras.load()
         self.assertEqual(loaded.fitting, model.fitting)
 
+    def test_before_after_hooks(self):
+        model = tests.mocks.models.SaimeseTwinsClassifier()
+        model.fit(epochs=1, test=True, score=True)
+        model.predict(model.pipeline.test_data)
+        self.assertTrue(model.called_before_fit)
+        self.assertTrue(model.called_after_fit)
+        self.assertTrue(model.called_before_predict)
+        self.assertTrue(model.called_after_predict)
+        self.assertTrue(model.called_before_evaluate)
+        self.assertTrue(model.called_after_evaluate)
+        self.assertTrue(model.called_before_score)
+        self.assertTrue(model.called_after_score)
+
     def test_hyper_param_search(self):
         model = tests.mocks.models.Keras()
         result = model.hyper_parameter_search(
@@ -69,6 +82,7 @@ class TestKeras(unittest.TestCase):
         model.estimator.kernel_initializer = 'he_uniform'
         model.estimator.build()
         assert True
+
 
 class TestKerasSingle(unittest.TestCase):
     def test_single_encoder_a(self):
@@ -130,6 +144,19 @@ class TestSKLearn(unittest.TestCase):
         loaded = tests.mocks.models.SVM.load()
         self.assertEqual(loaded.fitting, model.fitting)
 
+    def test_before_after_hooks(self):
+        model = tests.mocks.models.SVM()
+        model.fit(test=True, score=True)
+        model.predict(model.pipeline.test_data)
+        self.assertTrue(model.called_before_fit)
+        self.assertTrue(model.called_after_fit)
+        self.assertTrue(model.called_before_predict)
+        self.assertTrue(model.called_after_predict)
+        self.assertTrue(model.called_before_evaluate)
+        self.assertTrue(model.called_after_evaluate)
+        self.assertTrue(model.called_before_score)
+        self.assertTrue(model.called_after_score)
+
 
 class TestBinaryClassifier(unittest.TestCase):
     def test_lifecycle(self):
@@ -179,3 +206,18 @@ class TestOneHotBinaryClassifier(unittest.TestCase):
 
         loaded = tests.mocks.models.OneHotBinaryClassifier.load()
         self.assertEqual(loaded.fitting, model.fitting)
+
+    def test_before_after_hooks(self):
+        model = tests.mocks.models.OneHotBinaryClassifier()
+        model.fit(test=True, score=True)
+        model.predict(model.pipeline.test_data)
+
+        self.assertTrue(model.called_before_fit)
+        self.assertTrue(model.called_after_fit)
+        self.assertTrue(model.called_before_predict)
+        self.assertTrue(model.called_after_predict)
+        self.assertTrue(model.called_before_evaluate)
+        self.assertTrue(model.called_after_evaluate)
+        self.assertTrue(model.called_before_score)
+        self.assertTrue(model.called_after_score)
+

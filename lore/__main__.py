@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import platform
+import pkgutil
 import re
 import shutil
 import subprocess
@@ -330,7 +331,8 @@ def main(args=None):
     task_parser.add_argument(
         'task',
         metavar='TASK',
-        help='fully qualified task name. e.g. app.tasks.project.Task'
+        help='fully qualified task name. e.g. app.tasks.project.Task',
+        nargs='*'
     )
 
     test_parser = commands.add_parser(
@@ -419,16 +421,42 @@ def _cast_attr(value, default):
     env.require(lore.dependencies.DATEUTIL)
     import dateutil
 
-    if isinstance(default, int):
+    if isinstance(default, bool):
+        print("%s %s" % (default, value))
+        return value.lower() in ['1', 't', 'true']
+    elif isinstance(default, int):
         return int(value)
     elif isinstance(default, float):
         return float(value)
     elif isinstance(default, datetime.date):
-        return dateutil.parse(value).date()
+        return dateutil.parser.parse(value).date()
     elif isinstance(default, datetime.datetime):
-        return dateutil.parse(value)
-    else:
-        return value
+        return dateutil.parser.parse(value)
+    elif isinstance(value, str) and default is None:
+
+        if value.lower() in ['t', 'true']:
+            return True
+        elif value.lower() in ['f', 'false']:
+            return False
+        elif value.lower() in ['none']:
+            return None
+
+        try:
+            f = float(value)
+            i = int(f)
+            if str(i) == value:
+                return i
+            elif str(f) == value:
+                return f
+        except ValueError:
+            pass
+
+        try:
+            return dateutil.parser.parse(value)
+        except ValueError:
+            pass
+
+    return value
 
 
 def _get_fully_qualified_class(name):
@@ -436,7 +464,7 @@ def _get_fully_qualified_class(name):
     try:
         module = importlib.import_module(module)
     except env.ModuleNotFoundError as ex:
-        sys.exit(ansi.error() + ' "%s" does not exist in this directoy! Are you sure you typed the name correctly?' % module)
+        sys.exit(ansi.error() + ' "%s" does not exist in this directory! Are you sure you typed the name correctly?' % module)
 
     try:
         value = getattr(module, klass)
@@ -745,11 +773,39 @@ def python(parsed, unknown):
 
 
 def task(parsed, unknown):
-    Task = _get_fully_qualified_class(parsed.task)
-    grouped, unpaired = _pair_args(unknown)
+    if len(parsed.task) == 0:
+        tasks = []
+        for module_finder, module_name, _ in pkgutil.iter_modules([lore.env.APP + '/' + 'tasks']):
+            module = importlib.import_module(lore.env.APP + '.tasks.' + module_name)
+            for class_name, member in inspect.getmembers(module):
+                if inspect.isclass(member) and issubclass(member, lore.tasks.base.Base) and hasattr(member, 'main'):
+                    tasks.append(member)
+        sys.exit('\n%s Tasks\n%s\n  %s\n' % (lore.env.APP,'-' * (6 + len(lore.env.APP)), '\n  '.join('%s.%s: %s' % (task.__module__, task.__name__, task.main.__doc__) for task in tasks)))
 
-    with timer('execute %s' % parsed.task):
-        Task().main(**dict(grouped))
+    for task in parsed.task:
+        task = _get_fully_qualified_class(task)()
+        grouped, unpaired = _pair_args(unknown)
+        argspec = _get_valid_fit_args(task.main)
+
+        defaults = [None] * (len(argspec.args) - len(argspec.defaults)) + list(argspec.defaults)
+        valid_args = dict(zip(argspec.args, defaults))
+        valid_args.pop('self', None)
+        args = dict(grouped)
+        unknown_args = []
+        cast_args = {}
+        for name, value in args.items():
+            if name in valid_args:
+                cast_args[name] = _cast_attr(value, valid_args[name])
+            else:
+                unknown_args.append(name)
+        unknown_args += unpaired
+
+        if unknown_args:
+            msg = ansi.bold("Valid task arguments") + ": \n%s\n" % "\n".join('  %s=%s' % i for i in valid_args.items())
+            sys.exit(ansi.error() + ' Unknown arguments: %s\n%s\n%s' % (unknown_args, msg, task.main.__doc__))
+
+        with timer('execute %s' % parsed.task):
+            task.main(**cast_args)
 
 
 def test(parsed, unknown):
@@ -1229,6 +1285,7 @@ def pip_install(path, args):
                            'installing failed packages manually, or upgrade failed '
                            'packages with:\n $ lore install --upgrade ' % path
         )
+
 
 if __name__ == '__main__':
     main()

@@ -5,14 +5,14 @@ import warnings
 import threading
 
 import lore.env
-from lore.util import timed
+import lore.estimators
+from lore.util import timed, before_after_callbacks
 
 lore.env.require(
     lore.dependencies.XGBOOST +
     lore.dependencies.SKLEARN
 )
 
-from sklearn.base import BaseEstimator
 import xgboost
 
 
@@ -43,6 +43,7 @@ class Base(object):
             if key not in self.__dict__.keys():
                 self.__dict__[key] = default
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def fit(self, x, y, validation_x=None, validation_y=None, patience=0, verbose=None, **xgboost_kwargs):
         eval_set = [(x, y)]
@@ -73,6 +74,7 @@ class Base(object):
             results['validate'] = evals['validation_1'][self.eval_metric][self.best_iteration]
         return results
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def predict(self, dataframe, ntree_limit=None):
         if ntree_limit is None:
@@ -80,17 +82,19 @@ class Base(object):
         with self.xgboost_lock:
             return super(Base, self).predict(dataframe, ntree_limit=ntree_limit)
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def evaluate(self, x, y):
         with self.xgboost_lock:
             return float(self.get_booster().eval(xgboost.DMatrix(x, label=y)).split(':')[-1])
 
+    @before_after_callbacks
     @timed(logging.INFO)
     def score(self, x, y):
         return 1 / self.evaluate(x, y)
 
 
-class XGBoost(BaseEstimator):
+class XGBoost(lore.estimators.Base):
     def __init__(self, **kwargs):
         frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
         warnings.showwarning('Please import XGBoost with "from lore.estimators.xgboost import Base"',

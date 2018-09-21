@@ -3,6 +3,7 @@ import atexit
 import logging
 
 import lore.io
+import lore.estimators
 from lore.callbacks import ReloadBest
 from lore.encoders import Continuous, Pass
 from lore.pipelines import Observations
@@ -23,7 +24,6 @@ from keras.layers import Input, Embedding, Dense, Reshape, Concatenate, Dropout,
 from keras.optimizers import Adam
 import numpy
 import pandas
-from sklearn.base import BaseEstimator
 import tensorflow
 from tensorflow.python.client.timeline import Timeline
 from tensorflow.python.client import device_lib
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 atexit.register(keras.backend.clear_session)
 
 
-class Base(BaseEstimator):
+class Base(lore.estimators.Base):
     def __init__(
         self,
         model=None,
@@ -489,6 +489,7 @@ class Base(BaseEstimator):
             return self.keras.evaluate(x, y, batch_size=self.batch_size, verbose=0)
 
     @before_after_callbacks
+    @timed(logging.INFO)
     def score(self, x, y):
         return 1 / self.evaluate(x, y)
 
