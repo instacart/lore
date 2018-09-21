@@ -1,6 +1,8 @@
 """
 lore.estimators
 """
+from __future__ import absolute_import
+
 from abc import ABCMeta, abstractmethod
 import logging
 from sklearn.base import BaseEstimator
