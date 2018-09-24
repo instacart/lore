@@ -165,9 +165,10 @@ def upload_object(obj, remote_path=None):
     if remote_path is None:
         raise ValueError("remote_path cannot be None when uploading objects")
     else:
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(delete=False) as f:
             pickle.dump(obj, f)
-            upload(f.name, remote_path)
+        upload_file(f.name, remote_path)
+        os.remove(f.name)
 
 
 def upload_file(local_path, remote_path=None):
