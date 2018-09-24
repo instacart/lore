@@ -6,6 +6,9 @@ import os.path
 from os.path import join
 import pickle
 import re
+import inspect
+import warnings
+import botocore
 
 import lore.ansi
 import lore.estimators
@@ -185,7 +188,10 @@ class Base(object):
         return join(self.fitting_path(), 'model.pickle')
 
     def remote_model_path(self):
-        return join(self.remote_path(), 'model.pickle')
+        if self.fitting:
+            return join(self.remote_path(), str(self.fitting), 'model.pickle')
+        else:
+            return join(self.remote_path(), 'model.pickle')
 
     def save(self, stats=None):
         if self.fitting is None:
@@ -234,15 +240,25 @@ class Base(object):
                 return loaded
 
     def upload(self):
-        self.fitting = 0
         self.save()
         lore.io.upload(self.model_path(), self.remote_model_path())
 
     @classmethod
-    def download(cls, fitting=0):
+    def download(cls, fitting=None):
+        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
+        warnings.showwarning('Please start using explicit fitting number when downloading the model ex "Keras.download(10)". Default Keras.download() will be deprecated in 0.7.0',
+                             DeprecationWarning,
+                             filename, line_number)
         model = cls(None, None)
+        if not fitting:
+            fitting = model.last_fitting()
         model.fitting = int(fitting)
-        lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
+        try:
+            lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
+        except botocore.exceptions.ClientError as e:
+            if e.response['Error']['Code'] == "404":
+                model.fitting = None
+                lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         return cls.load(fitting)
 
     def shap_values(self, i, nsamples=1000):

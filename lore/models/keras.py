@@ -1,6 +1,7 @@
 import os
 from os.path import join, dirname
 import logging
+import botocore
 
 import lore
 from lore.util import timer
@@ -36,7 +37,10 @@ class Base(lore.models.base.Base):
         return join(self.fitting_path(), 'timeline.json')
 
     def remote_weights_path(self):
-        return join(self.remote_path(), 'weights.h5')
+        if self.fitting:
+            return join(self.remote_path(), str(self.fitting), 'weights.h5')
+        else:
+            return join(self.remote_path(), 'weights.h5')
 
     @property
     def fitting(self):
@@ -113,5 +117,10 @@ class Base(lore.models.base.Base):
     def download(cls, fitting=0):
         model = cls(None, None)
         model.fitting = fitting
-        lore.io.download(model.remote_weights_path(), model.weights_path())
+        try:
+            lore.io.download(model.remote_weights_path(), model.weights_path())
+        except botocore.exceptions.ClientError as e:
+            if e.response['Error']['Code'] == "404":
+                model.fitting = None
+                lore.io.download(model.remote_weights_path(), model.weights_path())
         return super(Base, cls).download(fitting)
