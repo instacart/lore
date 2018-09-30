@@ -123,6 +123,7 @@ class Base(object):
     @timed(logging.INFO)
     def predict(self, dataframe):
         predictions = self.estimator.predict(self.pipeline.encode_x(dataframe))
+        self.latest_predictions = predictions
         return self.pipeline.output_encoder.reverse_transform(predictions)
 
     @before_after_callbacks
