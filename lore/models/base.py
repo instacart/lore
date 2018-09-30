@@ -13,7 +13,8 @@ import botocore
 import lore.ansi
 import lore.estimators
 from lore.env import require
-from lore.util import timer, timed, before_after_callbacks
+from lore.util import timer, timed, before_after_callbacks, \
+    convert_df_columns_to_json
 
 require(
     lore.dependencies.TABULATE +
@@ -92,6 +93,19 @@ class Base(object):
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
 
+    def create_predictions_for_logging(self, dataframe, key_cols, other=None):
+        from datetime import datetime
+        import pandas
+
+        keys = convert_df_columns_to_json(dataframe, key_cols)
+        features = convert_df_columns_to_json(dataframe, dataframe.columns)
+        df = pandas.DataFrame({'key': keys,
+                               'features': features})
+        df['value'] = self.latest_predictions
+        df['other'] = other
+        df['created_at'] = datetime.utcnow()
+        df['model_id'] = '12345'
+        return df
     @before_after_callbacks
     @timed(logging.INFO)
     def predict(self, dataframe):
