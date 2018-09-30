@@ -15,7 +15,6 @@ import threading
 import traceback
 from contextlib import contextmanager
 from datetime import datetime
-import inspect
 from lore import ansi, env
 
 
@@ -413,3 +412,12 @@ if env.launched():
         if _librato_timer:
             _librato_timer.cancel()
             _librato_timer = None
+
+
+def convert_df_columns_to_json(df, columns):
+    import pandas
+    import json
+
+    series = pandas.Series(df[columns].to_dict(orient='records'), index=df.index)
+    series = series.apply(lambda x: json.dumps(x, default=str))
+    return series
