@@ -106,6 +106,19 @@ class Base(object):
         df['created_at'] = datetime.utcnow()
         df['model_id'] = '12345'
         return df
+
+    def log_predictions(self, db_name, table_name, dataframe, key_cols, other=None):
+        import lore.io
+        try:
+            conn = getattr(lore.io, db_name)
+        except AttributeError as ex:
+            error = "Database not found in config"
+            logger.exception(error)
+            raise AttributeError(error)
+
+        predictions = self.create_predictions_for_logging(dataframe, key_cols, other)
+        conn.insert(table_name, predictions)
+
     @before_after_callbacks
     @timed(logging.INFO)
     def predict(self, dataframe):
