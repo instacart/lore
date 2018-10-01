@@ -88,6 +88,17 @@ class XGBoostRegression(lore.models.xgboost.Base):
         )
 
 
+class XGBoostRegressionWithPredictionLogging(lore.models.xgboost.Base):
+    def __init__(self):
+        super(XGBoostRegressionWithPredictionLogging, self).__init__(
+            tests.mocks.pipelines.Xor(),
+            lore.estimators.xgboost.Regression()
+        )
+
+    def after_predict(self, dataframe):
+        self.log_predictions('main', 'predictions', dataframe, ['a', 'b', 'words'])
+
+
 class SVM(lore.models.sklearn.Base):
     def __init__(self):
         super(SVM, self).__init__(
