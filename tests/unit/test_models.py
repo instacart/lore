@@ -3,6 +3,8 @@ import unittest
 import tests.mocks.models
 import scipy.stats
 import numpy
+import lore.io
+import sqlalchemy
 
 
 class TestKeras(unittest.TestCase):
@@ -83,6 +85,29 @@ class TestKeras(unittest.TestCase):
         model.estimator.kernel_initializer = 'he_uniform'
         model.estimator.build()
         assert True
+
+
+class TestPredictionLogging(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.model = tests.mocks.models.XGBoostRegressionWithPredictionLogging()
+        cls.df = cls.model.pipeline.training_data
+
+    def test_prediction_logging(self):
+        sqlalchemy_table = sqlalchemy.Table(
+            'predictions', lore.io.main.metadata,
+            sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
+            sqlalchemy.Column('model_id', sqlalchemy.Integer),
+            sqlalchemy.Column('key', sqlalchemy.String()),
+            sqlalchemy.Column('value', sqlalchemy.JSON()),
+            sqlalchemy.Column('features', sqlalchemy.JSON()),
+            sqlalchemy.Column('other', sqlalchemy.JSON()),
+            sqlalchemy.Column('created_at', sqlalchemy.DateTime())
+        )
+        sqlalchemy_table.drop()
+        lore.io.main.metadata.create_all()
+        self.model.fit()
+        predictions = self.model.predict(self.df)
 
 
 class TestKerasSingle(unittest.TestCase):
