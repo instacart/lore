@@ -42,6 +42,7 @@ setup(
         'lore.features',
         'lore.io',
         'lore.models',
+        'lore.metadata',
         'lore.pipelines',
         'lore.stores',
         'lore.tasks',

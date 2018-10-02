@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import datetime
 import json
 import logging
 import os.path
@@ -73,7 +74,12 @@ class Base(object):
     @before_after_callbacks
     @timed(logging.INFO)
     def fit(self, test=True, score=True, **estimator_kwargs):
-        self.fitting = self.__class__.last_fitting() + 1
+        self.fitting = lore.metadata.Fitting.create(
+            model='.'.join(self.__class__.__module__, self.__class__.__name__),
+            commit=lore.metadata.Commit.from_git(),
+            status='in_progress',
+            snapshot=lore.metadata.Snapshot(),
+        )
 
         self.stats = self.estimator.fit(
             x=self.pipeline.encoded_training_data.x,
@@ -85,11 +91,22 @@ class Base(object):
 
         if test:
             self.stats['test'] = self.evaluate(self.pipeline.test_data)
+            self.fitting.test = self.stats['test']
 
         if score:
             self.stats['score'] = self.score(self.pipeline.test_data)
+            self.fitting.score = self.status['score']
+
+        self.fitting.train = self.stats['train']
+        self.fitting.validate = self.stats['validate']
+        self.fitting.iterations = self.stats['epochs']
+        self.fitting.completed_at = datetime.datetime.now()
+        self.fitting.args = estimator_kwargs
+        self.fitting.stats = self.stats
+        self.fitting.save()
 
         self.save(stats=self.stats)
+
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
 
@@ -261,6 +278,12 @@ class Base(object):
         if stats:
             with open(join(self.fitting_path(), 'stats.json'), 'w') as f:
                 json.dump(stats, f, indent=2, sort_keys=True)
+
+        fitting = lore.metadata.Fitting(
+            commit=lore.metadata.Commit(),
+            compl
+        )
+
 
     @classmethod
     def load(cls, fitting=None):
