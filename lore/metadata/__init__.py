@@ -32,6 +32,25 @@ class Crud(object):
         self.save()
         return self
 
+    @classmethod
+    def get_or_create(cls, **kwargs):
+        '''
+        Creates an object or returns the object if exists
+        credit to Kevin @ StackOverflow
+        from: http://stackoverflow.com/questions/2546207/does-sqlalchemy-have-an-equivalent-of-djangos-get-or-create
+        '''
+        session = Session()
+        instance = session.query(cls).filter_by(**kwargs).first()
+        session.close()
+
+        if not instance:
+            self = cls(**kwargs)
+            self.save()
+        else:
+            self = instance
+
+        return self
+
     def save(self):
         session = Session()
         session.add(self)
