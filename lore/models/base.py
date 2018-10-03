@@ -13,6 +13,7 @@ import botocore
 
 import lore.ansi
 import lore.estimators
+import lore.metadata
 from lore.env import require
 from lore.util import timer, timed, before_after_callbacks, \
     convert_df_columns_to_json
@@ -74,13 +75,20 @@ class Base(object):
     @before_after_callbacks
     @timed(logging.INFO)
     def fit(self, test=True, score=True, **estimator_kwargs):
+        commit = lore.metadata.Commit.from_git()
+        commit.get_or_create(sha=commit.sha)
         self.fitting = lore.metadata.Fitting.create(
-            model='.'.join(self.__class__.__module__, self.__class__.__name__),
-            commit=lore.metadata.Commit.from_git(),
+            model='.'.join([self.__class__.__module__, self.__class__.__name__]),
+            commit=commit,
             status='in_progress',
-            snapshot=lore.metadata.Snapshot(),
+            snapshot=lore.metadata.Snapshot(status='in progress',
+                                            pipeline='.'.join([self.pipeline.__class__.__module__,
+                                                               self.pipeline.__class__.__name__]),
+                                            commit=commit,
+                                            head=str(self.pipeline.training_data.head(2)),
+                                            tail=str(self.pipeline.training_data.tail(2))
+                                            )
         )
-
         self.stats = self.estimator.fit(
             x=self.pipeline.encoded_training_data.x,
             y=self.pipeline.encoded_training_data.y,
@@ -95,11 +103,14 @@ class Base(object):
 
         if score:
             self.stats['score'] = self.score(self.pipeline.test_data)
-            self.fitting.score = self.status['score']
+            self.fitting.score = self.stats['score']
 
         self.fitting.train = self.stats['train']
         self.fitting.validate = self.stats['validate']
-        self.fitting.iterations = self.stats['epochs']
+        try:
+            self.fitting.iterations = self.stats['epochs']
+        except KeyError:
+            self.fitting.iterations = None
         self.fitting.completed_at = datetime.datetime.now()
         self.fitting.args = estimator_kwargs
         self.fitting.stats = self.stats
@@ -270,10 +281,10 @@ class Base(object):
             with open(join(self.fitting_path(), 'stats.json'), 'w') as f:
                 json.dump(stats, f, indent=2, sort_keys=True)
 
-        fitting = lore.metadata.Fitting(
-            commit=lore.metadata.Commit(),
-            compl
-        )
+        # fitting = lore.metadata.Fitting(
+        #     commit=lore.metadata.Commit(),
+        #     status='completed',
+        # )
 
 
     @classmethod
