@@ -164,6 +164,8 @@ class Fitting(Crud, Base):
     model = Column(String, index=True)
     args = Column(JSON())
     stats = Column(JSON())
+    url = Column(String)
+    uploaded_at = Column(DateTime)
 
     commit = relationship('Commit', back_populates='fittings')
     predictions = relationship('Prediction', back_populates='fitting')
