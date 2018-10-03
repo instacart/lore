@@ -79,12 +79,12 @@ class Base(object):
         commit.get_or_create(sha=commit.sha)
         self.fitting = lore.metadata.Fitting.create(
             model='.'.join([self.__class__.__module__, self.__class__.__name__]),
-            commit=commit,
+            commit=None,
             status='in_progress',
             snapshot=lore.metadata.Snapshot(status='in progress',
                                             pipeline='.'.join([self.pipeline.__class__.__module__,
                                                                self.pipeline.__class__.__name__]),
-                                            commit=commit,
+                                            commit=None,
                                             head=str(self.pipeline.training_data.head(2)),
                                             tail=str(self.pipeline.training_data.tail(2))
                                             )
