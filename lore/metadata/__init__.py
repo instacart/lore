@@ -70,11 +70,12 @@ class Crud(object):
 class Commit(Crud, Base):
     sha = Column(String, primary_key=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
+    updated_at = Column(DateTime, nullable=False, default=func.now())
     message = Column(String)
     author_name = Column(String, index=True)
     author_email = Column(String)
-    snapshots = relationship('Snapshot', back_populates='commit')
     fittings = relationship('Fitting', back_populates='commit')
+    snapshots = relationship('Snapshot', back_populates='commit')
 
     @classmethod
     def from_git(cls, sha='HEAD'):
@@ -86,36 +87,41 @@ class Commit(Crud, Base):
             sha,
         ], stdout=subprocess.PIPE)
         out, err = process.communicate()
-        lines = out.strip().split(os.linesep)
 
-        check, sha = lines[0].split('commit ')
-        if check or not sha:
-            logger.error('bad git parse: %s' % out)
+        # If there is no Git repo, exit code will be non-zero
+        if process.returncode == 0:
+            lines = out.strip().decode().split(os.linesep)
 
-        check, author_name = lines[1].split('NAME: ')
-        if check or not author_name:
-            logger.error('bad git parse for NAME: %s' % out)
+            check, sha = lines[0].split('commit ')
+            if check or not sha:
+                logger.error('bad git parse: %s' % out)
 
-        check, author_email = lines[2].split('EMAIL: ')
-        if check or not author_email:
-            logger.error('bad git parse for EMAIL: %s' % out)
+            check, author_name = lines[1].split('NAME: ')
+            if check or not author_name:
+                logger.error('bad git parse for NAME: %s' % out)
 
-        check, date = lines[3].split('DATE: ')
-        if check or not date:
-            logger.error('bad git parse for DATE: %s' % out)
-        created_at = datetime.datetime.fromtimestamp(int(date))
+            check, author_email = lines[2].split('EMAIL: ')
+            if check or not author_email:
+                logger.error('bad git parse for EMAIL: %s' % out)
 
-        check, message = lines[4], os.linesep.join(lines[5:])
-        if check != 'MESSAGE:' or not message:
-            logger.error('bad git parse for MESSAGE: %s' % out)
+            check, date = lines[3].split('DATE: ')
+            if check or not date:
+                logger.error('bad git parse for DATE: %s' % out)
+            created_at = datetime.datetime.fromtimestamp(int(date))
 
-        return Commit(
-            sha=sha,
-            author_name=author_name,
-            author_email=author_email,
-            created_at=created_at,
-            message=message
-        )
+            check, message = lines[4], os.linesep.join(lines[5:])
+            if check != 'MESSAGE:' or not message:
+                logger.error('bad git parse for MESSAGE: %s' % out)
+
+            return Commit(
+                sha=sha,
+                author_name=author_name,
+                author_email=author_email,
+                created_at=created_at,
+                message=message
+            )
+        else:
+            return None
 
 
 class Snapshot(Crud, Base):
@@ -124,14 +130,13 @@ class Snapshot(Crud, Base):
 
     """
     id = Column(Integer, primary_key=True)
-    commit_sha = Column(String, ForeignKey('commits.sha'), nullable=False)
     created_at = Column(DateTime, nullable=False, default=func.now())
     completed_at = Column(DateTime)
     status = Column(String)
     pipeline = Column(String, index=True)
     cache = Column(String)
     args = Column(String)
-    commit = Column(Integer)
+    commit_sha = Column(String, ForeignKey('commits.sha'), index=True)
     # samples = Column(Integer)
     bytes = Column(Integer)
     head = Column(String)
@@ -140,31 +145,33 @@ class Snapshot(Crud, Base):
     encoders = Column(JSON)
 
     description = Column(String)
+    fittings = relationship('Fitting', back_populates='snapshot')
     commit = relationship('Commit', back_populates='snapshots')
 
 
 class Fitting(Crud, Base):
     id = Column(Integer, primary_key=True)
-    commit_sha = Column(String, ForeignKey('commits.sha'), nullable=False)
+    commit_sha = Column(String, ForeignKey('commits.sha'))
     created_at = Column(DateTime, nullable=False, default=func.now())
     completed_at = Column(DateTime)
     status = Column(String)
-    snapshot_id = Column(Integer, index=True)
+    snapshot_id = Column(Integer, ForeignKey('snapshots.id'), nullable=False, index=True)
     train = Column(Float)
     validate = Column(Float)
     test = Column(Float)
     score = Column(Float)
     iterations = Column(Integer)
     model = Column(String, index=True)
-    args = Column(String)
-    stats = Column(String)
+    args = Column(JSON())
+    stats = Column(JSON())
 
     commit = relationship('Commit', back_populates='fittings')
     predictions = relationship('Prediction', back_populates='fitting')
+    snapshot = relationship('Snapshot', back_populates='fittings')
 
-    def __init__(self):
-
+    def __init__(self, **kwargs):
         self.commit = Commit()
+        super(Fitting, self).__init__(**kwargs)
 
 
 class Prediction(Crud, Base):
@@ -174,19 +181,6 @@ class Prediction(Crud, Base):
     value = Column(Float)
     primary_key = Column(String)
     inputs = Column(String)
-
-    fitting = relationship('Fitting', back_populates='predictions')
-
-
-class PredictionStat(Crud, Base):
-    fitting_id = Column(Integer, ForeignKey('fittings.id'), primary_key=True)
-    interval = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, primary_key=True)
-    min = Column(Float)
-    max = Column(Float)
-    avg = Column(Float)
-    count = Column(Float)
-    sum = Column(Float)
 
     fitting = relationship('Fitting', back_populates='predictions')
 
