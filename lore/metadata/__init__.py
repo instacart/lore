@@ -132,7 +132,6 @@ class Snapshot(Crud, Base):
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     completed_at = Column(DateTime)
-    status = Column(String)
     pipeline = Column(String, index=True)
     cache = Column(String)
     args = Column(String)
@@ -152,9 +151,9 @@ class Snapshot(Crud, Base):
 class Fitting(Crud, Base):
     id = Column(Integer, primary_key=True)
     commit_sha = Column(String, ForeignKey('commits.sha'))
+    fitting_name = Column(String, nullable=False, index=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     completed_at = Column(DateTime)
-    status = Column(String)
     snapshot_id = Column(Integer, ForeignKey('snapshots.id'), nullable=False, index=True)
     train = Column(Float)
     validate = Column(Float)
