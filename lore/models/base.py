@@ -203,7 +203,9 @@ class Base(object):
             **fit_params
         )
         self.estimator = result.best_estimator_
-
+        self.stats = {}
+        self.estimator_kwargs = None
+        self.fit_complete = True
         return result
 
     @classmethod
@@ -266,8 +268,6 @@ class Base(object):
                                             )
         )
 
-        self.fitting.train = self.stats['train']
-        self.fitting.validate = self.stats['validate']
         try:
             self.fitting.iterations = self.stats['epochs']
         except KeyError:
@@ -276,6 +276,8 @@ class Base(object):
         self.fitting.args = self.estimator_kwargs
         self.fitting.stats = self.stats
         try:
+            self.fitting.train = self.stats['train']
+            self.fitting.validate = self.stats['validate']
             self.fitting.test = self.stats['test']
             self.fitting.score = self.stats['score']
         except KeyError:
