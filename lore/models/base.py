@@ -31,6 +31,8 @@ import shap
 from tabulate import tabulate
 from sklearn.model_selection import RandomizedSearchCV
 
+Session = scoped_session(sessionmaker(bind=lore.io.metadata._engine))
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,8 @@ class Base(object):
         self.fitting = None
         self.pipeline = pipeline
         self._shap_explainer = None
+        self.metadata = None
+        self.fit_complete = False
 
     def __getstate__(self):
         state = dict(self.__dict__)
@@ -79,20 +83,6 @@ class Base(object):
     @before_after_callbacks
     @timed(logging.INFO)
     def fit(self, test=True, score=True, **estimator_kwargs):
-        commit = lore.metadata.Commit.from_git()
-        commit.get_or_create(sha=commit.sha)
-        self.fitting = lore.metadata.Fitting.create(
-            model='.'.join([self.__class__.__module__, self.__class__.__name__]),
-            commit=None,
-            status='in_progress',
-            snapshot=lore.metadata.Snapshot(status='in progress',
-                                            pipeline='.'.join([self.pipeline.__class__.__module__,
-                                                               self.pipeline.__class__.__name__]),
-                                            commit=None,
-                                            head=str(self.pipeline.training_data.head(2)),
-                                            tail=str(self.pipeline.training_data.tail(2))
-                                            )
-        )
         self.stats = self.estimator.fit(
             x=self.pipeline.encoded_training_data.x,
             y=self.pipeline.encoded_training_data.y,
@@ -101,26 +91,14 @@ class Base(object):
             **estimator_kwargs
         )
 
+        self.estimator_kwargs = estimator_kwargs
         if test:
             self.stats['test'] = self.evaluate(self.pipeline.test_data)
-            self.fitting.test = self.stats['test']
 
         if score:
             self.stats['score'] = self.score(self.pipeline.test_data)
-            self.fitting.score = self.stats['score']
 
-        self.fitting.train = self.stats['train']
-        self.fitting.validate = self.stats['validate']
-        try:
-            self.fitting.iterations = self.stats['epochs']
-        except KeyError:
-            self.fitting.iterations = None
-        self.fitting.completed_at = datetime.datetime.now()
-        self.fitting.args = estimator_kwargs
-        self.fitting.stats = self.stats
-        self.fitting.save()
-
-        self.save(stats=self.stats)
+        self.fit_complete = True
 
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
@@ -229,45 +207,86 @@ class Base(object):
 
     @classmethod
     def last_fitting(cls):
-        if not os.path.exists(cls.local_path()):
-            return 0
+        session = Session()
+        fitting_num = (session.query(func.max(lore.metadata.Fitting.fitting_num))
+                       .filter_by(model='lore_test.models.Boost')
+                       .scalar())
+        session.close()
+        return fitting_num
 
-        fittings = [int(d) for d in os.listdir(cls.local_path()) if re.match(r'^\d+$', d)]
-        if not fittings:
-            return 0
+    @memoized_property
+    def fitting_name(self):
+        current_time = datetime.datetime.utcnow().strftime("%Y%m%d%H%m")
+        model_suffix = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+        fitting_name = current_time + '_' + model_suffix
+        return fitting_name
 
-        return sorted(fittings)[-1]
-
+    @memoized_property
     def fitting_path(self):
-        if self.fitting is None:
-            self.fitting = self.last_fitting()
+        return join(self.local_path(), str(self.fitting_name))
 
-        return join(self.local_path(), str(self.fitting))
-
+    @memoized_property
     def model_path(self):
-        return join(self.fitting_path(), 'model.pickle')
+        return ''.join([self.fitting_path, '/model.pickle'])
 
+    @memoized_property
     def remote_model_path(self):
         if self.fitting:
             return join(self.remote_path(), str(self.fitting), 'model.pickle')
         else:
             return join(self.remote_path(), 'model.pickle')
 
-    def save(self, stats=None):
-        if self.fitting is None:
+    def save(self, upload=False):
+        if self.fit_complete is False:
             raise ValueError("This model has not been fit yet. There is no point in saving.")
 
-        if not os.path.exists(self.fitting_path()):
+        if self.metadata:
+            raise ValueError("This model has already been saved")
+
+        commit = lore.metadata.Commit.from_git()
+        commit.get_or_create(sha=commit.sha)
+        self.fitting = lore.metadata.Fitting.create(
+            model='.'.join([self.__class__.__module__, self.__class__.__name__]),
+            commit=None,
+            fitting_name=self.fitting_name,
+            snapshot=lore.metadata.Snapshot(pipeline='.'.join([self.pipeline.__class__.__module__,
+                                                               self.pipeline.__class__.__name__]),
+                                            commit=None,
+                                            head=str(self.pipeline.training_data.head(2)),
+                                            tail=str(self.pipeline.training_data.tail(2))
+                                            )
+        )
+
+        self.fitting.train = self.stats['train']
+        self.fitting.validate = self.stats['validate']
+        try:
+            self.fitting.iterations = self.stats['epochs']
+        except KeyError:
+            self.fitting.iterations = None
+        self.fitting.completed_at = datetime.datetime.now()
+        self.fitting.args = self.estimator_kwargs
+        self.fitting.stats = self.stats
+        try:
+            self.fitting.test = self.stats['test']
+            self.fitting.score = self.stats['score']
+        except KeyError:
+            self.fitting.test = None
+            self.fitting.score = None
+
+        self.fitting.save()
+        self.metadata = sql_alchemy_object_as_dict(self.fitting)
+
+        if not os.path.exists(self.fitting_path):
             try:
-                os.makedirs(self.fitting_path())
+                os.makedirs(self.fitting_path)
             except FileExistsError as ex:
                 pass  # race to create
 
         with timer('pickle model'):
-            with open(self.model_path(), 'wb') as f:
+            with open(self.model_path, 'wb') as f:
                 pickle.dump(self, f)
 
-        with open(join(self.fitting_path(), 'params.json'), 'w') as f:
+        with open(join(self.fitting_path, 'params.json'), 'w') as f:
             params = {}
             for child in [self.estimator, self.pipeline]:
                 param = child.__module__ + '.' + child.__class__.__name__
@@ -281,15 +300,9 @@ class Base(object):
                         params[param][key] = value.__repr__()
             json.dump(params, f, indent=2, sort_keys=True)
 
-        if stats:
-            with open(join(self.fitting_path(), 'stats.json'), 'w') as f:
-                json.dump(stats, f, indent=2, sort_keys=True)
-
-        # fitting = lore.metadata.Fitting(
-        #     commit=lore.metadata.Commit(),
-        #     status='completed',
-        # )
-
+        if self.stats:
+            with open(join(self.fitting_path, 'stats.json'), 'w') as f:
+                json.dump(self.stats, f, indent=2, sort_keys=True)
 
     @classmethod
     def load(cls, fitting=None):
