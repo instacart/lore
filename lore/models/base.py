@@ -284,7 +284,6 @@ class Base(object):
             fitting.test = None
             fitting.score = None
 
-        fitting.save()
         self.metadata = sql_alchemy_object_as_dict(fitting)
 
         if not os.path.exists(self.fitting_path):
@@ -316,7 +315,11 @@ class Base(object):
                 json.dump(self.stats, f, indent=2, sort_keys=True)
 
         if upload:
-            self.upload()
+            url = self.upload()
+            fitting.url = url
+            fitting.uploaded_at = datetime.datetime.utcnow()
+        fitting.save()
+
 
     @classmethod
     def load(cls, fitting_name=None):
@@ -334,6 +337,7 @@ class Base(object):
         if self.metadata is None:
             raise ValueError("Please save model first, before uplaoding")
         lore.io.upload(self.model_path, self.remote_model_path)
+        return self.remote_model_path
 
     @classmethod
     def download(cls, fitting_name=None):
