@@ -20,7 +20,7 @@ from lore.util import timer, timed, before_after_callbacks, \
     convert_df_columns_to_json, sql_alchemy_object_as_dict, \
     memoized_property
 from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy import func
+from sqlalchemy import desc
 
 require(
     lore.dependencies.TABULATE +
@@ -205,8 +205,10 @@ class Base(object):
     @classmethod
     def last_fitting(cls):
         session = Session()
-        fitting_name = (session.query(func.max(lore.metadata.Fitting.fitting_name))
+        fitting_name = (session.query(lore.metadata.Fitting.name)
                         .filter_by(model='lore_test.models.Boost')
+                        .order_by(desc(lore.metadata.Fitting.created_at))
+                        .limit(1)
                         .scalar())
         session.close()
         return fitting_name
