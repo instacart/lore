@@ -47,7 +47,6 @@ class Base(object):
         self.name = self.__module__ + '.' + self.__class__.__name__
         self._estimator = None
         self.estimator = estimator
-        self.fitting = None
         self.pipeline = pipeline
         self._shap_explainer = None
         self.metadata = None
@@ -218,10 +217,17 @@ class Base(object):
 
     @memoized_property
     def fitting_name(self):
-        current_time = datetime.datetime.utcnow().strftime("%Y%m%d%H%m")
-        model_suffix = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-        fitting_name = current_time + '_' + model_suffix
-        return fitting_name
+        try:
+            return self._fitting_name
+        except AttributeError:
+            current_time = datetime.datetime.utcnow().strftime("%Y%m%d%H%m")
+            model_suffix = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
+            fitting_name = current_time + '_' + model_suffix
+            return fitting_name
+
+    @fitting_name.setter
+    def fitting_name(self, name=None):
+        self._fitting_name = name
 
     @memoized_property
     def fitting_path(self):
@@ -244,7 +250,7 @@ class Base(object):
 
         commit = lore.metadata.Commit.from_git()
         commit.get_or_create(sha=commit.sha)
-        self.fitting = lore.metadata.Fitting.create(
+        fitting = lore.metadata.Fitting.create(
             model='.'.join([self.__class__.__module__, self.__class__.__name__]),
             commit=None,
             fitting_name=self.fitting_name,
@@ -257,23 +263,23 @@ class Base(object):
         )
 
         try:
-            self.fitting.iterations = self.stats['epochs']
+            fitting.iterations = self.stats['epochs']
         except KeyError:
-            self.fitting.iterations = None
-        self.fitting.completed_at = datetime.datetime.now()
-        self.fitting.args = self.estimator_kwargs
-        self.fitting.stats = self.stats
+            fitting.iterations = None
+        fitting.completed_at = datetime.datetime.now()
+        fitting.args = self.estimator_kwargs
+        fitting.stats = self.stats
         try:
-            self.fitting.train = self.stats['train']
-            self.fitting.validate = self.stats['validate']
-            self.fitting.test = self.stats['test']
-            self.fitting.score = self.stats['score']
+            fitting.train = self.stats['train']
+            fitting.validate = self.stats['validate']
+            fitting.test = self.stats['test']
+            fitting.score = self.stats['score']
         except KeyError:
-            self.fitting.test = None
-            self.fitting.score = None
+            fitting.test = None
+            fitting.score = None
 
-        self.fitting.save()
-        self.metadata = sql_alchemy_object_as_dict(self.fitting)
+        fitting.save()
+        self.metadata = sql_alchemy_object_as_dict(fitting)
 
         if not os.path.exists(self.fitting_path):
             try:
@@ -307,17 +313,15 @@ class Base(object):
             self.upload()
 
     @classmethod
-    def load(cls, fitting=None):
+    def load(cls, fitting_name=None):
         model = cls()
-        if fitting is None:
-            model.fitting = model.last_fitting()
-        else:
-            model.fitting = int(fitting)
+        if fitting_name is None:
+            fitting_name = model.last_fitting()
+        model.fitting_name = fitting_name
 
         with timer('unpickle model'):
-            with open(model.model_path(), 'rb') as f:
+            with open(model.model_path, 'rb') as f:
                 loaded = pickle.load(f)
-                loaded.fitting = model.fitting
                 return loaded
 
     def upload(self):
@@ -326,22 +330,21 @@ class Base(object):
         lore.io.upload(self.model_path, self.remote_model_path)
 
     @classmethod
-    def download(cls, fitting=None):
+    def download(cls, fitting_name=None):
         frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
-        warnings.showwarning('Please start using explicit fitting number when downloading the model ex "Keras.download(10)". Default Keras.download() will be deprecated in 0.7.0',
+        warnings.showwarning('Please start using explicit fitting name when downloading the model ex "Keras.download(10)". Default Keras.download() will be deprecated in 0.7.0',
                              DeprecationWarning,
                              filename, line_number)
-        model = cls(None, None)
-        if not fitting:
-            fitting = model.last_fitting()
-        model.fitting = int(fitting)
+        model = cls()
+        if fitting_name is None:
+            fitting_name = model.last_fitting()
+        model.fitting_name = fitting_name
         try:
-            lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
+            lore.io.download(model.remote_model_path, model.model_path, cache=True)
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
-                model.fitting = None
-                lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
-        return cls.load(fitting)
+                lore.io.download(model.remote_model_path, model.model_path, cache=True)
+        return cls.load(fitting_name)
 
     def shap_values(self, i, nsamples=1000):
         instance = self.pipeline.encoded_test_data.x.iloc[i, :]
