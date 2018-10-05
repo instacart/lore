@@ -320,7 +320,6 @@ class Base(object):
             fitting.uploaded_at = datetime.datetime.utcnow()
         fitting.save()
 
-
     @classmethod
     def load(cls, fitting_name=None):
         model = cls()
@@ -348,6 +347,10 @@ class Base(object):
         model = cls()
         if fitting_name is None:
             fitting_name = model.last_fitting()
+            # If still none, then either no model was fit or user is trying to download a lore model pre-0.7
+            if fitting_name is None:
+                raise ValueError('No fittings found for this model. If you are looking for fittings created with a ' +
+                                 'prior version of lore, please explicitly specify the fitting number')
         model.fitting_name = fitting_name
         try:
             lore.io.download(model.remote_model_path, model.model_path, cache=True)
