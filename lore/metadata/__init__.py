@@ -162,6 +162,7 @@ class Fitting(Crud, Base):
     model = Column(String, index=True)
     args = Column(JSON())
     stats = Column(JSON())
+    custom_data = Column(JSON())
     url = Column(String)
     uploaded_at = Column(DateTime)
 
@@ -181,7 +182,7 @@ class Prediction(Crud, Base):
     value = Column(JSON())
     key = Column(JSON())
     features = Column(JSON())
-    other = Column(JSON())
+    custom_data = Column(JSON())
 
     fitting = relationship('Fitting', back_populates='predictions')
 
