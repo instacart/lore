@@ -102,37 +102,36 @@ class Base(object):
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
 
-    def create_predictions_for_logging(self, dataframe, key_cols, other=None):
-        from datetime import datetime
+    def create_predictions_for_logging(self, dataframe, predictions, key_cols, other=None):
+        require(lore.dependencies.PANDAS)
         import pandas
+        import pdb; pdb.set_trace()
 
         keys = convert_df_columns_to_json(dataframe, key_cols)
         features = convert_df_columns_to_json(dataframe, dataframe.columns)
         df = pandas.DataFrame({'key': keys,
                                'features': features})
-        df['value'] = self.latest_predictions
+        df['value'] = predictions
         df['other'] = other
-        df['created_at'] = datetime.utcnow()
-        df['model_id'] = '12345'
+        df['created_at'] = datetime.datetime.utcnow()
+        df['fitting_name'] = self.fitting_name
         return df
 
-    def log_predictions(self, db_name, table_name, dataframe, key_cols, other=None):
+    def log_predictions(self, dataframe, predictions, key_cols, other=None):
         import lore.io
-        try:
-            conn = getattr(lore.io, db_name)
-        except AttributeError as ex:
-            error = "Database not found in config"
-            logger.exception(error)
-            raise AttributeError(error)
-
-        predictions = self.create_predictions_for_logging(dataframe, key_cols, other)
-        conn.insert(table_name, predictions)
+        predictions = self.create_predictions_for_logging(dataframe, predictions, key_cols, other)
+        lore.io.metadata.insert("predictions", predictions)
 
     @before_after_callbacks
     @timed(logging.INFO)
-    def predict(self, dataframe):
+    def predict(self, dataframe, log_predictions=False, key_cols=None, other=None):
+        import pdb; pdb.set_trace()
+
+        if log_predictions is True and key_cols is None:
+            raise ValueError("Key columns cannot be null when logging predictions")
         predictions = self.estimator.predict(self.pipeline.encode_x(dataframe))
-        self.latest_predictions = predictions
+        if log_predictions:
+            self.log_predictions(dataframe, predictions, key_cols, other)
         return self.pipeline.output_encoder.reverse_transform(predictions)
 
     @before_after_callbacks
@@ -262,7 +261,7 @@ class Base(object):
         fitting = lore.metadata.Fitting.create(
             model='.'.join([self.__class__.__module__, self.__class__.__name__]),
             commit=None,
-            fitting_name=self.fitting_name,
+            name=self.fitting_name,
             snapshot=lore.metadata.Snapshot(pipeline='.'.join([self.pipeline.__class__.__module__,
                                                                self.pipeline.__class__.__name__]),
                                             commit=None,
@@ -335,7 +334,7 @@ class Base(object):
 
     def upload(self):
         if self.metadata is None:
-            ValueError("Please save model first, before uplaoding")
+            raise ValueError("Please save model first, before uplaoding")
         lore.io.upload(self.model_path, self.remote_model_path)
 
     @classmethod
