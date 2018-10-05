@@ -218,11 +218,11 @@ class Base(object):
     @classmethod
     def last_fitting(cls):
         session = Session()
-        fitting_num = (session.query(func.max(lore.metadata.Fitting.fitting_num))
-                       .filter_by(model='lore_test.models.Boost')
-                       .scalar())
+        fitting_name = (session.query(func.max(lore.metadata.Fitting.fitting_name))
+                        .filter_by(model='lore_test.models.Boost')
+                        .scalar())
         session.close()
-        return fitting_num
+        return fitting_name
 
     @memoized_property
     def fitting_name(self):
