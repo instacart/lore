@@ -33,8 +33,10 @@ class FitLogging(unittest.TestCase):
 
     def test_basic_logging_(self):
         self.model.fit()
+        self.model.save()
         session = Session()
-        model_metadata = session.query(lore.metadata.Fitting).filter_by(model=self.model.name).first()
+        model_metadata = session.query(lore.metadata.Fitting).filter_by(name=self.model.fitting_name).first()
+        session.commit()
         session.close()
         self.assertIsNotNone(model_metadata)
 
