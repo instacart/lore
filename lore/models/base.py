@@ -242,10 +242,7 @@ class Base(object):
 
     @memoized_property
     def remote_model_path(self):
-        if self.fitting:
-            return join(self.remote_path(), str(self.fitting), 'model.pickle')
-        else:
-            return join(self.remote_path(), 'model.pickle')
+        return join(self.remote_path(), self.fitting_name, 'model.pickle')
 
     def save(self, upload=False):
         if self.fit_complete is False:
@@ -315,6 +312,9 @@ class Base(object):
             with open(join(self.fitting_path, 'stats.json'), 'w') as f:
                 json.dump(self.stats, f, indent=2, sort_keys=True)
 
+        if upload:
+            self.upload()
+
     @classmethod
     def load(cls, fitting=None):
         model = cls()
@@ -330,8 +330,9 @@ class Base(object):
                 return loaded
 
     def upload(self):
-        self.save()
-        lore.io.upload(self.model_path(), self.remote_model_path())
+        if self.metadata is None:
+            ValueError("Please save model first, before uplaoding")
+        lore.io.upload(self.model_path, self.remote_model_path)
 
     @classmethod
     def download(cls, fitting=None):
