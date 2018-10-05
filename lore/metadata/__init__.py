@@ -149,9 +149,8 @@ class Snapshot(Crud, Base):
 
 
 class Fitting(Crud, Base):
-    id = Column(Integer, primary_key=True)
+    name = Column(String, primary_key=True)
     commit_sha = Column(String, ForeignKey('commits.sha'))
-    fitting_name = Column(String, nullable=False, index=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     completed_at = Column(DateTime)
     snapshot_id = Column(Integer, ForeignKey('snapshots.id'), nullable=False, index=True)
@@ -177,11 +176,12 @@ class Fitting(Crud, Base):
 
 class Prediction(Crud, Base):
     id = Column(Integer, primary_key=True)
-    fitting_id = Column(Integer, ForeignKey('fittings.id'), nullable=False, index=True)
+    fitting_name = Column(String, ForeignKey('fittings.name'), nullable=False, index=True)
     created_at = Column(DateTime, default=func.now())
-    value = Column(Float)
-    primary_key = Column(String)
-    inputs = Column(String)
+    value = Column(JSON())
+    key = Column(JSON())
+    features = Column(JSON())
+    other = Column(JSON())
 
     fitting = relationship('Fitting', back_populates='predictions')
 
