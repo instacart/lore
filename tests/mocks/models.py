@@ -97,9 +97,6 @@ class XGBoostRegressionWithPredictionLogging(lore.models.xgboost.Base):
             lore.estimators.xgboost.Regression()
         )
 
-    def after_predict(self, dataframe):
-        self.log_predictions('main', 'predictions', dataframe, ['a', 'b', 'words'])
-
 
 class SVM(lore.models.sklearn.Base):
     def __init__(self):
