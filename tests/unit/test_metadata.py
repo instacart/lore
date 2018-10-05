@@ -36,9 +36,22 @@ class FitLogging(unittest.TestCase):
         self.model.save()
         session = Session()
         model_metadata = session.query(lore.metadata.Fitting).filter_by(name=self.model.fitting_name).first()
-        session.commit()
         session.close()
         self.assertIsNotNone(model_metadata)
 
-    def test_fit_number_from_db(self):
-        pass
+
+class PredictionLogging(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.model = tests.mocks.models.XGBoostRegressionWithPredictionLogging()
+        cls.df = cls.model.pipeline.training_data
+
+    def test_prediction_logging_(self):
+        self.model.fit()
+        self.model.save()
+        self.model.predict(self.df, log_predictions=True, key_cols=['a', 'b'])
+        session = Session()
+        prediction_metadata = (session.query(lore.metadata.Prediction)
+                               .filter_by(fitting_name=self.model.fitting_name).first())
+        session.close()
+        self.assertIsNotNone(prediction_metadata)
