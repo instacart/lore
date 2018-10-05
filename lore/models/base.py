@@ -102,36 +102,33 @@ class Base(object):
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
 
-    def create_predictions_for_logging(self, dataframe, predictions, key_cols, other=None):
+    def create_predictions_for_logging(self, dataframe, predictions, key_cols, custom_data=None):
         require(lore.dependencies.PANDAS)
         import pandas
-        import pdb; pdb.set_trace()
 
         keys = convert_df_columns_to_json(dataframe, key_cols)
         features = convert_df_columns_to_json(dataframe, dataframe.columns)
         df = pandas.DataFrame({'key': keys,
                                'features': features})
         df['value'] = predictions
-        df['other'] = other
+        df['custom_data'] = custom_data
         df['created_at'] = datetime.datetime.utcnow()
         df['fitting_name'] = self.fitting_name
         return df
 
-    def log_predictions(self, dataframe, predictions, key_cols, other=None):
+    def log_predictions(self, dataframe, predictions, key_cols, custom_data=None):
         import lore.io
-        predictions = self.create_predictions_for_logging(dataframe, predictions, key_cols, other)
+        predictions = self.create_predictions_for_logging(dataframe, predictions, key_cols, custom_data)
         lore.io.metadata.insert("predictions", predictions)
 
     @before_after_callbacks
     @timed(logging.INFO)
-    def predict(self, dataframe, log_predictions=False, key_cols=None, other=None):
-        import pdb; pdb.set_trace()
-
+    def predict(self, dataframe, log_predictions=False, key_cols=None, custom_data=None):
         if log_predictions is True and key_cols is None:
             raise ValueError("Key columns cannot be null when logging predictions")
         predictions = self.estimator.predict(self.pipeline.encode_x(dataframe))
         if log_predictions:
-            self.log_predictions(dataframe, predictions, key_cols, other)
+            self.log_predictions(dataframe, predictions, key_cols, custom_data)
         return self.pipeline.output_encoder.reverse_transform(predictions)
 
     @before_after_callbacks
@@ -240,7 +237,7 @@ class Base(object):
     def remote_model_path(self):
         return join(self.remote_path(), self.fitting_name, 'model.pickle')
 
-    def save(self, upload=False):
+    def save(self, custom_data=None, upload=False):
         if self.fit_complete is False:
             raise ValueError("This model has not been fit yet. There is no point in saving.")
 
@@ -253,6 +250,7 @@ class Base(object):
             model='.'.join([self.__class__.__module__, self.__class__.__name__]),
             commit=None,
             name=self.fitting_name,
+            custom_data=custom_data,
             snapshot=lore.metadata.Snapshot(pipeline='.'.join([self.pipeline.__class__.__module__,
                                                                self.pipeline.__class__.__name__]),
                                             commit=None,
