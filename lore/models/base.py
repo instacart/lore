@@ -318,11 +318,14 @@ class Base(object):
         model = cls()
         if fitting_name is None:
             fitting_name = model.last_fitting()
-        model.fitting_name = fitting_name
+        else:
+            fitting_name = str(fitting_name)
 
+        model.fitting_name = fitting_name
         with timer('unpickle model'):
             with open(model.model_path, 'rb') as f:
                 loaded = pickle.load(f)
+                loaded.fitting_name = fitting_name
                 return loaded
 
     def upload(self):
@@ -344,7 +347,11 @@ class Base(object):
             if fitting_name is None:
                 raise ValueError('No fittings found for this model. If you are looking for fittings created with a ' +
                                  'prior version of lore, please explicitly specify the fitting number')
+        else:
+            fitting_name = str(fitting_name)
+
         model.fitting_name = fitting_name
+
         try:
             lore.io.download(model.remote_model_path, model.model_path, cache=True)
         except botocore.exceptions.ClientError as e:
