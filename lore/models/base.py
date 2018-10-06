@@ -239,6 +239,11 @@ class Base(object):
     def remote_model_path(self):
         return join(self.remote_path(), self.fitting_name, 'model.pickle')
 
+    # Would ideally be class property
+    @property
+    def model_name(self):
+        return '.'.join([self.__class__.__module__, self.__class__.__name__])
+
     def save(self, custom_data=None, upload=False):
         if self.fit_complete is False:
             raise ValueError("This model has not been fit yet. There is no point in saving.")
@@ -249,7 +254,7 @@ class Base(object):
         commit = lore.metadata.Commit.from_git()
         commit.get_or_create(sha=commit.sha)
         fitting = lore.metadata.Fitting.create(
-            model='.'.join([self.__class__.__module__, self.__class__.__name__]),
+            model=self.model_name,
             commit=None,
             name=self.fitting_name,
             custom_data=custom_data,
