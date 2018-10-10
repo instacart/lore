@@ -160,15 +160,15 @@ class Connection(object):
         self.__execute(self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs), kwargs)
 
     def insert(self, table, dataframe, batch_size=10 ** 5):
-        for batch in range(int(math.ceil(float(len(dataframe)) / batch_size))):
-            slice = dataframe.iloc[batch * batch_size:(batch + 1) * batch_size]
+        for i in range(int(math.ceil(float(len(dataframe)) / batch_size))):
+            batch = dataframe.iloc[i * batch_size:(i + 1) * batch_size]
             if self._engine.dialect.name in ['postgresql', 'redshift']:
                 # postgres can bulk load from a buffer of csv
                 if sys.version_info[0] == 2:
                     rows = io.BytesIO()
                 else:
                     rows = io.StringIO()
-                slice.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
+                batch.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
                 rows.seek(0)
                 self._connection.connection.cursor().copy_from(rows, table, null='\\N', sep='|', columns=dataframe.columns)
                 self._connection.connection.commit()
@@ -179,7 +179,7 @@ class Connection(object):
                 try:
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv.gz')
                     tmp.close()
-                    slice.to_csv(tmp.name, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE, compression='gzip')
+                    batch.to_csv(tmp.name, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE, compression='gzip')
                     self._connection.connection.cursor().execute('PUT file://%(path)s @~/staged;' % {'path': tmp.name})
                     self._connection.connection.cursor().execute(
                         'COPY INTO %(table)s '
@@ -193,7 +193,7 @@ class Connection(object):
                     os.remove(tmp.name)
 
             else:
-                slice.to_sql(
+                batch.to_sql(
                     table,
                     self._connection,
                     if_exists='append',
