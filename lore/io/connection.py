@@ -160,27 +160,46 @@ class Connection(object):
         self.__execute(self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs), kwargs)
 
     def insert(self, table, dataframe, batch_size=10 ** 5):
-        if self._engine.dialect.name in ['postgresql', 'redshift']:
-            for batch in range(int(math.ceil(float(len(dataframe)) / batch_size))):
+        for batch in range(int(math.ceil(float(len(dataframe)) / batch_size))):
+            slice = dataframe.iloc[batch * batch_size:(batch + 1) * batch_size]
+            if self._engine.dialect.name in ['postgresql', 'redshift']:
+                # postgres can bulk load from a buffer of csv
                 if sys.version_info[0] == 2:
                     rows = io.BytesIO()
                 else:
                     rows = io.StringIO()
-                slice = dataframe.iloc[batch * batch_size:(batch + 1) * batch_size]
                 slice.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
                 rows.seek(0)
                 self._connection.connection.cursor().copy_from(rows, table, null='\\N', sep='|', columns=dataframe.columns)
                 self._connection.connection.commit()
                 del rows
-                gc.collect()
-        else:
-            dataframe.to_sql(
-                table,
-                self._connection,
-                if_exists='append',
-                index=False,
-                chunksize=batch_size
-            )
+
+            elif self._engine.dialect.name == 'snowflake':
+                # snowflake requires s3 upload to bulk insert
+                try:
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv.gz')
+                    tmp.close()
+                    slice.to_csv(tmp.name, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE, compression='gzip')
+                    self._connection.connection.cursor().execute('PUT file://%(path)s @~/staged;' % {'path': tmp.name})
+                    self._connection.connection.cursor().execute(
+                        'COPY INTO %(table)s '
+                        'FROM @~/staged '
+                        'FILE_FORMAT = (TYPE = CSV FIELD_DELIMITER = \'|\' SKIP_HEADER = 0 COMPRESSION = GZIP) '
+                        'PURGE = TRUE' % {
+                            'table': table
+                        }
+                    )
+                finally:
+                    os.remove(tmp.name)
+
+            else:
+                dataframe.to_sql(
+                    table,
+                    self._connection,
+                    if_exists='append',
+                    index=False,
+                    chunksize=batch_size
+                )
 
     def close(self):
         for transaction in reversed(self._transactions):
