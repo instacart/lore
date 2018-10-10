@@ -193,7 +193,7 @@ class Connection(object):
                     os.remove(tmp.name)
 
             else:
-                dataframe.to_sql(
+                slice.to_sql(
                     table,
                     self._connection,
                     if_exists='append',
