@@ -2,6 +2,7 @@ import logging
 import os
 import pickle
 import re
+import shutil
 import tarfile
 import tempfile
 
@@ -106,7 +107,8 @@ def download(remote_url, local_path=None, cache=True, extract=False):
             except os.FileExistsError:
                 pass  # race to create
 
-        os.rename(temp_path, local_path)
+        shutil.copy(temp_path, local_path)
+        os.remove(temp_path)
 
         if extract:
             with timer('EXTRACT: %s' % local_path, logging.WARNING):
