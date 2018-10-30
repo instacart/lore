@@ -135,6 +135,12 @@ class TestXGBoostBinaryClassifier(unittest.TestCase):
         loaded = tests.mocks.models.XGBoostBinaryClassifier.load()
         self.assertEqual(loaded.fitting, model.fitting)
 
+    def test_probs(self):
+        model = tests.mocks.models.XGBoostBinaryClassifier()
+        model.fit()
+        model.predict_proba(model.pipeline.test_data)
+        assert True
+
 
 class TestSKLearn(unittest.TestCase):
     def test_lifecycle(self):
