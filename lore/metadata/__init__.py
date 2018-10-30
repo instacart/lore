@@ -7,12 +7,40 @@ import os
 from sqlalchemy import Column, Float, Integer, String, DateTime, JSON, func, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
-
+from sqlalchemy import TypeDecorator, types
 import lore.io
-
+import json
 logger = logging.getLogger(__name__)
 Base = declarative_base()
 Session = scoped_session(sessionmaker(bind=lore.io.metadata._engine))
+adapter = lore.io.metadata.adapter
+
+
+class StringJSON(TypeDecorator):
+    @property
+    def python_type(self):
+        return object
+
+    impl = types.String
+
+    def process_bind_param(self, value, dialect):
+        return json.dumps(value)
+
+    def process_literal_param(self, value, dialect):
+        return value
+
+    def process_result_value(self, value, dialect):
+        try:
+            return json.loads(value)
+        except (ValueError, TypeError):
+            return None
+
+
+def JSON_if_possible(**kwargs):
+    if adapter == 'postgres':
+        return Column(JSON, **kwargs)
+    else:
+        return Column(StringJSON, **kwargs)
 
 
 class Crud(object):
@@ -65,7 +93,6 @@ class Crud(object):
         session = Session()
         session.delete(self)
         return session.commit()
-
 
 class Commit(Crud, Base):
     sha = Column(String, primary_key=True)
@@ -141,7 +168,7 @@ class Snapshot(Crud, Base):
     head = Column(String)
     tail = Column(String)
     stats = Column(String)
-    encoders = Column(JSON)
+    encoders = JSON_if_possible()
 
     description = Column(String)
     fittings = relationship('Fitting', back_populates='snapshot')
@@ -160,9 +187,9 @@ class Fitting(Crud, Base):
     score = Column(Float)
     iterations = Column(Integer)
     model = Column(String, index=True)
-    args = Column(JSON())
-    stats = Column(JSON())
-    custom_data = Column(JSON())
+    args = JSON_if_possible()
+    stats = JSON_if_possible()
+    custom_data = JSON_if_possible()
     url = Column(String)
     uploaded_at = Column(DateTime)
 
@@ -179,10 +206,10 @@ class Prediction(Crud, Base):
     id = Column(Integer, primary_key=True)
     fitting_name = Column(String, ForeignKey('fittings.name'), nullable=False, index=True)
     created_at = Column(DateTime, default=func.now())
-    value = Column(JSON())
-    key = Column(JSON())
-    features = Column(JSON())
-    custom_data = Column(JSON())
+    value = JSON_if_possible()
+    key = JSON_if_possible()
+    features = JSON_if_possible()
+    custom_data = JSON_if_possible()
 
     fitting = relationship('Fitting', back_populates='predictions')
 

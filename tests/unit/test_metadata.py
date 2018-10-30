@@ -4,10 +4,14 @@ import lore.metadata
 from sqlalchemy.orm import sessionmaker, scoped_session
 
 Session = scoped_session(sessionmaker(bind=lore.io.metadata._engine))
+adapter = lore.io.metadata.adapter
 
 
 def truncate_table(table_name):
-    lore.io.metadata.execute('TRUNCATE {} RESTART IDENTITY CASCADE'.format(table_name))
+    if adapter == 'postgres':
+        lore.io.metadata.execute('TRUNCATE {} RESTART IDENTITY CASCADE'.format(table_name))
+    else:
+        lore.io.metadata.execute('DELETE FROM {}'.format(table_name))
 
 
 def truncate_metadata_tables():
