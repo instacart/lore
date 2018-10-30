@@ -100,6 +100,15 @@ class Base(object):
 
     @before_after_callbacks
     @timed(logging.INFO)
+    def predict_proba(self, dataframe):
+        try:
+            probs = self.estimator.predict_proba(self.pipeline.encode_x(dataframe))
+            return probs
+        except AttributeError:
+            raise AttributeError('Estimator does not define predict_proba')
+
+    @before_after_callbacks
+    @timed(logging.INFO)
     def evaluate(self, dataframe):
         return self.estimator.evaluate(
             self.pipeline.encode_x(dataframe),
