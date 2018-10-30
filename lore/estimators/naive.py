@@ -63,4 +63,7 @@ class BinaryClassifier(Base):
     @before_after_callbacks
     @timed(logging.INFO)
     def predict_proba(self, dataframe):
-        return numpy.ones(dataframe.shape[0])*self.mean
+        ret = numpy.ones((dataframe.shape[0], 2))
+        ret[:, 0] = (1 - self.mean)
+        ret[:, 1] = self.mean
+        return ret

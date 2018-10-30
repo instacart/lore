@@ -261,5 +261,5 @@ class TestNaiveBinaryClassifier(unittest.TestCase):
     def test_probs(self):
         model = tests.mocks.models.NaiveBinaryClassifier()
         model.fit(test=True, score=True)
-        probs = model.predict_proba(model.pipeline.test_data)
+        probs = model.predict_proba(model.pipeline.test_data)[:, 1]
         self.assertTrue((numpy.abs(probs - 0.667) < 0.001).all())
