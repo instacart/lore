@@ -11,6 +11,8 @@ from lore.util import timed, before_after_callbacks
 
 
 class Base(BaseEstimator):
+    """Base class for estimators"""
+
     __metaclass__ = ABCMeta
 
     @before_after_callbacks
