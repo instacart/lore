@@ -69,7 +69,7 @@ class Regression(Base):
     @timed(logging.INFO)
     def predict(self, dataframe):
         """See :ref:`Base Estimator for Naive _naive_base_predict`"""
-        return numpy.ones(dataframe.shape[0])*self.mean
+        return numpy.full(dataframe.shape[0], self.mean)
 
 
 class BinaryClassifier(Base):
