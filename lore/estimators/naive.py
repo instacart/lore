@@ -4,7 +4,8 @@ Naive Estimator
 ****************
 A naive estimator is a useful baseline against which to benchmark more complex models.
 A naive estimator will return the mean of the outcome for regression models and
-the majority class for classification models.
+the plurality class for classification models. Note that currently only binary classification
+is implemented. For binary classifiers, the majority class will be returned
 """
 from __future__ import absolute_import
 import inspect
