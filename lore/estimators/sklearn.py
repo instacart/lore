@@ -66,6 +66,9 @@ class BinaryClassifier(Base):
     @before_after_callbacks
     @timed(logging.INFO)
     def predict_proba(self, dataframe):
+        """Predict probabilities using the model
+        :param dataframe: Dataframe against which to make predictions
+        """
         return self.sklearn.predict_proba(dataframe)
 
 
