@@ -63,7 +63,10 @@ class Regression(Base):
 
 
 class BinaryClassifier(Base):
-    pass
+    @before_after_callbacks
+    @timed(logging.INFO)
+    def predict_proba(self, dataframe):
+        return self.sklearn.predict_proba(dataframe)
 
 
 class MutliClassifier(Base):
