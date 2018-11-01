@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+scikit-learn Estimator
+****************
+This estimator allows you to use any scikit-learn estimator of your choice.
+Note that the underlying estimator can always be accessed as ``Base(estimator).sklearn``
+"""
 from __future__ import absolute_import
 import inspect
 import logging
