@@ -577,17 +577,23 @@ class OneHot(Base):
     """
     Performs one hot encoding
     """
-    def __init__(self, column, name=None, minimum_occurrences=None, drop_first=False, compressed=False, **kwargs):
-        if compressed is True and minimum_occurrences is None:
-            raise ValueError('minimum_occurrences must be specified when compressed is True')
-        elif compressed is False and minimum_occurrences is not None:
-            logger.warning('minimum_occurrences has no effect when compressed is False')
+    def __init__(self, column, name=None, minimum_occurrences=None, percent_occurrences=None,
+                 drop_first=False, compressed=False, **kwargs):
+        if compressed is True and minimum_occurrences is None and percent_occurrences is None:
+            raise ValueError('minimum_occurrences or percent_occurences must be specified when compressed is True')
+        elif compressed is True and minimum_occurrences is not None and percent_occurrences is not None:
+            raise ValueError('You can only specify one of minimum_occurrences or percent_occurences')
+        elif compressed is False and (minimum_occurrences is not None or percent_occurrences is not None):
+            logger.warning('minimum_occurrences and percent_occurences have no effect when compressed is False')
+        self.percent_occurrences = percent_occurrences
         self.minimum_occurrences = minimum_occurrences
         self.drop_first = drop_first
         self.compressed = compressed
         super(OneHot, self).__init__(column, name, **kwargs)
 
     def fit(self, data):
+        if self.percent_occurrences is not None:
+            self.minimum_occurrences = self.percent_occurrences*len(self.series(data))
         ids = pandas.DataFrame({'id': self.series(data)})
         if self.compressed:
             counts = pandas.DataFrame({'n': ids.groupby('id').size()})
@@ -595,6 +601,10 @@ class OneHot(Base):
             self.categories = list(qualified.index)
         else:
             self.categories = list(ids.id.unique())
+
+        if len(self.categories) <= 1:
+            logger.warning("Number of effective levels is %d\n" % len(self.categories) +
+                           "If using compressed = True, check if percent_occurences or minimum_occurrences is too high")
 
         with timer(('fit one-hot %s:' % self.name), logging.DEBUG):
             self.dummy_columns = self.get_dummies(data).columns.values
