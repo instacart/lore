@@ -575,10 +575,16 @@ class Unique(Base):
 
 class OneHot(Base):
     """
-    Performs one hot encoding
+    Performs one hot encoding. One hot encoding is used to encode categorical variables into a series of indicator variables.
     """
     def __init__(self, column, name=None, minimum_occurrences=None, percent_occurrences=None,
                  drop_first=False, compressed=False, **kwargs):
+        """
+        :param minimum_occurrences: Minimum number of times that a level must occur so it gets a separate indicator variable. Levels below this threshold will be treated as having no effect. In other words, their encoding will be 0 across all levels. This is only used when compressed is True
+        :param percent_occurences: Minimum percentage  that a level must occur so it gets a separate indicator variable. Levels below this threshold will be treated as having no effect. In other words, their encoding will be 0 across all levels. This is only used when compressed is True
+        :drop_first: Drop the first level. This is useful for algorithms like linear regression. If the first level is not dropped the predictor matrix will be singular
+        :compressed: Prune rare levels using either minimum_occurrences or percent_occurences. Note that either percent_occurences or minimum_occurrences must be set for this.
+        """
         if compressed is True and minimum_occurrences is None and percent_occurrences is None:
             raise ValueError('minimum_occurrences or percent_occurences must be specified when compressed is True')
         elif compressed is True and minimum_occurrences is not None and percent_occurrences is not None:
