@@ -625,7 +625,7 @@ class OneHot(Base):
         return self.sequence_length
 
     def sequence_name(self, i, suffix=''):
-        return (self.name + '_%i' + suffix) % i
+        return self.dummy_columns[i]
 
 
 class Token(Unique):
