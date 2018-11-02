@@ -577,12 +577,13 @@ class OneHot(Base):
     """
     Performs one hot encoding
     """
-    def __init__(self, column, name=None, minimum_occurrences=None, compressed=False, **kwargs):
+    def __init__(self, column, name=None, minimum_occurrences=None, drop_first=False, compressed=False, **kwargs):
         if compressed is True and minimum_occurrences is None:
             raise ValueError('minimum_occurrences must be specified when compressed is True')
         elif compressed is False and minimum_occurrences is not None:
             logger.warning('minimum_occurrences has no effect when compressed is False')
         self.minimum_occurrences = minimum_occurrences
+        self.drop_first = drop_first
         self.compressed = compressed
         super(OneHot, self).__init__(column, name, **kwargs)
 
@@ -603,7 +604,7 @@ class OneHot(Base):
         data = self.series(data)
         data = data.astype('category')
         data = data.cat.set_categories(self.categories)
-        return pandas.get_dummies(data, prefix=self.column)
+        return pandas.get_dummies(data, prefix=self.column, drop_first=self.drop_first)
 
     def transform(self, data):
         with timer('transform one_hot %s:' % self.name, logging.DEBUG):
