@@ -575,18 +575,31 @@ class Unique(Base):
 
 class OneHot(Base):
     """
-    Performs one hot encoding
+    Performs one hot encoding. One hot encoding is used to encode categorical variables into a series of indicator variables.
     """
-    def __init__(self, column, name=None, minimum_occurrences=None, compressed=False, **kwargs):
-        if compressed is True and minimum_occurrences is None:
-            raise ValueError('minimum_occurrences must be specified when compressed is True')
-        elif compressed is False and minimum_occurrences is not None:
-            logger.warning('minimum_occurrences has no effect when compressed is False')
+    def __init__(self, column, name=None, minimum_occurrences=None, percent_occurrences=None,
+                 drop_first=False, compressed=False, **kwargs):
+        """
+        :param minimum_occurrences: Minimum number of times that a level must occur so it gets a separate indicator variable. Levels below this threshold will be treated as having no effect. In other words, their encoding will be 0 across all levels. This is only used when compressed is True
+        :param percent_occurences: Minimum percentage  that a level must occur so it gets a separate indicator variable. Levels below this threshold will be treated as having no effect. In other words, their encoding will be 0 across all levels. This is only used when compressed is True
+        :drop_first: Drop the first level. This is useful for algorithms like linear regression. If the first level is not dropped the predictor matrix will be singular
+        :compressed: Prune rare levels using either minimum_occurrences or percent_occurences. Note that either percent_occurences or minimum_occurrences must be set for this.
+        """
+        if compressed is True and minimum_occurrences is None and percent_occurrences is None:
+            raise ValueError('minimum_occurrences or percent_occurences must be specified when compressed is True')
+        elif compressed is True and minimum_occurrences is not None and percent_occurrences is not None:
+            raise ValueError('You can only specify one of minimum_occurrences or percent_occurences')
+        elif compressed is False and (minimum_occurrences is not None or percent_occurrences is not None):
+            logger.warning('minimum_occurrences and percent_occurences have no effect when compressed is False')
+        self.percent_occurrences = percent_occurrences
         self.minimum_occurrences = minimum_occurrences
+        self.drop_first = drop_first
         self.compressed = compressed
         super(OneHot, self).__init__(column, name, **kwargs)
 
     def fit(self, data):
+        if self.percent_occurrences is not None:
+            self.minimum_occurrences = self.percent_occurrences*len(self.series(data))
         ids = pandas.DataFrame({'id': self.series(data)})
         if self.compressed:
             counts = pandas.DataFrame({'n': ids.groupby('id').size()})
@@ -594,6 +607,10 @@ class OneHot(Base):
             self.categories = list(qualified.index)
         else:
             self.categories = list(ids.id.unique())
+
+        if len(self.categories) <= 1:
+            logger.warning("Number of effective levels is %d\n" % len(self.categories) +
+                           "If using compressed = True, check if percent_occurences or minimum_occurrences is too high")
 
         with timer(('fit one-hot %s:' % self.name), logging.DEBUG):
             self.dummy_columns = self.get_dummies(data).columns.values
@@ -603,7 +620,7 @@ class OneHot(Base):
         data = self.series(data)
         data = data.astype('category')
         data = data.cat.set_categories(self.categories)
-        return pandas.get_dummies(data, prefix=self.column)
+        return pandas.get_dummies(data, prefix=self.column, drop_first=self.drop_first)
 
     def transform(self, data):
         with timer('transform one_hot %s:' % self.name, logging.DEBUG):
@@ -625,7 +642,7 @@ class OneHot(Base):
         return self.sequence_length
 
     def sequence_name(self, i, suffix=''):
-        return (self.name + '_%i' + suffix) % i
+        return self.dummy_columns[i]
 
 
 class Token(Unique):
