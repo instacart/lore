@@ -47,6 +47,11 @@ except lore.env.ModuleNotFoundError:
     class Psycopg2OperationalError(lore.env.StandardError):
         pass
 
+try:
+    from snowflake.connector.errors import ProgrammingError
+except lore.env.ModuleNotFoundError:
+    class ProgrammingError(lore.env.StandardError):
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -369,9 +374,13 @@ class Connection(object):
         with timer("dataframe:"):
             try:
                 return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
-            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, ProgrammingError) as e:
                 if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                     logger.warning('Reconnect and retry due to invalid connection')
+                    self.close()
+                    return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                elif not self._transactions and (isinstance(e, ProgrammingError) or e.connection_invalidated):
+                    logger.warning('Reconnect and retry due to unauthenticated connection')
                     self.close()
                     return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
                 else:
@@ -413,9 +422,13 @@ class Connection(object):
     def __execute(self, sql, bindings):
         try:
             return self._connection.execute(sql, bindings)
-        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, ProgrammingError) as e:
             if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                 logger.warning('Reconnect and retry due to invalid connection')
+                self.close()
+                return self._connection.execute(sql, bindings)
+            elif not self._transactions and (isinstance(e, ProgrammingError) or e.connection_invalidated):
+                logger.warning('Reconnect and retry due to unauthenticated connection')
                 self.close()
                 return self._connection.execute(sql, bindings)
             else:
