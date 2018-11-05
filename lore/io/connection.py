@@ -48,9 +48,9 @@ except lore.env.ModuleNotFoundError:
         pass
 
 try:
-    from snowflake.connector.errors import ProgrammingError
+    from snowflake.connector.errors import ProgrammingError as SnowflakeProgrammingError
 except lore.env.ModuleNotFoundError:
-    class ProgrammingError(lore.env.StandardError):
+    class SnowflakeProgrammingError(lore.env.StandardError):
         pass
 
 logger = logging.getLogger(__name__)
@@ -379,7 +379,7 @@ class Connection(object):
                     logger.warning('Reconnect and retry due to invalid connection')
                     self.close()
                     return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
-                elif not self._transactions and (isinstance(e, ProgrammingError) or e.connection_invalidated):
+                elif not self._transactions and (isinstance(e, SnowflakeProgrammingError) or e.connection_invalidated):
                     if hasattr(e, 'msg') and e.msg and "authenticate" in e.msg.lower():
                         logger.warning('Reconnect and retry due to unauthenticated connection')
                         self.close()
@@ -431,7 +431,7 @@ class Connection(object):
                 logger.warning('Reconnect and retry due to invalid connection')
                 self.close()
                 return self._connection.execute(sql, bindings)
-            elif not self._transactions and (isinstance(e, ProgrammingError) or e.connection_invalidated):
+            elif not self._transactions and (isinstance(e, SnowflakeProgrammingError) or e.connection_invalidated):
                 if hasattr(e, 'msg') and e.msg and "authenticate" in e.msg.lower():
                     logger.warning('Reconnect and retry due to unauthenticated connection')
                     self.close()

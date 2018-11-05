@@ -15,6 +15,7 @@ import pandas
 
 import lore
 
+
 calls = 0
 @event.listens_for(Engine, "after_cursor_execute")
 def count_sql_calls(conn, cursor, statement, parameters, context, executemany):
@@ -183,3 +184,23 @@ class TestConnection(unittest.TestCase):
 
         self.assertNotEquals(connection, lore.io.main._connection)
         self.assertEquals(result[0][0], 1)
+
+    def test_reconnect_and_retry_on_expired_connection(self):
+        original_execute = lore.io.main._connection.execute
+
+        def raise_snowflake_programming_error_on_first_call(sql, bindings):
+            lore.io.main._connection.execute = original_execute
+            e = lore.io.connection.SnowflakeProgrammingError('Authentication token has expired.  The user must authenticate again')
+            raise sqlalchemy.exc.DBAPIError('select 1', [], e, True)
+
+        exceptions = lore.env.STDOUT_EXCEPTIONS
+        lore.env.STDOUT_EXCEPTIONS = False
+        connection = lore.io.main._connection
+        lore.io.main._connection.execute = raise_snowflake_programming_error_on_first_call
+
+        result = lore.io.main.select(sql='select 1')
+        lore.env.STDOUT_EXCEPTIONS = exceptions
+
+        self.assertNotEquals(connection, lore.io.main._connection)
+        self.assertEquals(result[0][0], 1)
+
