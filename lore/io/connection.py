@@ -380,9 +380,13 @@ class Connection(object):
                     self.close()
                     return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
                 elif not self._transactions and (isinstance(e, ProgrammingError) or e.connection_invalidated):
-                    logger.warning('Reconnect and retry due to unauthenticated connection')
-                    self.close()
-                    return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                    if hasattr(e, 'msg') and e.msg and "authenticate" in e.msg.lower():
+                        logger.warning('Reconnect and retry due to unauthenticated connection')
+                        self.close()
+                        return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                    else:
+                        logger.warning('Failed to execute db query with error type {}. Reason : {}'.format(type(e).__name__, e.msg))
+                        raise
                 else:
                     raise
 
@@ -428,8 +432,12 @@ class Connection(object):
                 self.close()
                 return self._connection.execute(sql, bindings)
             elif not self._transactions and (isinstance(e, ProgrammingError) or e.connection_invalidated):
-                logger.warning('Reconnect and retry due to unauthenticated connection')
-                self.close()
-                return self._connection.execute(sql, bindings)
+                if hasattr(e, 'msg') and e.msg and "authenticate" in e.msg.lower():
+                    logger.warning('Reconnect and retry due to unauthenticated connection')
+                    self.close()
+                    return self._connection.execute(sql, bindings)
+                else:
+                    logger.warning('Failed to execute db query with error type {}. Reason : {}'.format(type(e).__name__, e.msg))
+                    raise
             else:
                 raise
