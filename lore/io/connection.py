@@ -374,7 +374,7 @@ class Connection(object):
         with timer("dataframe:"):
             try:
                 return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
-            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, ProgrammingError) as e:
+            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, SnowflakeProgrammingError) as e:
                 if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                     logger.warning('Reconnect and retry due to invalid connection')
                     self.close()
@@ -426,7 +426,7 @@ class Connection(object):
     def __execute(self, sql, bindings):
         try:
             return self._connection.execute(sql, bindings)
-        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, ProgrammingError) as e:
+        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, SnowflakeProgrammingError) as e:
             if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                 logger.warning('Reconnect and retry due to invalid connection')
                 self.close()
