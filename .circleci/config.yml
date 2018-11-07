@@ -40,28 +40,28 @@ jobs:
 
     - restore_cache:
         keys:
-          - pyenv-v1-{{ .Branch }}-{{ .Revision }}
-          - pyenv-v1-{{ .Branch }}-
-          - pyenv-v1-
+          - pyenv-v2-{{ .Branch }}-{{ .Revision }}
+          - pyenv-v2-{{ .Branch }}-
+          - pyenv-v2-
     - run:
         working_directory: /opt/circleci/.pyenv
         command: git pull
     - run: pyenv install -s 2.7.15
     - run: pyenv global 2.7.15
     - run: pip install --upgrade pip
-    - run: pyenv install -s 3.6.5
-    - run: pyenv global 3.6.5
+    - run: pyenv install -s 3.6.7
+    - run: pyenv global 3.6.7
     - run: pip install --upgrade pip
     - run: pip install -e .
     - save_cache:
-        key: pyenv-v1-{{ .Branch }}-{{ .Revision }}
+        key: pyenv-v2-{{ .Branch }}-{{ .Revision }}
         paths:
         - /opt/circleci/.pyenv
         - /opt/circleci/python
 
     - run: LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.__init__
     - run: git checkout -- requirements.txt
-    - run: LORE_PYTHON_VERSION=3.6.5 lore test -s tests.unit.__init__
+    - run: LORE_PYTHON_VERSION=3.6.7 lore test -s tests.unit.__init__
     - run: git checkout -- requirements.txt
     - save_cache:
         key: pyenv-v1-{{ .Branch }}-{{ .Revision }}
@@ -71,7 +71,7 @@ jobs:
 
     - run: createdb lore_test
     - run: LORE_PYTHON_VERSION=2.7.15 lore test
-    - run: LORE_PYTHON_VERSION=3.6.5 lore test
+    - run: LORE_PYTHON_VERSION=3.6.7 lore test
     - store_test_results:
         path: /tmp/circleci-test-results
     - store_artifacts:
