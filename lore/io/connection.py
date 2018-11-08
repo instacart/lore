@@ -47,6 +47,11 @@ except lore.env.ModuleNotFoundError:
     class Psycopg2OperationalError(lore.env.StandardError):
         pass
 
+try:
+    from snowflake.connector.errors import ProgrammingError as SnowflakeProgrammingError
+except lore.env.ModuleNotFoundError:
+    class SnowflakeProgrammingError(lore.env.StandardError):
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -369,11 +374,19 @@ class Connection(object):
         with timer("dataframe:"):
             try:
                 return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
-            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, SnowflakeProgrammingError) as e:
                 if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                     logger.warning('Reconnect and retry due to invalid connection')
                     self.close()
                     return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                elif not self._transactions and (isinstance(e, SnowflakeProgrammingError) or e.connection_invalidated):
+                    if hasattr(e, 'msg') and e.msg and "authenticate" in e.msg.lower():
+                        logger.warning('Reconnect and retry due to unauthenticated connection')
+                        self.close()
+                        return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                    else:
+                        logger.warning('Failed to execute db query with error type {}. Reason : {}'.format(type(e).__name__, e.msg))
+                        raise
                 else:
                     raise
 
@@ -413,10 +426,18 @@ class Connection(object):
     def __execute(self, sql, bindings):
         try:
             return self._connection.execute(sql, bindings)
-        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, SnowflakeProgrammingError) as e:
             if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                 logger.warning('Reconnect and retry due to invalid connection')
                 self.close()
                 return self._connection.execute(sql, bindings)
+            elif not self._transactions and (isinstance(e, SnowflakeProgrammingError) or e.connection_invalidated):
+                if hasattr(e, 'msg') and e.msg and "authenticate" in e.msg.lower():
+                    logger.warning('Reconnect and retry due to unauthenticated connection')
+                    self.close()
+                    return self._connection.execute(sql, bindings)
+                else:
+                    logger.warning('Failed to execute db query with error type {}. Reason : {}'.format(type(e).__name__, e.msg))
+                    raise
             else:
                 raise
