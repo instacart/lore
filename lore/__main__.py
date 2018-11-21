@@ -782,9 +782,10 @@ def task(parsed, unknown):
         sys.exit('\n%s Tasks\n%s\n  %s\n' % (lore.env.APP,'-' * (6 + len(lore.env.APP)), '\n  '.join('%s.%s: %s' % (task.__module__, task.__name__, task.main.__doc__) for task in tasks)))
 
     for task in parsed.task:
-        task = _get_fully_qualified_class(task)()
+        task_class = _get_fully_qualified_class(task)
+        instance = task_class()
         grouped, unpaired = _pair_args(unknown)
-        argspec = _get_valid_fit_args(task.main)
+        argspec = _get_valid_fit_args(instance.main)
 
         defaults = [None] * (len(argspec.args) - len(argspec.defaults)) + list(argspec.defaults)
         valid_args = dict(zip(argspec.args, defaults))
@@ -801,12 +802,12 @@ def task(parsed, unknown):
 
         if unknown_args:
             msg = ansi.bold("Valid task arguments") + ": \n%s\n" % "\n".join('  %s=%s' % i for i in valid_args.items())
-            sys.exit(ansi.error() + ' Unknown arguments: %s\n%s\n%s' % (unknown_args, msg, task.main.__doc__))
+            sys.exit(ansi.error() + ' Unknown arguments: %s\n%s\n%s' % (unknown_args, msg, instance.main.__doc__))
 
         with timer('execute %s' % task):
             print(ansi.success('RUNNING ') + task)
             logger.info('starting task: %s %s' % (task, args))
-            task.main(**cast_args)
+            instance.main(**cast_args)
 
 
 def test(parsed, unknown):
