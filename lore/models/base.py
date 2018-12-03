@@ -1,13 +1,11 @@
 from __future__ import absolute_import
 
 import datetime
-import string
 import json
 import logging
 import os.path
 from os.path import join
 import pickle
-import random
 import inspect
 import warnings
 import botocore
@@ -16,11 +14,7 @@ import lore.ansi
 import lore.estimators
 import lore.metadata
 from lore.env import require
-from lore.util import timer, timed, before_after_callbacks, \
-    convert_df_columns_to_json, sql_alchemy_object_as_dict, \
-    memoized_property
-from sqlalchemy.orm import sessionmaker, scoped_session
-from sqlalchemy import desc
+from lore.util import timer, timed, before_after_callbacks, convert_df_columns_to_json
 
 require(
     lore.dependencies.TABULATE +
@@ -30,8 +24,6 @@ require(
 import shap
 from tabulate import tabulate
 from sklearn.model_selection import RandomizedSearchCV
-
-Session = scoped_session(sessionmaker(bind=lore.io.metadata._engine))
 
 
 logger = logging.getLogger(__name__)
@@ -49,8 +41,7 @@ class Base(object):
         self.estimator = estimator
         self.pipeline = pipeline
         self._shap_explainer = None
-        self.metadata = None
-        self.fit_complete = False
+        self.fitting = None
 
     def __getstate__(self):
         state = dict(self.__dict__)
@@ -65,6 +56,10 @@ class Base(object):
         for key, default in backward_compatible_defaults.items():
             if key not in self.__dict__.keys():
                 self.__dict__[key] = default
+
+    def __repr__(self):
+        properties = ['%s=%s' % (key, value) for key, value in self.__dict__.items() if key[0] != '_']
+        return '<%s(%s)>' % (self.__class__.__name__, ', '.join(properties))
 
     @property
     def estimator(self):
@@ -81,7 +76,16 @@ class Base(object):
 
     @before_after_callbacks
     @timed(logging.INFO)
-    def fit(self, test=True, score=True, **estimator_kwargs):
+    def fit(self, test=True, score=True, custom_data=None, save=True, **estimator_kwargs):
+        self.fitting = lore.metadata.Fitting.create(
+            model=self.name,
+            custom_data=custom_data,
+            snapshot=lore.metadata.Snapshot(pipeline=self.pipeline.name,
+                                            head=str(self.pipeline.training_data.head(2)),
+                                            tail=str(self.pipeline.training_data.tail(2))
+                                            )
+        )
+
         self.stats = self.estimator.fit(
             x=self.pipeline.encoded_training_data.x,
             y=self.pipeline.encoded_training_data.y,
@@ -97,7 +101,10 @@ class Base(object):
         if score:
             self.stats['score'] = self.score(self.pipeline.test_data)
 
-        self.fit_complete = True
+        self.complete_fitting()
+
+        if save:
+            self.save()
 
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
@@ -113,7 +120,7 @@ class Base(object):
         df['value'] = predictions
         df['custom_data'] = custom_data
         df['created_at'] = datetime.datetime.utcnow()
-        df['fitting_name'] = self.fitting_name
+        df['fitting_id'] = self.fitting.id
         return df
 
     def log_predictions(self, dataframe, predictions, key_cols, custom_data=None):
@@ -170,12 +177,26 @@ class Base(object):
             pre_dispatch='2*njobs',
             random_state=None,
             error_score='raise',
-            return_train_score=True
+            return_train_score=True,
+            test=True,
+            score=True,
+            save=True,
+            custom_data=None
     ):
         """Random search hyper params
         """
-        if scoring is None:
-            scoring = None
+        params = locals()
+        params.pop('self')
+
+        self.fitting = lore.metadata.Fitting.create(
+            model=self.name,
+            custom_data=custom_data,
+            snapshot=lore.metadata.Snapshot(pipeline=self.pipeline.name,
+                                            head=str(self.pipeline.training_data.head(2)),
+                                            tail=str(self.pipeline.training_data.tail(2))
+                                            )
+        )
+
         result = RandomizedSearchCV(
             self.estimator,
             param_distributions,
@@ -199,9 +220,35 @@ class Base(object):
         )
         self.estimator = result.best_estimator_
         self.stats = {}
-        self.estimator_kwargs = None
-        self.fit_complete = True
+        self.estimator_kwargs = self.estimator.__getstate__()
+
+        if test:
+            self.stats['test'] = self.evaluate(self.pipeline.test_data)
+
+        if score:
+            self.stats['score'] = self.score(self.pipeline.test_data)
+
+        self.complete_fitting()
+
+        if save:
+            self.save()
         return result
+
+    def complete_fitting(self):
+        self.fitting.completed_at = datetime.datetime.now()
+        self.fitting.args = self.estimator_kwargs
+        self.fitting.stats = self.stats
+        self.fitting.iterations = self.stats.get('epochs', None)
+        self.fitting.train = self.stats.get('train', None)
+        self.fitting.validate = self.stats.get('validate', None)
+        self.fitting.test = self.stats.get('test', None)
+        self.fitting.score = self.stats.get('score', None)
+
+        self.fitting.save()
+
+        logger.info(
+            '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
+
 
     @classmethod
     def local_path(cls):
@@ -213,97 +260,32 @@ class Base(object):
 
     @classmethod
     def last_fitting(cls):
-        session = Session()
-        fitting_name = (session.query(lore.metadata.Fitting.name)
-                        .filter_by(model='lore_test.models.Boost')
-                        .order_by(desc(lore.metadata.Fitting.created_at))
-                        .limit(1)
-                        .scalar())
-        session.close()
-        return fitting_name
+        return lore.metadata.Fitting.last(model=cls.__module__ + '.' + cls.__name__)
 
-    @memoized_property
-    def fitting_name(self):
-        try:
-            return self._fitting_name
-        except AttributeError:
-            current_time = datetime.datetime.utcnow().strftime("%Y%m%d%H%m")
-            model_suffix = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-            fitting_name = current_time + '_' + model_suffix
-            return fitting_name
-
-    @fitting_name.setter
-    def fitting_name(self, name=None):
-        self._fitting_name = name
-
-    @memoized_property
     def fitting_path(self):
-        return join(self.local_path(), str(self.fitting_name))
+        return join(self.local_path(), str(self.fitting.id))
 
-    @memoized_property
     def model_path(self):
-        return ''.join([self.fitting_path, '/model.pickle'])
+        return ''.join([self.fitting_path(), '/model.pickle'])
 
-    @memoized_property
     def remote_model_path(self):
-        return join(self.remote_path(), self.fitting_name, 'model.pickle')
+        return join(self.remote_path(), self.fitting.id, 'model.pickle')
 
-    # Would ideally be class property
-    @property
-    def model_name(self):
-        return '.'.join([self.__class__.__module__, self.__class__.__name__])
-
-    def save(self, custom_data=None, upload=False):
-        if self.fit_complete is False:
+    def save(self, upload=False):
+        if self.fitting is None:
             raise ValueError("This model has not been fit yet. There is no point in saving.")
 
-        if self.metadata:
-            raise ValueError("This model has already been saved")
-
-        commit = lore.metadata.Commit.from_git()
-        commit.get_or_create(sha=commit.sha)
-        fitting = lore.metadata.Fitting.create(
-            model=self.model_name,
-            commit=None,
-            name=self.fitting_name,
-            custom_data=custom_data,
-            snapshot=lore.metadata.Snapshot(pipeline='.'.join([self.pipeline.__class__.__module__,
-                                                               self.pipeline.__class__.__name__]),
-                                            commit=None,
-                                            head=str(self.pipeline.training_data.head(2)),
-                                            tail=str(self.pipeline.training_data.tail(2))
-                                            )
-        )
-
-        try:
-            fitting.iterations = self.stats['epochs']
-        except KeyError:
-            fitting.iterations = None
-        fitting.completed_at = datetime.datetime.now()
-        fitting.args = self.estimator_kwargs
-        fitting.stats = self.stats
-        try:
-            fitting.train = self.stats['train']
-            fitting.validate = self.stats['validate']
-            fitting.test = self.stats['test']
-            fitting.score = self.stats['score']
-        except KeyError:
-            fitting.test = None
-            fitting.score = None
-
-        self.metadata = sql_alchemy_object_as_dict(fitting)
-
-        if not os.path.exists(self.fitting_path):
+        if not os.path.exists(self.fitting_path()):
             try:
-                os.makedirs(self.fitting_path)
+                os.makedirs(self.fitting_path())
             except FileExistsError as ex:
                 pass  # race to create
 
         with timer('pickle model'):
-            with open(self.model_path, 'wb') as f:
+            with open(self.model_path(), 'wb') as f:
                 pickle.dump(self, f)
 
-        with open(join(self.fitting_path, 'params.json'), 'w') as f:
+        with open(join(self.fitting_path(), 'params.json'), 'w') as f:
             params = {}
             for child in [self.estimator, self.pipeline]:
                 param = child.__module__ + '.' + child.__class__.__name__
@@ -318,60 +300,54 @@ class Base(object):
             json.dump(params, f, indent=2, sort_keys=True)
 
         if self.stats:
-            with open(join(self.fitting_path, 'stats.json'), 'w') as f:
+            with open(join(self.fitting_path(), 'stats.json'), 'w') as f:
                 json.dump(self.stats, f, indent=2, sort_keys=True)
 
         if upload:
             url = self.upload()
             fitting.url = url
             fitting.uploaded_at = datetime.datetime.utcnow()
-        fitting.save()
 
     @classmethod
-    def load(cls, fitting_name=None):
+    def load(cls, fitting_id=None):
         model = cls()
-        if fitting_name is None:
-            fitting_name = model.last_fitting()
+        if fitting_id is None:
+            model.fitting = model.last_fitting()
         else:
-            fitting_name = str(fitting_name)
+            model.fitting = lore.metadata.Fitting.get(fitting_id)
 
-        model.fitting_name = fitting_name
         with timer('unpickle model'):
-            with open(model.model_path, 'rb') as f:
+            with open(model.model_path(), 'rb') as f:
                 loaded = pickle.load(f)
-                loaded.fitting_name = fitting_name
+                loaded.fitting = model.fitting
                 return loaded
 
     def upload(self):
-        if self.metadata is None:
-            raise ValueError("Please save model first, before uplaoding")
-        lore.io.upload(self.model_path, self.remote_model_path)
-        return self.remote_model_path
+        lore.io.upload(self.model_path(), self.remote_model_path())
+        return self.remote_model_path()
 
     @classmethod
-    def download(cls, fitting_name=None):
+    def download(cls, fitting_id=None):
         frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
         warnings.showwarning('Please start using explicit fitting name when downloading the model ex "Keras.download(10)". Default Keras.download() will be deprecated in 0.7.0',
                              DeprecationWarning,
                              filename, line_number)
         model = cls()
-        if fitting_name is None:
-            fitting_name = model.last_fitting()
+        if fitting_id is None:
+            model.fitting = model.last_fitting()
             # If still none, then either no model was fit or user is trying to download a lore model pre-0.7
-            if fitting_name is None:
+            if model.fitting is None:
                 raise ValueError('No fittings found for this model. If you are looking for fittings created with a ' +
                                  'prior version of lore, please explicitly specify the fitting number')
         else:
-            fitting_name = str(fitting_name)
-
-        model.fitting_name = fitting_name
+            model.fitting = lore.metadata.Fitting.get(fitting_id)
 
         try:
-            lore.io.download(model.remote_model_path, model.model_path, cache=True)
+            lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
-                lore.io.download(model.remote_model_path, model.model_path, cache=True)
-        return cls.load(fitting_name)
+                lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
+        return cls.load(model.fitting.id)
 
     def shap_values(self, i, nsamples=1000):
         instance = self.pipeline.encoded_test_data.x.iloc[i, :]

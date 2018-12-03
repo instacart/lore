@@ -38,7 +38,7 @@ class Base(lore.models.base.Base):
 
     def remote_weights_path(self):
         if self.fitting:
-            return join(self.remote_path(), str(self.fitting), 'weights.h5')
+            return join(self.remote_path(), str(self.fitting.id), 'weights.h5')
         else:
             return join(self.remote_path(), 'weights.h5')
 
@@ -78,8 +78,8 @@ class Base(lore.models.base.Base):
                 del f['optimizer_weights']
 
     @classmethod
-    def load(cls, fitting=None):
-        model = super(Base, cls).load(fitting)
+    def load(cls, fitting_id=None):
+        model = super(Base, cls).load(fitting_id)
 
         if hasattr(model, 'estimator'):
             # HACK to set estimator model, and model serializer
@@ -92,7 +92,7 @@ class Base(lore.models.base.Base):
             model.estimator.build()
 
             try:
-                with timer('load weights %i' % model.fitting):
+                with timer('load weights %i' % model.fitting.id):
                     model.estimator.keras.load_weights(model.weights_path())
             except ValueError as ex:
                 if model.estimator.multi_gpu_model and not lore.estimators.keras.available_gpus:

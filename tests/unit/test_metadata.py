@@ -1,14 +1,11 @@
 import unittest
 import tests.mocks.models
 import lore.metadata
-from sqlalchemy.orm import sessionmaker, scoped_session
-
-Session = scoped_session(sessionmaker(bind=lore.io.metadata._engine))
-adapter = lore.io.metadata.adapter
+import datetime
 
 
 def truncate_table(table_name):
-    if adapter == 'postgres':
+    if lore.io.metadata.adapter == 'postgres':
         lore.io.metadata.execute('TRUNCATE {} RESTART IDENTITY CASCADE'.format(table_name))
     else:
         lore.io.metadata.execute('DELETE FROM {}'.format(table_name))
@@ -25,37 +22,52 @@ def setUpModule():
     truncate_metadata_tables()
 
 
-def tearDownModule():
-    truncate_metadata_tables()
+class TestCrud(unittest.TestCase):
+    def test_lifecycle(self):
+        commit = lore.metadata.Commit.create(sha='abc')
+        self.assertEqual(commit.__class__, lore.metadata.Commit)
+        self.assertIsNotNone(commit.sha)
+
+        commit.created_at = datetime.datetime.now()
+        commit.save()
+
+        all = lore.metadata.Commit.all()
+        self.assertEqual(len(all), 1)
+
+        first = lore.metadata.Commit.first()
+        self.assertEqual(first.sha, commit.sha)
+
+        last = lore.metadata.Commit.last()
+        self.assertEqual(first.sha, last.sha)
+
+        commit.delete()
+
+        first = lore.metadata.Commit.first()
+        self.assertIsNone(first)
 
 
-class FitLogging(unittest.TestCase):
+class TestFitting(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.model = tests.mocks.models.XGBoostRegressionWithPredictionLogging()
         cls.df = cls.model.pipeline.training_data
 
-    def test_basic_logging_(self):
+    def test_model_fit(self):
         self.model.fit()
-        self.model.save()
-        session = Session()
-        model_metadata = session.query(lore.metadata.Fitting).filter_by(name=self.model.fitting_name).first()
-        session.close()
-        self.assertIsNotNone(model_metadata)
+        fitting = lore.metadata.Fitting.last()
+        self.assertEqual(fitting.id, self.model.fitting.id)
+        self.assertEqual(fitting.model, self.model.name)
+        self.assertEqual(fitting.id, self.model.last_fitting().id)
 
 
-class PredictionLogging(unittest.TestCase):
+class TestPredictionLogging(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.model = tests.mocks.models.XGBoostRegressionWithPredictionLogging()
         cls.df = cls.model.pipeline.training_data
 
-    def test_prediction_logging_(self):
+    def test_prediction_logging(self):
         self.model.fit()
-        self.model.save()
         self.model.predict(self.df, log_predictions=True, key_cols=['a', 'b'])
-        session = Session()
-        prediction_metadata = (session.query(lore.metadata.Prediction)
-                               .filter_by(fitting_name=self.model.fitting_name).first())
-        session.close()
+        prediction_metadata = lore.metadata.Prediction.first(fitting_id=self.model.fitting.id)
         self.assertIsNotNone(prediction_metadata)

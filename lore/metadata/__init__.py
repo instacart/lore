@@ -7,7 +7,8 @@ import os
 from sqlalchemy import Column, Float, Integer, String, DateTime, JSON, func, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
-from sqlalchemy import TypeDecorator, types
+from sqlalchemy import TypeDecorator, types, desc
+from sqlalchemy.inspection import inspect
 import lore.io
 import json
 logger = logging.getLogger(__name__)
@@ -79,10 +80,54 @@ class Crud(object):
 
         return self
 
+    @classmethod
+    def all(cls, order_by=None, limit=None, **filters):
+        session = Session()
+        query = session.query(cls)
+        if filters:
+            query = query.filter_by(**filters)
+        if isinstance(order_by, list) or isinstance(order_by, tuple):
+            query = query.order_by(*order_by)
+        elif order_by is not None:
+            query = query.order_by(order_by)
+        if limit:
+            query = query.limit(limit)
+        result = query.all()
+        session.close()
+        return result
+
+    @classmethod
+    def last(cls, order_by=None, limit=1, **filters):
+       if order_by is None:
+           order_by=inspect(cls).primary_key
+       if isinstance(order_by, list) or isinstance(order_by, tuple):
+           order_by = desc(*order_by)
+       else:
+           order_by = desc(order_by)
+       return cls.first(order_by=order_by, limit=limit, **filters)
+
+    @classmethod
+    def first(cls, order_by=None, limit=1, **filters):
+        if order_by is None:
+            order_by = inspect(cls).primary_key
+        result = cls.all(order_by=order_by, limit=limit, **filters)
+
+        if limit == 1:
+            if len(result) == 0:
+                result = None
+            else:
+                result = result[0]
+
+        return result
+
     def save(self):
         session = Session()
         session.add(self)
-        return session.commit()
+        try:
+            return session.commit()
+        except Exception as ex:
+            session.rollback()
+            raise
 
     def update(self, **kwargs):
         for key, value in kwargs.items():
@@ -92,12 +137,17 @@ class Crud(object):
     def delete(self):
         session = Session()
         session.delete(self)
-        return session.commit()
+        try:
+            return session.commit()
+        except Exception as ex:
+            session.rollback()
+            raise
+
 
 class Commit(Crud, Base):
     sha = Column(String, primary_key=True)
-    created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now())
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     message = Column(String)
     author_name = Column(String, index=True)
     author_email = Column(String)
@@ -140,7 +190,7 @@ class Commit(Crud, Base):
             if check != 'MESSAGE:' or not message:
                 logger.error('bad git parse for MESSAGE: %s' % out)
 
-            return Commit(
+            return Commit.get_or_create(
                 sha=sha,
                 author_name=author_name,
                 author_email=author_email,
@@ -157,7 +207,7 @@ class Snapshot(Crud, Base):
 
     """
     id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     completed_at = Column(DateTime)
     pipeline = Column(String, index=True)
     cache = Column(String)
@@ -176,9 +226,9 @@ class Snapshot(Crud, Base):
 
 
 class Fitting(Crud, Base):
-    name = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True)
     commit_sha = Column(String, ForeignKey('commits.sha'))
-    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     completed_at = Column(DateTime)
     snapshot_id = Column(Integer, ForeignKey('snapshots.id'), nullable=False, index=True)
     train = Column(Float)
@@ -198,14 +248,15 @@ class Fitting(Crud, Base):
     snapshot = relationship('Snapshot', back_populates='fittings')
 
     def __init__(self, **kwargs):
-        self.commit = Commit()
+        if 'commit' not in kwargs:
+            self.commit = Commit.from_git()
         super(Fitting, self).__init__(**kwargs)
 
 
 class Prediction(Crud, Base):
     id = Column(Integer, primary_key=True)
-    fitting_name = Column(String, ForeignKey('fittings.name'), nullable=False, index=True)
-    created_at = Column(DateTime, default=func.now())
+    fitting_id = Column(Integer, ForeignKey('fittings.id'), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.now)
     value = JSON_if_possible()
     key = JSON_if_possible()
     features = JSON_if_possible()
