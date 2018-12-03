@@ -1,4 +1,5 @@
 import unittest
+import sys
 
 class TestConnection(unittest.TestCase):
     def test_connection(self):
@@ -12,10 +13,12 @@ class TestTask(unittest.TestCase):
         import lore.__main__
 
         args = ('task', 'tests.mocks.tasks.EchoTask', '--arg1', 'true')
-
-        with self.assertLogs('lore.__main__') as log:
+        if sys.version_info[0] == 2:
             lore.__main__.main(args)
-            self.assertEqual(log.output, [
-                "INFO:lore.__main__:starting task: " +
-                "tests.mocks.tasks.EchoTask {'arg1': 'true'}"
-            ])
+        else:
+            with self.assertLogs('lore.__main__') as log:
+                lore.__main__.main(args)
+                self.assertEqual(log.output, [
+                    "INFO:lore.__main__:starting task: " +
+                    "tests.mocks.tasks.EchoTask {'arg1': 'true'}"
+                ])
