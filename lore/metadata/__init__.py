@@ -11,37 +11,40 @@ from sqlalchemy import TypeDecorator, types, desc
 from sqlalchemy.inspection import inspect
 import lore.io
 import json
+
 logger = logging.getLogger(__name__)
 Base = declarative_base()
-Session = scoped_session(sessionmaker(bind=lore.io.metadata._engine))
 adapter = lore.io.metadata.adapter
+engine = lore.io.metadata._engine
+Session = scoped_session(sessionmaker(bind=engine))
 
 
-class StringJSON(TypeDecorator):
-    @property
-    def python_type(self):
-        return object
+if adapter == 'sqlite':
+    # JSON support is not available in SQLite
+    class StringJSON(TypeDecorator):
+        @property
+        def python_type(self):
+            return object
 
-    impl = types.String
+        impl = types.String
 
-    def process_bind_param(self, value, dialect):
-        return json.dumps(value)
+        def process_bind_param(self, value, dialect):
+            return json.dumps(value)
 
-    def process_literal_param(self, value, dialect):
-        return value
+        def process_literal_param(self, value, dialect):
+            return value
 
-    def process_result_value(self, value, dialect):
-        try:
-            return json.loads(value)
-        except (ValueError, TypeError):
-            return None
+        def process_result_value(self, value, dialect):
+            try:
+                return json.loads(value)
+            except (ValueError, TypeError):
+                return None
+    JSON = StringJSON
 
-
-def JSON_if_possible(**kwargs):
-    if adapter == 'postgres':
-        return Column(JSON, **kwargs)
-    else:
-        return Column(StringJSON, **kwargs)
+    # Commenting sqlite queries with the SQLAlchemy declarative_base API
+    # is broken: https://github.com/sqlalchemy/sqlalchemy/issues/4396
+    engine.dialect.supports_sane_rowcount = False
+    engine.dialect.supports_sane_multi_rowcount = False  # for executemany()
 
 
 class Crud(object):
@@ -159,7 +162,7 @@ class Commit(Crud, Base):
         process = subprocess.Popen([
             'git',
             'rev-list',
-            '--format=NAME: %an%nEMAIL: %aE%nDATE: %at%nMESSAGE:%N%B',
+            '--format=NAME: %an%nEMAIL: %aE%nDATE: %at%nMESSAGE:%n%B',
             '--max-count=1',
             sha,
         ], stdout=subprocess.PIPE)
@@ -218,7 +221,7 @@ class Snapshot(Crud, Base):
     head = Column(String)
     tail = Column(String)
     stats = Column(String)
-    encoders = JSON_if_possible()
+    encoders = Column(JSON)
 
     description = Column(String)
     fittings = relationship('Fitting', back_populates='snapshot')
@@ -237,9 +240,9 @@ class Fitting(Crud, Base):
     score = Column(Float)
     iterations = Column(Integer)
     model = Column(String, index=True)
-    args = JSON_if_possible()
-    stats = JSON_if_possible()
-    custom_data = JSON_if_possible()
+    args = Column(JSON)
+    stats = Column(JSON)
+    custom_data = Column(JSON)
     url = Column(String)
     uploaded_at = Column(DateTime)
 
@@ -257,12 +260,12 @@ class Prediction(Crud, Base):
     id = Column(Integer, primary_key=True)
     fitting_id = Column(Integer, ForeignKey('fittings.id'), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.datetime.now)
-    value = JSON_if_possible()
-    key = JSON_if_possible()
-    features = JSON_if_possible()
-    custom_data = JSON_if_possible()
+    value = Column(JSON)
+    key = Column(JSON)
+    features = Column(JSON)
+    custom_data = Column(JSON)
 
     fitting = relationship('Fitting', back_populates='predictions')
 
 
-Base.metadata.create_all(lore.io.metadata._engine)
+Base.metadata.create_all(engine)

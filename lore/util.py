@@ -464,3 +464,15 @@ def memoized_property(fget):
         return getattr(self, attr_name)
 
     return property(fget_memoized)
+
+
+# https://thesmithfam.org/blog/2012/10/25/temporarily-suppress-console-output-in-python/
+@contextmanager
+def suppress_stdout():
+    with open(os.devnull, "w") as devnull:
+        old_stdout = sys.stdout
+        sys.stdout = devnull
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout

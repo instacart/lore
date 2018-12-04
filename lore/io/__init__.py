@@ -35,9 +35,7 @@ if config:
             vars()[section.lower()] = Connection(name=section.lower(), **options)
 
 if 'metadata' not in vars():
-    # Watermarking sqlite queries with the SQLAlchemy declarative_base API
-    # is broken: https://github.com/sqlalchemy/sqlalchemy/issues/4396
-    vars()['metadata'] = Connection('sqlite:///data/metadata.sqlite', watermark=False)
+    vars()['metadata'] = Connection('sqlite:///%s/metadata.sqlite' % lore.env.DATA_DIR)
 
 redis_config = lore.env.REDIS_CONFIG
 if redis_config:
