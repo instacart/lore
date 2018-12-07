@@ -1,5 +1,6 @@
 import unittest
 import sys
+from lore.util import suppress_stdout
 
 
 class TestImport(unittest.TestCase):
@@ -14,12 +15,14 @@ class TestTask(unittest.TestCase):
         import lore.__main__
 
         args = ('task', 'tests.mocks.tasks.EchoTask', '--arg1', 'true')
-        if sys.version_info[0] == 2:
-            lore.__main__.main(args)
-        else:
-            with self.assertLogs('lore.__main__') as log:
+        with suppress_stdout():
+            if sys.version_info[0] == 2:
                 lore.__main__.main(args)
-                self.assertEqual(log.output, [
-                    "INFO:lore.__main__:starting task: " +
-                    "tests.mocks.tasks.EchoTask {'arg1': 'true'}"
-                ])
+                self.assertTrue(True)
+            else:
+                with self.assertLogs('lore.__main__') as log:
+                    lore.__main__.main(args)
+                    self.assertEqual(log.output, [
+                        "INFO:lore.__main__:starting task: " +
+                        "tests.mocks.tasks.EchoTask {'arg1': 'true'}"
+                    ])
