@@ -293,6 +293,16 @@ class TestOneHot(unittest.TestCase):
                 result_matrix[i, j] = 1
         self.assertEqual((output_df.values == result_matrix).all(), True)
 
+    def test_drop_first(self):
+        self.encoder = lore.encoders.OneHot('test', drop_first=True)
+        self.encoder.fit(self.input_df)
+        output_df = self.encoder.transform(self.test_df)
+        result_matrix = numpy.zeros((10, 2))
+        for j in range(result_matrix.shape[1]):
+            for i in range(int(j*(j + 1)/2) + j + 1, int(j*(j+1)/2) + j + 3 + j):
+                result_matrix[i, j] = 1
+        self.assertEqual((output_df.values == result_matrix).all(), True)
+
 
 class TestToken(unittest.TestCase):
     @classmethod

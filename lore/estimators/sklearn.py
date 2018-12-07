@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+scikit-learn Estimator
+****************
+This estimator allows you to use any scikit-learn estimator of your choice.
+Note that the underlying estimator can always be accessed as ``Base(estimator).sklearn``
+"""
 from __future__ import absolute_import
 import inspect
 import logging
@@ -56,7 +63,13 @@ class Regression(Base):
 
 
 class BinaryClassifier(Base):
-    pass
+    @before_after_callbacks
+    @timed(logging.INFO)
+    def predict_proba(self, dataframe):
+        """Predict probabilities using the model
+        :param dataframe: Dataframe against which to make predictions
+        """
+        return self.sklearn.predict_proba(dataframe)
 
 
 class MutliClassifier(Base):

@@ -204,3 +204,17 @@ class OneHotPipeline(lore.pipelines.holdout.Base):
 
     def get_output_encoder(self):
         return Pass('xor')
+
+
+class NaivePipeline(lore.pipelines.holdout.Base):
+    def get_data(self):
+        return pandas.DataFrame({
+            'x': [1, 2, 3]*1000,
+            'y': [0, 1, 1]*1000
+        })
+
+    def get_encoders(self):
+        return(Pass('x'))
+
+    def get_output_encoder(self):
+        return Pass('y')

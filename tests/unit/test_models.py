@@ -2,6 +2,7 @@ import unittest
 
 import tests.mocks.models
 import scipy.stats
+import numpy
 import lore.io
 import sqlalchemy
 
@@ -86,29 +87,6 @@ class TestKeras(unittest.TestCase):
         assert True
 
 
-class TestPredictionLogging(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.model = tests.mocks.models.XGBoostRegressionWithPredictionLogging()
-        cls.df = cls.model.pipeline.training_data
-
-    def test_prediction_logging(self):
-        sqlalchemy_table = sqlalchemy.Table(
-            'predictions', lore.io.main.metadata,
-            sqlalchemy.Column('id', sqlalchemy.Integer, primary_key=True),
-            sqlalchemy.Column('model_id', sqlalchemy.Integer),
-            sqlalchemy.Column('key', sqlalchemy.String()),
-            sqlalchemy.Column('value', sqlalchemy.JSON()),
-            sqlalchemy.Column('features', sqlalchemy.JSON()),
-            sqlalchemy.Column('other', sqlalchemy.JSON()),
-            sqlalchemy.Column('created_at', sqlalchemy.DateTime())
-        )
-        sqlalchemy_table.drop()
-        lore.io.main.metadata.create_all()
-        self.model.fit()
-        predictions = self.model.predict(self.df)
-
-
 class TestKerasSingle(unittest.TestCase):
     def test_single_encoder_a(self):
         model = tests.mocks.models.KerasSingle(type='tuple')
@@ -158,6 +136,12 @@ class TestXGBoostBinaryClassifier(unittest.TestCase):
 
         loaded = tests.mocks.models.XGBoostBinaryClassifier.load()
         self.assertEqual(loaded.fitting, model.fitting)
+
+    def test_probs(self):
+        model = tests.mocks.models.XGBoostBinaryClassifier()
+        model.fit()
+        model.predict_proba(model.pipeline.test_data)
+        assert True
 
 
 class TestSKLearn(unittest.TestCase):
@@ -246,3 +230,38 @@ class TestOneHotBinaryClassifier(unittest.TestCase):
         self.assertTrue(model.called_before_score)
         self.assertTrue(model.called_after_score)
 
+
+class TestNaiveBinaryClassifier(unittest.TestCase):
+    def test_lifecycle(self):
+        model = tests.mocks.models.NaiveBinaryClassifier()
+        model.fit()
+        model.save()
+
+        loaded = tests.mocks.models.NaiveBinaryClassifier.load()
+        self.assertEqual(loaded.fitting, model.fitting)
+
+    def test_before_after_hooks(self):
+        model = tests.mocks.models.NaiveBinaryClassifier()
+        model.fit(test=True, score=True)
+        model.predict(model.pipeline.test_data)
+
+        self.assertTrue(model.called_before_fit)
+        self.assertTrue(model.called_after_fit)
+        self.assertTrue(model.called_before_predict)
+        self.assertTrue(model.called_after_predict)
+        self.assertTrue(model.called_before_evaluate)
+        self.assertTrue(model.called_after_evaluate)
+        self.assertTrue(model.called_before_score)
+        self.assertTrue(model.called_after_score)
+
+    def test_preds(self):
+        model = tests.mocks.models.NaiveBinaryClassifier()
+        model.fit(test=True, score=True)
+        preds = model.predict(model.pipeline.test_data)
+        self.assertTrue((preds == 1).all())
+
+    def test_probs(self):
+        model = tests.mocks.models.NaiveBinaryClassifier()
+        model.fit(test=True, score=True)
+        probs = model.predict_proba(model.pipeline.test_data)[:, 1]
+        self.assertTrue((numpy.abs(probs - 0.667) < 0.001).all())

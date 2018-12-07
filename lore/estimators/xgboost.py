@@ -84,6 +84,14 @@ class Base(object):
 
     @before_after_callbacks
     @timed(logging.INFO)
+    def predict_proba(self, dataframe, ntree_limit=None):
+        if ntree_limit is None:
+            ntree_limit = self.best_ntree_limit or 0
+        with self.xgboost_lock:
+            return super(Base, self).predict_proba(dataframe, ntree_limit=ntree_limit)
+
+    @before_after_callbacks
+    @timed(logging.INFO)
     def evaluate(self, x, y):
         with self.xgboost_lock:
             return float(self.get_booster().eval(xgboost.DMatrix(x, label=y)).split(':')[-1])

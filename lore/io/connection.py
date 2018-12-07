@@ -47,6 +47,11 @@ except lore.env.ModuleNotFoundError:
     class Psycopg2OperationalError(lore.env.StandardError):
         pass
 
+try:
+    from snowflake.connector.errors import ProgrammingError as SnowflakeProgrammingError
+except lore.env.ModuleNotFoundError:
+    class SnowflakeProgrammingError(lore.env.StandardError):
+        pass
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +78,7 @@ class Connection(object):
     UNLOAD_PREFIX = os.path.join(lore.env.NAME, 'unloads')
     IAM_ROLE = os.environ.get('IAM_ROLE', None)
 
-    def __init__(self, url, name='connection', **kwargs):
+    def __init__(self, url, name='connection', watermark=True, **kwargs):
         if not sqlalchemy:
             raise lore.env.ModuleNotFoundError('No module named sqlalchemy. Please add it to requirements.txt.')
 
@@ -96,6 +101,7 @@ class Connection(object):
             del kwargs['__name__']
         if 'echo' not in kwargs:
             kwargs['echo'] = False
+        logger.info("Creating engine: %s %s" % (url, kwargs))
         self._engine = sqlalchemy.create_engine(url, **kwargs).execution_options(autocommit=True)
         self._metadata = None
         self.name = name
@@ -105,21 +111,22 @@ class Connection(object):
         @event.listens_for(self._engine, "before_cursor_execute", retval=True)
         def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
             conn.info.setdefault('query_start_time', []).append(datetime.now())
-            stack = inspect.stack()[1:-1]
-            if sys.version_info.major == 3:
-                stack = [(x.filename, x.lineno, x.function) for x in stack]
-            else:
-                stack = [(x[1], x[2], x[3]) for x in stack]
+            if watermark:
+                stack = inspect.stack()[1:-1]
+                if sys.version_info.major == 3:
+                    stack = [(x.filename, x.lineno, x.function) for x in stack]
+                else:
+                    stack = [(x[1], x[2], x[3]) for x in stack]
 
-            paths = [x[0] for x in stack]
-            origin = next((x for x in paths if x.startswith(lore.env.ROOT)), None)
-            if origin is None:
-                origin = next((x for x in paths if 'sqlalchemy' not in x), None)
-            if origin is None:
-                origin = paths[0]
-            caller = next(x for x in stack if x[0] == origin)
+                paths = [x[0] for x in stack]
+                origin = next((x for x in paths if x.startswith(lore.env.ROOT)), None)
+                if origin is None:
+                    origin = next((x for x in paths if 'sqlalchemy' not in x), None)
+                if origin is None:
+                    origin = paths[0]
+                caller = next(x for x in stack if x[0] == origin)
 
-            statement = "/* %s | %s:%d in %s */\n" % (lore.env.APP, caller[0], caller[1], caller[2]) + statement
+                statement = "/* %s | %s:%d in %s */\n" % (lore.env.APP, caller[0], caller[1], caller[2]) + statement
             return statement, parameters
 
         @event.listens_for(self._engine, "after_cursor_execute")
@@ -160,27 +167,46 @@ class Connection(object):
         self.__execute(self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs), kwargs)
 
     def insert(self, table, dataframe, batch_size=10 ** 5):
-        if self._engine.dialect.name in ['postgresql', 'redshift']:
-            for batch in range(int(math.ceil(float(len(dataframe)) / batch_size))):
+        for i in range(int(math.ceil(float(len(dataframe)) / batch_size))):
+            batch = dataframe.iloc[i * batch_size:(i + 1) * batch_size]
+            if self._engine.dialect.name in ['postgresql', 'redshift']:
+                # postgres can bulk load from a buffer of csv
                 if sys.version_info[0] == 2:
                     rows = io.BytesIO()
                 else:
                     rows = io.StringIO()
-                slice = dataframe.iloc[batch * batch_size:(batch + 1) * batch_size]
-                slice.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
+                batch.to_csv(rows, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE)
                 rows.seek(0)
                 self._connection.connection.cursor().copy_from(rows, table, null='\\N', sep='|', columns=dataframe.columns)
                 self._connection.connection.commit()
                 del rows
-                gc.collect()
-        else:
-            dataframe.to_sql(
-                table,
-                self._connection,
-                if_exists='append',
-                index=False,
-                chunksize=batch_size
-            )
+
+            elif self._engine.dialect.name == 'snowflake':
+                # snowflake requires s3 upload to bulk insert
+                try:
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv.gz')
+                    tmp.close()
+                    batch.to_csv(tmp.name, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE, compression='gzip')
+                    self._connection.connection.cursor().execute('PUT file://%(path)s @~/staged;' % {'path': tmp.name})
+                    self._connection.connection.cursor().execute(
+                        'COPY INTO %(table)s '
+                        'FROM @~/staged '
+                        'FILE_FORMAT = (TYPE = CSV FIELD_DELIMITER = \'|\' SKIP_HEADER = 0 COMPRESSION = GZIP) '
+                        'PURGE = TRUE' % {
+                            'table': table
+                        }
+                    )
+                finally:
+                    os.remove(tmp.name)
+
+            else:
+                batch.to_sql(
+                    table,
+                    self._connection,
+                    if_exists='append',
+                    index=False,
+                    chunksize=batch_size
+                )
 
     def close(self):
         for transaction in reversed(self._transactions):
@@ -350,11 +376,19 @@ class Connection(object):
         with timer("dataframe:"):
             try:
                 return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
-            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+            except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, SnowflakeProgrammingError) as e:
                 if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                     logger.warning('Reconnect and retry due to invalid connection')
                     self.close()
                     return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                elif not self._transactions and (isinstance(e, SnowflakeProgrammingError) or e.connection_invalidated):
+                    if hasattr(e, 'msg') and e.msg and "authenticate" in e.msg.lower():
+                        logger.warning('Reconnect and retry due to unauthenticated connection')
+                        self.close()
+                        return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                    else:
+                        logger.warning('Failed to execute db query with error type {}. Reason : {}'.format(type(e).__name__, e.msg))
+                        raise
                 else:
                     raise
 
@@ -394,10 +428,18 @@ class Connection(object):
     def __execute(self, sql, bindings):
         try:
             return self._connection.execute(sql, bindings)
-        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError) as e:
+        except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, SnowflakeProgrammingError) as e:
             if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                 logger.warning('Reconnect and retry due to invalid connection')
                 self.close()
                 return self._connection.execute(sql, bindings)
+            elif not self._transactions and (isinstance(e, SnowflakeProgrammingError) or e.connection_invalidated):
+                if hasattr(e, 'msg') and e.msg and "authenticate" in e.msg.lower():
+                    logger.warning('Reconnect and retry due to unauthenticated connection')
+                    self.close()
+                    return self._connection.execute(sql, bindings)
+                else:
+                    logger.warning('Failed to execute db query with error type {}. Reason : {}'.format(type(e).__name__, e.msg))
+                    raise
             else:
                 raise

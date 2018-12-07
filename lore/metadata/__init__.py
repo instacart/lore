@@ -7,40 +7,44 @@ import os
 from sqlalchemy import Column, Float, Integer, String, DateTime, JSON, func, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
-from sqlalchemy import TypeDecorator, types
+from sqlalchemy import TypeDecorator, types, desc
+from sqlalchemy.inspection import inspect
 import lore.io
 import json
+
 logger = logging.getLogger(__name__)
 Base = declarative_base()
-Session = scoped_session(sessionmaker(bind=lore.io.metadata._engine))
 adapter = lore.io.metadata.adapter
+engine = lore.io.metadata._engine
+Session = scoped_session(sessionmaker(bind=engine))
 
 
-class StringJSON(TypeDecorator):
-    @property
-    def python_type(self):
-        return object
+if adapter == 'sqlite':
+    # JSON support is not available in SQLite
+    class StringJSON(TypeDecorator):
+        @property
+        def python_type(self):
+            return object
 
-    impl = types.String
+        impl = types.String
 
-    def process_bind_param(self, value, dialect):
-        return json.dumps(value)
+        def process_bind_param(self, value, dialect):
+            return json.dumps(value)
 
-    def process_literal_param(self, value, dialect):
-        return value
+        def process_literal_param(self, value, dialect):
+            return value
 
-    def process_result_value(self, value, dialect):
-        try:
-            return json.loads(value)
-        except (ValueError, TypeError):
-            return None
+        def process_result_value(self, value, dialect):
+            try:
+                return json.loads(value)
+            except (ValueError, TypeError):
+                return None
+    JSON = StringJSON
 
-
-def JSON_if_possible(**kwargs):
-    if adapter == 'postgres':
-        return Column(JSON, **kwargs)
-    else:
-        return Column(StringJSON, **kwargs)
+    # Commenting sqlite queries with the SQLAlchemy declarative_base API
+    # is broken: https://github.com/sqlalchemy/sqlalchemy/issues/4396
+    engine.dialect.supports_sane_rowcount = False
+    engine.dialect.supports_sane_multi_rowcount = False  # for executemany()
 
 
 class Crud(object):
@@ -61,6 +65,15 @@ class Crud(object):
         return self
 
     @classmethod
+    def get(cls, *key):
+        session = Session()
+
+        filter = {str(k.name): v for k, v in dict(zip(inspect(cls).primary_key, key)).items()}
+        instance = session.query(cls).filter_by(**filter).first()
+        session.close()
+        return instance
+
+    @classmethod
     def get_or_create(cls, **kwargs):
         '''
         Creates an object or returns the object if exists
@@ -79,10 +92,54 @@ class Crud(object):
 
         return self
 
+    @classmethod
+    def all(cls, order_by=None, limit=None, **filters):
+        session = Session()
+        query = session.query(cls)
+        if filters:
+            query = query.filter_by(**filters)
+        if isinstance(order_by, list) or isinstance(order_by, tuple):
+            query = query.order_by(*order_by)
+        elif order_by is not None:
+            query = query.order_by(order_by)
+        if limit:
+            query = query.limit(limit)
+        result = query.all()
+        session.close()
+        return result
+
+    @classmethod
+    def last(cls, order_by=None, limit=1, **filters):
+       if order_by is None:
+           order_by = inspect(cls).primary_key
+       if isinstance(order_by, list) or isinstance(order_by, tuple):
+           order_by = desc(*order_by)
+       else:
+           order_by = desc(order_by)
+       return cls.first(order_by=order_by, limit=limit, **filters)
+
+    @classmethod
+    def first(cls, order_by=None, limit=1, **filters):
+        if order_by is None:
+            order_by = inspect(cls).primary_key
+        result = cls.all(order_by=order_by, limit=limit, **filters)
+
+        if limit == 1:
+            if len(result) == 0:
+                result = None
+            else:
+                result = result[0]
+
+        return result
+
     def save(self):
         session = Session()
         session.add(self)
-        return session.commit()
+        try:
+            return session.commit()
+        except Exception as ex:
+            session.rollback()
+            raise
 
     def update(self, **kwargs):
         for key, value in kwargs.items():
@@ -92,12 +149,17 @@ class Crud(object):
     def delete(self):
         session = Session()
         session.delete(self)
-        return session.commit()
+        try:
+            return session.commit()
+        except Exception as ex:
+            session.rollback()
+            raise
+
 
 class Commit(Crud, Base):
     sha = Column(String, primary_key=True)
-    created_at = Column(DateTime, nullable=False, default=func.now())
-    updated_at = Column(DateTime, nullable=False, default=func.now())
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
+    updated_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     message = Column(String)
     author_name = Column(String, index=True)
     author_email = Column(String)
@@ -109,7 +171,7 @@ class Commit(Crud, Base):
         process = subprocess.Popen([
             'git',
             'rev-list',
-            '--format=NAME: %an%nEMAIL: %aE%nDATE: %at%nMESSAGE:%N%B',
+            '--format=NAME: %an%nEMAIL: %aE%nDATE: %at%nMESSAGE:%n%B',
             '--max-count=1',
             sha,
         ], stdout=subprocess.PIPE)
@@ -140,7 +202,7 @@ class Commit(Crud, Base):
             if check != 'MESSAGE:' or not message:
                 logger.error('bad git parse for MESSAGE: %s' % out)
 
-            return Commit(
+            return Commit.get_or_create(
                 sha=sha,
                 author_name=author_name,
                 author_email=author_email,
@@ -157,7 +219,7 @@ class Snapshot(Crud, Base):
 
     """
     id = Column(Integer, primary_key=True)
-    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     completed_at = Column(DateTime)
     pipeline = Column(String, index=True)
     cache = Column(String)
@@ -168,7 +230,7 @@ class Snapshot(Crud, Base):
     head = Column(String)
     tail = Column(String)
     stats = Column(String)
-    encoders = JSON_if_possible()
+    encoders = Column(JSON)
 
     description = Column(String)
     fittings = relationship('Fitting', back_populates='snapshot')
@@ -176,9 +238,9 @@ class Snapshot(Crud, Base):
 
 
 class Fitting(Crud, Base):
-    name = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True)
     commit_sha = Column(String, ForeignKey('commits.sha'))
-    created_at = Column(DateTime, nullable=False, default=func.now())
+    created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     completed_at = Column(DateTime)
     snapshot_id = Column(Integer, ForeignKey('snapshots.id'), nullable=False, index=True)
     train = Column(Float)
@@ -187,9 +249,9 @@ class Fitting(Crud, Base):
     score = Column(Float)
     iterations = Column(Integer)
     model = Column(String, index=True)
-    args = JSON_if_possible()
-    stats = JSON_if_possible()
-    custom_data = JSON_if_possible()
+    args = Column(JSON)
+    stats = Column(JSON)
+    custom_data = Column(JSON)
     url = Column(String)
     uploaded_at = Column(DateTime)
 
@@ -198,20 +260,21 @@ class Fitting(Crud, Base):
     snapshot = relationship('Snapshot', back_populates='fittings')
 
     def __init__(self, **kwargs):
-        self.commit = Commit()
+        if 'commit' not in kwargs:
+            self.commit = Commit.from_git()
         super(Fitting, self).__init__(**kwargs)
 
 
 class Prediction(Crud, Base):
     id = Column(Integer, primary_key=True)
-    fitting_name = Column(String, ForeignKey('fittings.name'), nullable=False, index=True)
-    created_at = Column(DateTime, default=func.now())
-    value = JSON_if_possible()
-    key = JSON_if_possible()
-    features = JSON_if_possible()
-    custom_data = JSON_if_possible()
+    fitting_id = Column(Integer, ForeignKey('fittings.id'), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    value = Column(JSON)
+    key = Column(JSON)
+    features = Column(JSON)
+    custom_data = Column(JSON)
 
     fitting = relationship('Fitting', back_populates='predictions')
 
 
-Base.metadata.create_all(lore.io.metadata._engine)
+Base.metadata.create_all(engine)

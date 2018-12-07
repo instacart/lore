@@ -38,7 +38,7 @@ class Base(lore.models.base.Base):
 
     def remote_weights_path(self):
         if self.fitting:
-            return join(self.remote_path(), str(self.fitting), 'weights.h5')
+            return join(self.remote_path(), str(self.fitting.id), 'weights.h5')
         else:
             return join(self.remote_path(), 'weights.h5')
 
@@ -78,8 +78,8 @@ class Base(lore.models.base.Base):
                 del f['optimizer_weights']
 
     @classmethod
-    def load(cls, fitting=None):
-        model = super(Base, cls).load(fitting)
+    def load(cls, fitting_id=None):
+        model = super(Base, cls).load(fitting_id)
 
         if hasattr(model, 'estimator'):
             # HACK to set estimator model, and model serializer
@@ -92,7 +92,7 @@ class Base(lore.models.base.Base):
             model.estimator.build()
 
             try:
-                with timer('load weights %i' % model.fitting):
+                with timer('load weights %i' % model.fitting.id):
                     model.estimator.keras.load_weights(model.weights_path())
             except ValueError as ex:
                 if model.estimator.multi_gpu_model and not lore.estimators.keras.available_gpus:
@@ -114,13 +114,22 @@ class Base(lore.models.base.Base):
         lore.io.upload(self.weights_path(), self.remote_weights_path())
 
     @classmethod
-    def download(cls, fitting=0):
+    def download(cls, fitting_id=0):
         model = cls(None, None)
-        model.fitting = fitting
+        if fitting_id is None:
+            model.fitting = model.last_fitting()
+        else:
+            model.fitting = lore.metadata.Fitting.get(fitting_id)
+
+        if model.fitting is None:
+            logger.warning("Attempting to download a model from outside of the metadata store is deprecated and will be removed in 0.8.0")
+            model.fitting = lore.metadata.Fitting(id=fitting_id)
+
         try:
             lore.io.download(model.remote_weights_path(), model.weights_path())
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
-                model.fitting = None
+                model.fitting.id = None
+                logger.warning("Attempting to download a model without a fitting id is deprecated and will be removed in 0.8.0")
                 lore.io.download(model.remote_weights_path(), model.weights_path())
-        return super(Base, cls).download(fitting)
+        return super(Base, cls).download(model.fitting.id)

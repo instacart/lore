@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2018, Instacart'
-__credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay', 'Shrikar Archak']
+__credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay', 'Shrikar Archak', 'Ganesh Krishnan']
 __license__ = 'MIT'
-__version__ = '0.6.23'
+__version__ = '0.7.0'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
 __status__ = 'Development Status :: 4 - Beta'
