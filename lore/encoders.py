@@ -65,7 +65,8 @@ class Base(object):
         return self.name
 
     def __repr__(self):
-        return self.name
+        properties = ['%s=%s' % (key, value) for key, value in self.__dict__]
+        return '<%s(%s)>' % (self.name, ', '.join(properties))
 
     def __setstate__(self, dict):
         self.__dict__ = dict

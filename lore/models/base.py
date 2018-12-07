@@ -1,19 +1,20 @@
 from __future__ import absolute_import
 
+import datetime
 import json
 import logging
 import os.path
 from os.path import join
 import pickle
-import re
 import inspect
 import warnings
 import botocore
 
 import lore.ansi
 import lore.estimators
+import lore.metadata
 from lore.env import require
-from lore.util import timer, timed, before_after_callbacks
+from lore.util import timer, timed, before_after_callbacks, convert_df_columns_to_json
 
 require(
     lore.dependencies.TABULATE +
@@ -38,9 +39,9 @@ class Base(object):
         self.name = self.__module__ + '.' + self.__class__.__name__
         self._estimator = None
         self.estimator = estimator
-        self.fitting = None
         self.pipeline = pipeline
         self._shap_explainer = None
+        self.fitting = None
 
     def __getstate__(self):
         state = dict(self.__dict__)
@@ -55,6 +56,10 @@ class Base(object):
         for key, default in backward_compatible_defaults.items():
             if key not in self.__dict__.keys():
                 self.__dict__[key] = default
+
+    def __repr__(self):
+        properties = ['%s=%s' % (key, value) for key, value in self.__dict__.items() if key[0] != '_']
+        return '<%s(%s)>' % (self.__class__.__name__, ', '.join(properties))
 
     @property
     def estimator(self):
@@ -71,8 +76,15 @@ class Base(object):
 
     @before_after_callbacks
     @timed(logging.INFO)
-    def fit(self, test=True, score=True, **estimator_kwargs):
-        self.fitting = self.__class__.last_fitting() + 1
+    def fit(self, test=True, score=True, custom_data=None, save=True, **estimator_kwargs):
+        self.fitting = lore.metadata.Fitting.create(
+            model=self.name,
+            custom_data=custom_data,
+            snapshot=lore.metadata.Snapshot(pipeline=self.pipeline.name,
+                                            head=str(self.pipeline.training_data.head(2)),
+                                            tail=str(self.pipeline.training_data.tail(2))
+                                            )
+        )
 
         self.stats = self.estimator.fit(
             x=self.pipeline.encoded_training_data.x,
@@ -82,20 +94,48 @@ class Base(object):
             **estimator_kwargs
         )
 
+        self.estimator_kwargs = estimator_kwargs
         if test:
             self.stats['test'] = self.evaluate(self.pipeline.test_data)
 
         if score:
             self.stats['score'] = self.score(self.pipeline.test_data)
 
-        self.save(stats=self.stats)
+        self.complete_fitting()
+
+        if save:
+            self.save()
+
         logger.info(
             '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
 
+    def create_predictions_for_logging(self, dataframe, predictions, key_cols, custom_data=None):
+        require(lore.dependencies.PANDAS)
+        import pandas
+
+        keys = convert_df_columns_to_json(dataframe, key_cols)
+        features = convert_df_columns_to_json(dataframe, dataframe.columns)
+        df = pandas.DataFrame({'key': keys,
+                               'features': features})
+        df['value'] = predictions
+        df['custom_data'] = custom_data
+        df['created_at'] = datetime.datetime.utcnow()
+        df['fitting_id'] = self.fitting.id
+        return df
+
+    def log_predictions(self, dataframe, predictions, key_cols, custom_data=None):
+        import lore.io
+        predictions = self.create_predictions_for_logging(dataframe, predictions, key_cols, custom_data)
+        lore.io.metadata.insert("predictions", predictions)
+
     @before_after_callbacks
     @timed(logging.INFO)
-    def predict(self, dataframe):
+    def predict(self, dataframe, log_predictions=False, key_cols=None, custom_data=None):
+        if log_predictions is True and key_cols is None:
+            raise ValueError("Key columns cannot be null when logging predictions")
         predictions = self.estimator.predict(self.pipeline.encode_x(dataframe))
+        if log_predictions:
+            self.log_predictions(dataframe, predictions, key_cols, custom_data)
         return self.pipeline.output_encoder.reverse_transform(predictions)
 
     @before_after_callbacks
@@ -137,12 +177,26 @@ class Base(object):
             pre_dispatch='2*njobs',
             random_state=None,
             error_score='raise',
-            return_train_score=True
+            return_train_score=True,
+            test=True,
+            score=True,
+            save=True,
+            custom_data=None
     ):
         """Random search hyper params
         """
-        if scoring is None:
-            scoring = None
+        params = locals()
+        params.pop('self')
+
+        self.fitting = lore.metadata.Fitting.create(
+            model=self.name,
+            custom_data=custom_data,
+            snapshot=lore.metadata.Snapshot(pipeline=self.pipeline.name,
+                                            head=str(self.pipeline.training_data.head(2)),
+                                            tail=str(self.pipeline.training_data.tail(2))
+                                            )
+        )
+
         result = RandomizedSearchCV(
             self.estimator,
             param_distributions,
@@ -165,8 +219,36 @@ class Base(object):
             **fit_params
         )
         self.estimator = result.best_estimator_
+        self.stats = {}
+        self.estimator_kwargs = self.estimator.__getstate__()
 
+        if test:
+            self.stats['test'] = self.evaluate(self.pipeline.test_data)
+
+        if score:
+            self.stats['score'] = self.score(self.pipeline.test_data)
+
+        self.complete_fitting()
+
+        if save:
+            self.save()
         return result
+
+    def complete_fitting(self):
+        self.fitting.completed_at = datetime.datetime.now()
+        self.fitting.args = self.estimator_kwargs
+        self.fitting.stats = self.stats
+        self.fitting.iterations = self.stats.get('epochs', None)
+        self.fitting.train = self.stats.get('train', None)
+        self.fitting.validate = self.stats.get('validate', None)
+        self.fitting.test = self.stats.get('test', None)
+        self.fitting.score = self.stats.get('score', None)
+
+        self.fitting.save()
+
+        logger.info(
+            '\n\n' + tabulate([self.stats.keys(), self.stats.values()], tablefmt="grid", headers='firstrow') + '\n\n')
+
 
     @classmethod
     def local_path(cls):
@@ -178,31 +260,18 @@ class Base(object):
 
     @classmethod
     def last_fitting(cls):
-        if not os.path.exists(cls.local_path()):
-            return 0
-
-        fittings = [int(d) for d in os.listdir(cls.local_path()) if re.match(r'^\d+$', d)]
-        if not fittings:
-            return 0
-
-        return sorted(fittings)[-1]
+        return lore.metadata.Fitting.last(model=cls.__module__ + '.' + cls.__name__)
 
     def fitting_path(self):
-        if self.fitting is None:
-            self.fitting = self.last_fitting()
-
-        return join(self.local_path(), str(self.fitting))
+        return join(self.local_path(), str(self.fitting.id))
 
     def model_path(self):
-        return join(self.fitting_path(), 'model.pickle')
+        return ''.join([self.fitting_path(), '/model.pickle'])
 
     def remote_model_path(self):
-        if self.fitting:
-            return join(self.remote_path(), str(self.fitting), 'model.pickle')
-        else:
-            return join(self.remote_path(), 'model.pickle')
+        return join(self.remote_path(), str(self.fitting.id), 'model.pickle')
 
-    def save(self, stats=None):
+    def save(self, upload=False):
         if self.fitting is None:
             raise ValueError("This model has not been fit yet. There is no point in saving.")
 
@@ -230,17 +299,27 @@ class Base(object):
                         params[param][key] = value.__repr__()
             json.dump(params, f, indent=2, sort_keys=True)
 
-        if stats:
+        if self.stats:
             with open(join(self.fitting_path(), 'stats.json'), 'w') as f:
-                json.dump(stats, f, indent=2, sort_keys=True)
+                json.dump(self.stats, f, indent=2, sort_keys=True)
+
+        if upload:
+            url = self.upload()
+            fitting.url = url
+            fitting.uploaded_at = datetime.datetime.utcnow()
 
     @classmethod
-    def load(cls, fitting=None):
+    def load(cls, fitting_id=None):
         model = cls()
-        if fitting is None:
+        if fitting_id is None:
             model.fitting = model.last_fitting()
         else:
-            model.fitting = int(fitting)
+            model.fitting = lore.metadata.Fitting.get(fitting_id)
+
+        if model.fitting is None:
+            logger.warning(
+                "Attempting to download a model from outside of the metadata store is deprecated and will be removed in 0.8.0")
+            model.fitting = lore.metadata.Fitting(id=fitting_id or 0)
 
         with timer('unpickle model'):
             with open(model.model_path(), 'rb') as f:
@@ -249,26 +328,29 @@ class Base(object):
                 return loaded
 
     def upload(self):
-        self.save()
         lore.io.upload(self.model_path(), self.remote_model_path())
+        return self.remote_model_path()
 
     @classmethod
-    def download(cls, fitting=None):
-        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
-        warnings.showwarning('Please start using explicit fitting number when downloading the model ex "Keras.download(10)". Default Keras.download() will be deprecated in 0.7.0',
-                             DeprecationWarning,
-                             filename, line_number)
-        model = cls(None, None)
-        if not fitting:
-            fitting = model.last_fitting()
-        model.fitting = int(fitting)
+    def download(cls, fitting_id=None):
+        model = cls()
+        if fitting_id is None:
+            model.fitting = model.last_fitting()
+        else:
+            model.fitting = lore.metadata.Fitting.get(fitting_id)
+
+        if model.fitting is None:
+            logger.warning("Attempting to download a model from outside of the metadata store is deprecated and will be removed in 0.8.0")
+            model.fitting = lore.metadata.Fitting(id=0)
+
         try:
             lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
-                model.fitting = None
+                model.fitting.id = None
+                logger.warning("Attempting to download a model without a fitting id is deprecated and will be removed in 0.8.0")
                 lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
-        return cls.load(fitting)
+        return cls.load(model.fitting.id)
 
     def shap_values(self, i, nsamples=1000):
         instance = self.pipeline.encoded_test_data.x.iloc[i, :]

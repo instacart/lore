@@ -432,8 +432,12 @@ if platform.system() != 'Windows':
         if os.environ.get('LANG', None):
             UNICODE_LOCALE = False
         else:
-            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-            UNICODE_UPGRADED = True
+            try:
+                locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+                UNICODE_UPGRADED = True
+            except StandardError:
+                UNICODE_LOCALE = False
+
 
 # -- Load Environment --------------------------------------------------------
 ENV_FILE = os.environ.get('ENV_FILE', '.env')  #: environment variables will be loaded from this file first

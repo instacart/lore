@@ -69,6 +69,7 @@ jobs:
         - /opt/circleci/.pyenv
         - /opt/circleci/python
 
+    - run: dropdb lore_test --if-exists
     - run: createdb lore_test
     - run: LORE_PYTHON_VERSION=2.7.15 lore test
     - run: LORE_PYTHON_VERSION=3.6.5 lore test

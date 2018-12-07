@@ -34,6 +34,9 @@ if config:
         else:
             vars()[section.lower()] = Connection(name=section.lower(), **options)
 
+if 'metadata' not in vars():
+    vars()['metadata'] = Connection('sqlite:///%s/metadata.sqlite' % lore.env.DATA_DIR)
+
 redis_config = lore.env.REDIS_CONFIG
 if redis_config:
     require(lore.dependencies.REDIS)

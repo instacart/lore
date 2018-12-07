@@ -90,6 +90,14 @@ class XGBoostRegression(lore.models.xgboost.Base):
         )
 
 
+class XGBoostRegressionWithPredictionLogging(lore.models.xgboost.Base):
+    def __init__(self):
+        super(XGBoostRegressionWithPredictionLogging, self).__init__(
+            tests.mocks.pipelines.Xor(),
+            lore.estimators.xgboost.Regression()
+        )
+
+
 class SVM(lore.models.sklearn.Base):
     def __init__(self):
         super(SVM, self).__init__(
