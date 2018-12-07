@@ -3,8 +3,6 @@ import unittest
 import tests.mocks.models
 import scipy.stats
 import numpy
-import lore.io
-import sqlalchemy
 
 
 class TestKeras(unittest.TestCase):
