@@ -65,6 +65,15 @@ class Crud(object):
         return self
 
     @classmethod
+    def get(cls, *key):
+        session = Session()
+
+        filter = {str(k.name): v for k, v in dict(zip(inspect(cls).primary_key, key)).items()}
+        instance = session.query(cls).filter_by(**filter).first()
+        session.close()
+        return instance
+
+    @classmethod
     def get_or_create(cls, **kwargs):
         '''
         Creates an object or returns the object if exists
@@ -102,7 +111,7 @@ class Crud(object):
     @classmethod
     def last(cls, order_by=None, limit=1, **filters):
        if order_by is None:
-           order_by=inspect(cls).primary_key
+           order_by = inspect(cls).primary_key
        if isinstance(order_by, list) or isinstance(order_by, tuple):
            order_by = desc(*order_by)
        else:
