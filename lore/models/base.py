@@ -269,7 +269,7 @@ class Base(object):
         return ''.join([self.fitting_path(), '/model.pickle'])
 
     def remote_model_path(self):
-        return join(self.remote_path(), self.fitting.id, 'model.pickle')
+        return join(self.remote_path(), str(self.fitting.id), 'model.pickle')
 
     def save(self, upload=False):
         if self.fitting is None:
@@ -316,6 +316,11 @@ class Base(object):
         else:
             model.fitting = lore.metadata.Fitting.get(fitting_id)
 
+        if model.fitting is None:
+            logger.warning(
+                "Attempting to download a model from outside of the metadata store is deprecated and will be removed in 0.8.0")
+            model.fitting = lore.metadata.Fitting(id=fitting_id or 0)
+
         with timer('unpickle model'):
             with open(model.model_path(), 'rb') as f:
                 loaded = pickle.load(f)
@@ -328,24 +333,22 @@ class Base(object):
 
     @classmethod
     def download(cls, fitting_id=None):
-        frame, filename, line_number, function_name, lines, index = inspect.stack()[1]
-        warnings.showwarning('Please start using explicit fitting name when downloading the model ex "Keras.download(10)". Default Keras.download() will be deprecated in 0.7.0',
-                             DeprecationWarning,
-                             filename, line_number)
         model = cls()
         if fitting_id is None:
             model.fitting = model.last_fitting()
-            # If still none, then either no model was fit or user is trying to download a lore model pre-0.7
-            if model.fitting is None:
-                raise ValueError('No fittings found for this model. If you are looking for fittings created with a ' +
-                                 'prior version of lore, please explicitly specify the fitting number')
         else:
             model.fitting = lore.metadata.Fitting.get(fitting_id)
+
+        if model.fitting is None:
+            logger.warning("Attempting to download a model from outside of the metadata store is deprecated and will be removed in 0.8.0")
+            model.fitting = lore.metadata.Fitting(id=0)
 
         try:
             lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
+                model.fitting.id = None
+                logger.warning("Attempting to download a model without a fitting id is deprecated and will be removed in 0.8.0")
                 lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
         return cls.load(model.fitting.id)
 

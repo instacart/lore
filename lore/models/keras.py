@@ -114,13 +114,22 @@ class Base(lore.models.base.Base):
         lore.io.upload(self.weights_path(), self.remote_weights_path())
 
     @classmethod
-    def download(cls, fitting=0):
+    def download(cls, fitting_id=0):
         model = cls(None, None)
-        model.fitting = fitting
+        if fitting_id is None:
+            model.fitting = model.last_fitting()
+        else:
+            model.fitting = lore.metadata.Fitting.get(fitting_id)
+
+        if model.fitting is None:
+            logger.warning("Attempting to download a model from outside of the metadata store is deprecated and will be removed in 0.8.0")
+            model.fitting = lore.metadata.Fitting(id=fitting_id)
+
         try:
             lore.io.download(model.remote_weights_path(), model.weights_path())
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == "404":
-                model.fitting = None
+                model.fitting.id = None
+                logger.warning("Attempting to download a model without a fitting id is deprecated and will be removed in 0.8.0")
                 lore.io.download(model.remote_weights_path(), model.weights_path())
-        return super(Base, cls).download(fitting)
+        return super(Base, cls).download(model.fitting.id)
