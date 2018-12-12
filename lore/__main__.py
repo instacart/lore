@@ -542,7 +542,7 @@ def fit(parsed, unknown):
         sys.exit(ansi.error() + ' Unknown arguments: %s\n%s' % (unknown_args, msg))
 
     model.fit(score=parsed.score, test=parsed.test, **fit_args)
-    print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting, json.dumps(model.stats, indent=2)))
+    print(ansi.success() + ' Fitting: %i\n%s' % (model.fitting.id, json.dumps(model.stats, indent=2)))
 
 
 def hyper_fit(parsed, unknown):
