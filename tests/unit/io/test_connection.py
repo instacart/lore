@@ -185,6 +185,12 @@ class TestConnection(unittest.TestCase):
         self.assertNotEquals(connection, lore.io.main._connection)
         self.assertEquals(result[0][0], 1)
 
+    def test_tuple_interpolation(self):
+        lore.io.main.execute(sql='create temporary table tests_interpolation(id integer not null primary key)')
+        lore.io.main.execute(sql='insert into tests_interpolation values (1), (2), (3)')
+        temps = lore.io.main.select(sql='select * from tests_interpolation where id in {ids}', ids=(1, 2, 3))
+        self.assertEqual(len(temps), 3)
+
     def test_reconnect_and_retry_on_expired_connection(self):
         original_execute = lore.io.main._connection.execute
 
