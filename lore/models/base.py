@@ -305,8 +305,9 @@ class Base(object):
 
         if upload:
             url = self.upload()
-            fitting.url = url
-            fitting.uploaded_at = datetime.datetime.utcnow()
+            self.fitting.url = url
+            self.fitting.uploaded_at = datetime.datetime.utcnow()
+            self.fitting.save()
 
     @classmethod
     def load(cls, fitting_id=None):
