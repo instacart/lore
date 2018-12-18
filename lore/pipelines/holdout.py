@@ -163,8 +163,12 @@ class Base(object):
 
         return self._encoded_test_data
 
+    def finalize(self, data):
+        return data
+
     def observations(self, data):
-        return Observations(x=self.encode_x(data), y=self.encode_y(data))
+        return Observations(x=self.encode_x(data),
+                            y=self.encode_y(data))
 
     @timed(logging.INFO)
     def encode_x(self, data):
@@ -197,7 +201,7 @@ class Base(object):
         dataframe = pandas.DataFrame(encoded)
         if self.index:
             dataframe.set_index(self.index)
-        return dataframe
+        return self.finalize(dataframe)
 
     def fit(self, encoder, data):
         encoder.fit(data)
