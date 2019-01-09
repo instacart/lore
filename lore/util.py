@@ -143,6 +143,9 @@ if env.NAME != env.DEVELOPMENT and env.NAME != env.TEST:
     if address:
         add_syslog_handler(address)
 
+if env.STDOUT_LOGGING:
+    add_log_stream_handler()
+
 
 def strip_one_off_handlers():
     global logger
