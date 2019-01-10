@@ -786,8 +786,10 @@ def task(parsed, unknown):
         instance = task_class()
         grouped, unpaired = _pair_args(unknown)
         argspec = _get_valid_fit_args(instance.main)
-
-        defaults = [None] * (len(argspec.args) - len(argspec.defaults)) + list(argspec.defaults)
+        if argspec.defaults:
+            defaults = [None] * (len(argspec.args) - len(argspec.defaults)) + list(argspec.defaults)
+        else:
+            defaults = [None] * len(argspec.args)
         valid_args = dict(zip(argspec.args, defaults))
         valid_args.pop('self', None)
         args = dict(grouped)

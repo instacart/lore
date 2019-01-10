@@ -514,6 +514,7 @@ except ModuleNotFoundError:
     pass
 
 STDOUT_EXCEPTIONS = True  #: exceptions are always logged, in addition they can be printed to any:`sys.stdout`
+STDOUT_LOGGING = os.environ.get('LORE_STDOUT_LOGGING', NAME != TEST)
 
 # -- Package cache -----------------------------------------------------------
 INSTALLED_PACKAGES = None
