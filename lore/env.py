@@ -510,7 +510,10 @@ except ModuleNotFoundError:
     pass
 
 STDOUT_EXCEPTIONS = True  #: exceptions are always logged, in addition they can be printed to any:`sys.stdout`
-STDOUT_LOGGING = os.environ.get('LORE_STDOUT_LOGGING', NAME != TEST)
+if NAME != TEST and os.environ.get('LORE_STDOUT_LOGGING', 'false').lower() in [True, 'true', '1', 't', 'y', 'yes']:
+    STDOUT_LOGGING = True
+else:
+    STDOUT_LOGGING = False
 
 # -- Package cache -----------------------------------------------------------
 INSTALLED_PACKAGES = None
