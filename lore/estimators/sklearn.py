@@ -19,17 +19,20 @@ require(lore.dependencies.SKLEARN)
 
 
 class Base(lore.estimators.Base):
-    def __init__(self, estimator):
+    def __init__(self, estimator, eval_metric='sklearn_default'):
         super(Base, self).__init__()
         self.sklearn = estimator
+        self.eval_metric = eval_metric
 
     @before_after_callbacks
     @timed(logging.INFO)
     def fit(self, x, y, validation_x=None, validation_y=None, **sklearn_kwargs):
         self.sklearn.fit(x, y=y, **sklearn_kwargs)
-
-        # TODO interesting SKLearn fitting stats
-        return {}
+        results = {'eval_metric': self.eval_metric,
+                   'train': self.evaluate(x, y)}
+        if validation_x is not None and validation_y is not None:
+            results['validate'] = self.evaluate(validation_x, validation_y)
+        return results
 
     @before_after_callbacks
     @timed(logging.INFO)
@@ -39,14 +42,12 @@ class Base(lore.estimators.Base):
     @before_after_callbacks
     @timed(logging.INFO)
     def evaluate(self, x, y):
-        # TODO
-        return 0
+        return self.sklearn.score(x, y)
 
     @before_after_callbacks
     @timed(logging.INFO)
     def score(self, x, y):
-        # TODO
-        return 0
+        return self.evaluate(x, y)
 
 
 class SKLearn(Base):
@@ -63,6 +64,21 @@ class Regression(Base):
 
 
 class BinaryClassifier(Base):
+    def __init__(self, estimator):
+        super(BinaryClassifier, self).__init__(estimator, eval_metric='logloss')
+
+    @before_after_callbacks
+    @timed(logging.INFO)
+    def evaluate(self, x, y):
+        import sklearn
+        y_pred = self.predict_proba(x)
+        return sklearn.metrics.log_loss(y, y_pred)
+
+    @before_after_callbacks
+    @timed(logging.INFO)
+    def score(self, x, y):
+        return self.evaluate(x, y)
+
     @before_after_callbacks
     @timed(logging.INFO)
     def predict_proba(self, dataframe):
