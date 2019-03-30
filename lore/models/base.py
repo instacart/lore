@@ -234,14 +234,29 @@ class Base(object):
             self.save()
         return result
 
+    def attempt_to_get_attribute_from_estimator(self, attr_name):
+        try:
+            return getattr(self.estimator, attr_name)
+        except AttributeError:
+            try:
+                return getattr(self.sklearn, attr_name)
+            except AttributeError:
+                return None
+
     def complete_fitting(self):
         self.fitting.completed_at = datetime.datetime.now()
         self.fitting.args = self.estimator_kwargs
         self.fitting.stats = self.stats
+        self.fitting.eval_metric = self.attempt_to_get_attribute_from_estimator('eval_metric')
         self.fitting.iterations = self.stats.get('epochs', None)
         self.fitting.train = self.stats.get('train', None)
         self.fitting.validate = self.stats.get('validate', None)
         self.fitting.test = self.stats.get('test', None)
+
+        if ((self.fitting.train is not None or self.fitting.validate is not None)
+            and (self.fitting.eval_metric is None)):
+            logger.warn("Evaluation metric name not provided")
+
         self.fitting.score = self.stats.get('score', None)
 
         self.fitting.save()
