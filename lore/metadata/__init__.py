@@ -243,6 +243,7 @@ class Fitting(Crud, Base):
     created_at = Column(DateTime, nullable=False, default=datetime.datetime.now)
     completed_at = Column(DateTime)
     snapshot_id = Column(Integer, ForeignKey('snapshots.id'), nullable=False, index=True)
+    eval_metric = Column(String)
     train = Column(Float)
     validate = Column(Float)
     test = Column(Float)
