@@ -19,10 +19,11 @@ require(lore.dependencies.SKLEARN)
 
 
 class Base(lore.estimators.Base):
-    def __init__(self, estimator, eval_metric='sklearn_default'):
+    def __init__(self, estimator, eval_metric='sklearn_default', scoring_metric='sklearn_default'):
         super(Base, self).__init__()
         self.sklearn = estimator
         self.eval_metric = eval_metric
+        self.scoring_metric = scoring_metric
 
     @before_after_callbacks
     @timed(logging.INFO)
@@ -65,7 +66,7 @@ class Regression(Base):
 
 class BinaryClassifier(Base):
     def __init__(self, estimator):
-        super(BinaryClassifier, self).__init__(estimator, eval_metric='logloss')
+        super(BinaryClassifier, self).__init__(estimator, eval_metric='logloss', scoring_metric='auc')
 
     @before_after_callbacks
     @timed(logging.INFO)
@@ -77,7 +78,9 @@ class BinaryClassifier(Base):
     @before_after_callbacks
     @timed(logging.INFO)
     def score(self, x, y):
-        return self.evaluate(x, y)
+        import sklearn
+        y_pred = self.predict_proba(x)[:, 1]
+        return sklearn.metrics.roc_auc_score(y, y_pred)
 
     @before_after_callbacks
     @timed(logging.INFO)
