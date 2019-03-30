@@ -51,7 +51,6 @@ class Base(object):
             eval_set += [(validation_x, validation_y)]
         if verbose is None:
             verbose = True if lore.env.NAME == lore.env.DEVELOPMENT else False
-
         try:
             super(Base, self).fit(
                 X=x,
@@ -67,6 +66,7 @@ class Base(object):
 
         evals = super(Base, self).evals_result()
         results = {
+            'eval_metric': self.eval_metric,
             'train': evals['validation_0'][self.eval_metric][self.best_iteration],
             'best_iteration': self.best_iteration
         }
@@ -99,7 +99,7 @@ class Base(object):
     @before_after_callbacks
     @timed(logging.INFO)
     def score(self, x, y):
-        return 1 / self.evaluate(x, y)
+        return self.evaluate(x, y)
 
 
 class XGBoost(lore.estimators.Base):
