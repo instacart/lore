@@ -345,6 +345,10 @@ class Base(object):
                 return loaded
 
     def upload(self):
+        if self.fitting.uploaded_at is None:
+            self.fitting.uploaded_at = datetime.datetime.utcnow()
+            self.fitting.url = self.remote_model_path()
+            self.fitting.save()
         lore.io.upload(self.model_path(), self.remote_model_path())
         return self.remote_model_path()
 
