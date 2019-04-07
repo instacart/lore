@@ -315,9 +315,12 @@ class Base(object):
             self.fitting.save()
 
     @classmethod
-    def load(cls, *args, **kwargs):
-        fitting_id = kwargs.pop('fitting_id', None)
-        model = cls(*args, **kwargs)
+    def load(cls, fitting_id=None):
+        try:
+            model = cls()
+        except TypeError as e:
+            logger.error("Please provide default arguments for all your model class parameters to load your model")
+            raise e
         if fitting_id is None:
             model.fitting = model.last_fitting()
         else:
@@ -343,9 +346,12 @@ class Base(object):
         return self.remote_model_path()
 
     @classmethod
-    def download(cls, *args, **kwargs):
-        model = cls(*args, **kwargs)
-        fitting_id = kwargs.pop('fitting_id', None)
+    def download(cls, fitting_id=None):
+        try:
+            model = cls()
+        except TypeError as e:
+            logger.error("Please provide default arguments for all your model class parameters to load your model")
+            raise e
         if fitting_id is None:
             model.fitting = model.last_fitting()
         else:
@@ -362,7 +368,7 @@ class Base(object):
                 model.fitting.id = None
                 logger.warning("Attempting to download a model without a fitting id is deprecated and will be removed in 0.8.0")
                 lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
-        return cls.load(*args, fitting_id=model.fitting.id, **kwargs)
+        return cls.load(fitting_id=model.fitting.id)
 
     def shap_values(self, i, nsamples=1000):
         instance = self.pipeline.encoded_test_data.x.iloc[i, :]
