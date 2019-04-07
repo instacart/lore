@@ -25,6 +25,16 @@ class Base(lore.estimators.Base):
         self.eval_metric = eval_metric
         self.scoring_metric = scoring_metric
 
+    def __setstate__(self, dict):
+        self.__dict__ = dict
+        backward_compatible_defaults = {
+            'eval_metric': 'sklearn_default',
+            'scoring_metric': 'sklearn_default'
+        }
+        for key, default in backward_compatible_defaults.items():
+            if key not in self.__dict__.keys():
+                self.__dict__[key] = default
+
     @before_after_callbacks
     @timed(logging.INFO)
     def fit(self, x, y, validation_x=None, validation_y=None, **sklearn_kwargs):
