@@ -16,6 +16,7 @@ from lore.env import require
 from lore.util import timed, before_after_callbacks
 
 require(lore.dependencies.SKLEARN)
+import sklearn
 
 
 class Base(lore.estimators.Base):
@@ -81,14 +82,12 @@ class BinaryClassifier(Base):
     @before_after_callbacks
     @timed(logging.INFO)
     def evaluate(self, x, y):
-        import sklearn
         y_pred = self.predict_proba(x)
         return sklearn.metrics.log_loss(y, y_pred)
 
     @before_after_callbacks
     @timed(logging.INFO)
     def score(self, x, y):
-        import sklearn
         y_pred = self.predict_proba(x)[:, 1]
         return sklearn.metrics.roc_auc_score(y, y_pred)
 
