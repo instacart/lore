@@ -1,5 +1,5 @@
 import unittest
-import tests.mocks.models
+import tests.mocks.models_other
 import lore.metadata
 import datetime
 
@@ -49,7 +49,7 @@ class TestCrud(unittest.TestCase):
 class TestFitting(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.model = tests.mocks.models.XGBoostRegressionWithPredictionLogging()
+        cls.model = tests.mocks.models_other.XGBoostRegressionWithPredictionLogging()
         cls.df = cls.model.pipeline.training_data
 
     def test_model_fit(self):
@@ -63,7 +63,7 @@ class TestFitting(unittest.TestCase):
 class TestPredictionLogging(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.model = tests.mocks.models.XGBoostRegressionWithPredictionLogging()
+        cls.model = tests.mocks.models_other.XGBoostRegressionWithPredictionLogging()
         cls.df = cls.model.pipeline.training_data
 
     def test_prediction_logging(self):

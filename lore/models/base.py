@@ -234,16 +234,21 @@ class Base(object):
             self.save()
         return result
 
+    def attempt_to_get_attribute_from_estimator(self, attr_name):
+        try:
+            return getattr(self.estimator, attr_name)
+        except AttributeError:
+            try:
+                return getattr(self.sklearn, attr_name)
+            except AttributeError:
+                return None
+
     def complete_fitting(self):
         self.fitting.completed_at = datetime.datetime.now()
         self.fitting.args = self.estimator_kwargs
+        self.fitting.scoring_metric = self.attempt_to_get_attribute_from_estimator('scoring_metric')
+        self.fitting.score = self.stats.pop('score', None)
         self.fitting.stats = self.stats
-        self.fitting.iterations = self.stats.get('epochs', None)
-        self.fitting.train = self.stats.get('train', None)
-        self.fitting.validate = self.stats.get('validate', None)
-        self.fitting.test = self.stats.get('test', None)
-        self.fitting.score = self.stats.get('score', None)
-
         self.fitting.save()
 
         logger.info(
@@ -311,7 +316,11 @@ class Base(object):
 
     @classmethod
     def load(cls, fitting_id=None):
-        model = cls()
+        try:
+            model = cls()
+        except TypeError as e:
+            logger.error("Please provide default arguments for all your model class parameters to load your model")
+            raise e
         if fitting_id is None:
             model.fitting = model.last_fitting()
         else:
@@ -329,12 +338,20 @@ class Base(object):
                 return loaded
 
     def upload(self):
+        if self.fitting.uploaded_at is None:
+            self.fitting.uploaded_at = datetime.datetime.utcnow()
+            self.fitting.url = self.remote_model_path()
+            self.fitting.save()
         lore.io.upload(self.model_path(), self.remote_model_path())
         return self.remote_model_path()
 
     @classmethod
     def download(cls, fitting_id=None):
-        model = cls()
+        try:
+            model = cls()
+        except TypeError as e:
+            logger.error("Please provide default arguments for all your model class parameters to load your model")
+            raise e
         if fitting_id is None:
             model.fitting = model.last_fitting()
         else:
@@ -351,7 +368,7 @@ class Base(object):
                 model.fitting.id = None
                 logger.warning("Attempting to download a model without a fitting id is deprecated and will be removed in 0.8.0")
                 lore.io.download(model.remote_model_path(), model.model_path(), cache=True)
-        return cls.load(model.fitting.id)
+        return cls.load(fitting_id=model.fitting.id)
 
     def shap_values(self, i, nsamples=1000):
         instance = self.pipeline.encoded_test_data.x.iloc[i, :]

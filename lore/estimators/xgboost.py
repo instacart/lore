@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 class Base(object):
     def __init__(self, **xgboost_params):
         self.eval_metric = xgboost_params.pop('eval_metric', None)
+        self.scoring_metric = xgboost_params.pop('scoring_metric', None)
         self.xgboost_lock = threading.RLock()
         self.missing = None
         super(Base, self).__init__(**xgboost_params)
@@ -51,7 +52,6 @@ class Base(object):
             eval_set += [(validation_x, validation_y)]
         if verbose is None:
             verbose = True if lore.env.NAME == lore.env.DEVELOPMENT else False
-
         try:
             super(Base, self).fit(
                 X=x,
@@ -66,7 +66,12 @@ class Base(object):
             logger.warning('Caught SIGINT. Training aborted.')
 
         evals = super(Base, self).evals_result()
+
+        if self.scoring_metric is None:
+            self.scoring_metric = self.eval_metric
+
         results = {
+            'eval_metric': self.eval_metric,
             'train': evals['validation_0'][self.eval_metric][self.best_iteration],
             'best_iteration': self.best_iteration
         }
@@ -99,7 +104,7 @@ class Base(object):
     @before_after_callbacks
     @timed(logging.INFO)
     def score(self, x, y):
-        return 1 / self.evaluate(x, y)
+        return self.evaluate(x, y)
 
 
 class XGBoost(lore.estimators.Base):
@@ -170,6 +175,7 @@ class BinaryClassifier(Base, xgboost.XGBClassifier):
         random_state=0,
         missing=None,
         eval_metric='logloss',
+        scoring_metric='auc',
         **kwargs
     ):
         kwargs = locals()
@@ -181,6 +187,13 @@ class BinaryClassifier(Base, xgboost.XGBClassifier):
         if 'n_jobs' not in kwargs and 'nthread' in kwargs:
             kwargs['n_jobs'] = kwargs.pop('nthread')
         super(BinaryClassifier, self).__init__(**kwargs)
+
+    @before_after_callbacks
+    @timed(logging.INFO)
+    def score(self, x, y):
+        import sklearn
+        y_pred = self.predict_proba(x)[:, 1]
+        return sklearn.metrics.roc_auc_score(y, y_pred)
 
 
 MutliClassifier = BinaryClassifier

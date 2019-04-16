@@ -2,8 +2,17 @@ import os
 import gc
 import pickle
 
+import lore
 from lore.stores.base import Base
 from lore.util import timer
+from lore.env import require
+
+require(
+    lore.dependencies.PANDAS
+    )
+
+import pandas
+from datetime import datetime
 
 try:
     FileExistsError
@@ -32,6 +41,14 @@ class Disk(Base):
 
     def __setitem__(self, key, value):
         with timer('write %s' % key):
+            if isinstance(value, pandas.core.frame.DataFrame):
+                if len(value):
+                    for c in value.columns:
+                        first = value[c].iloc[0]
+                        if isinstance(first, datetime) and \
+                           type(first.tzinfo).__name__.startswith('GMT'):
+                            value[c] = pandas.to_datetime(value[c], utc=True)
+
             with open(self._path(key), 'wb') as f:
                 pickle.dump(value, f, pickle.HIGHEST_PROTOCOL)
                 gc.collect()
