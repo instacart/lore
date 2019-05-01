@@ -16,6 +16,8 @@ import traceback
 from contextlib import contextmanager
 from datetime import datetime
 from lore import ansi, env
+import uuid
+import random
 
 
 class SecretFilter(logging.Filter):
@@ -479,3 +481,12 @@ def suppress_stdout():
             yield
         finally:
             sys.stdout = old_stdout
+
+def get_random_string(max_len=16):
+    """ Get a random string with a max length of 16"""
+    return str(uuid.uuid4())[0:max_len].replace("-", "")
+
+
+def add_random_delay(max_delay_value=30):
+    """ Add random delays """
+    time.sleep(randint(0, max_delay_value))
