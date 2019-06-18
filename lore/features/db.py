@@ -3,11 +3,11 @@
 from abc import ABCMeta
 from datetime import datetime
 import lore.io
-from lore.features.base import Base
+from lore.features.base import BaseFeatureExporter
 import lore.metadata
 
 
-class DB(Base):
+class DBFeatureExporter(BaseFeatureExporter):
     __metaclass__ = ABCMeta
 
     @property

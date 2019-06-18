@@ -15,7 +15,7 @@ import pandas
 import inflection
 
 
-class Base(object):
+class BaseFeatureExporter(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, collection_ts=datetime.datetime.now()):
@@ -60,10 +60,6 @@ class Base(object):
         df['feature_name'] = self.name
         df['feature_data'] = convert_df_columns_to_json(df, self._values)
         return df
-
-    @property
-    def feature_validity(self):
-        return None
 
     @property
     def version(self, version=str(datetime.date.today())):

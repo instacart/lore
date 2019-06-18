@@ -6,11 +6,11 @@ import os
 import tempfile
 
 import lore
-from lore.features.base import Base
+from lore.features.base import BaseFeatureExporter
 from lore.io import upload
 
 
-class S3(Base):
+class S3FeatureExporter(BaseFeatureExporter):
     __metaclass__ = ABCMeta
 
     @abstractmethod
