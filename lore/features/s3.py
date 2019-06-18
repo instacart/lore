@@ -20,6 +20,7 @@ class S3(Base):
     def publish(self, compression='gzip'):
         temp_file, temp_path = tempfile.mkstemp(dir=lore.env.DATA_DIR)
         data = self.get_data()
+        self._data = data
 
         if self.serialization() == 'csv':
             data.to_csv(temp_path, index=False, compression=compression)
@@ -36,7 +37,7 @@ class S3(Base):
         os.remove(temp_path)
 
     def data_path(self):
-        return "{}/{}/data.{}".format(self.version, self.name(), self.serialization())
+        return "{}/{}/data.{}".format(self.version, self.name, self.serialization())
 
     def metadata_path(self):
-        return "{}/{}/metadata.json".format(self.version, self.name())
+        return "{}/{}/metadata.json".format(self.version, self.name)
