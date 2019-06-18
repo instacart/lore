@@ -10,6 +10,7 @@ require(
     lore.dependencies.INFLECTION
 )
 
+from lore.util import convert_df_columns_to_json
 import pandas
 import inflection
 
@@ -17,8 +18,8 @@ import inflection
 class Base(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self):
-        self._data = None
+    def __init__(self, collection_ts=datetime.datetime.now()):
+        self.collection_ts = collection_ts
 
     @property
     def key(self):
@@ -26,6 +27,11 @@ class Base(object):
         :return: Composite or a single key for index
         """
         raise NotImplementedError
+
+    @property
+    def timestamp(self):
+        return datetime.datetime.combine(self.collection_ts.date(),
+                                         datetime.datetime.min.time())
 
     @abstractmethod
     def get_data(self):
@@ -40,6 +46,26 @@ class Base(object):
         pass
 
     @property
+    def _raw_data(self):
+        return self.get_data()
+
+    @property
+    def _data(self):
+        df = self._raw_data
+        df['key'] = self._generate_row_keys(df)
+        df['created_at'] = datetime.datetime.utcnow()
+        df['timestamp'] = self.timestamp
+        df['entity_name'] = self.entity_name
+        df['version'] = self.version
+        df['feature_name'] = self.name
+        df['feature_data'] = convert_df_columns_to_json(df, self._values)
+        return df
+
+    @property
+    def feature_validity(self):
+        return None
+
+    @property
     def version(self, version=str(datetime.date.today())):
         """
         Feature version : Override this method if you want to manage versions yourself
@@ -48,7 +74,7 @@ class Base(object):
         :param version:
         :return:
         """
-        return version
+        return 'v1'
 
     @property
     def name(self):
