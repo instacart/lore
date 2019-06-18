@@ -18,14 +18,14 @@ class Base(object):
     __metaclass__ = ABCMeta
 
     def __init__(self):
-        self._data = pandas.DataFrame()
+        self._data = None
 
-    @abstractmethod
+    @property
     def key(self):
         """
         :return: Composite or a single key for index
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_data(self):
@@ -50,11 +50,14 @@ class Base(object):
         """
         return version
 
+    @property
     def name(self):
-        return inflection.underscore(self.__class__.__name)
+        return inflection.underscore(self.__class__.__name__)
 
-    def values(self):
-        return self._data.columns.values.tolist()
+    @property
+    def _values(self):
+        value_cols = set(self._raw_data.columns.values.tolist()) - set(self.key)
+        return list(value_cols)
 
     def _features_as_kv(self):
         """
@@ -72,10 +75,11 @@ class Base(object):
             result[column] = dict(zip(self._data.cache_key.values, self._data[column].values))
         return result
 
+    @property
     def cache_key_prefix(self):
-        return ('#').join(self.key())
+        return ('#').join(self.key)
 
-    def generate_row_keys(self):
+    def _generate_row_keys(self, df):
         """
         Method for generating key features at serving time or prediction time
         :param data: Pass in the data that is necessary for generating the keys
@@ -87,16 +91,10 @@ class Base(object):
         :return:
         """
         keys = self.key
-        columns = self.values
-        if not self._data:
-            self._data = self.get_data()
-
-        for column in columns:
-            key_prefix = self.cache_key_prefix() + "#" + column
-            self._data['cache_key'] = self._data[keys].apply(lambda xdf: key_prefix + "=" + '#'.join(xdf.astype(str).values),
-                                                 axis=1)
-        return list(self._data['cache_key'].values)
-
+        key_prefix = self.cache_key_prefix
+        cache_keys = df[keys].apply(lambda xdf: key_prefix + "=" + '#'.join(xdf.astype(str).values),
+                                    axis=1)
+        return list(cache_keys)
 
     def __repr__(self):
         return (
@@ -104,21 +102,18 @@ class Base(object):
                 Version      : {}
                 Name         : {}
                 Keys         : {}
-                Values       : {}
                 Rows         : {}
-            """.format(self.version, self.name(), self.key(), self.values(), len(self._data))
+            """.format(self.version, self.name, self.key, len(self._data))
             # """.format(self.version, self.name, self.key, self.values, len([1]))
         )
 
     def metadata(self):
         return {
             "version": self.version,
-            "name": self.name(),
-            "keys": self.key(),
-            "values": self.values(),
+            "name": self.name,
+            "keys": self.key,
             "num_rows": len(self._data)
         }
-
 
     def distribute(self, cache):
         """
