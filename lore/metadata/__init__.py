@@ -274,4 +274,24 @@ class Prediction(Crud, Base):
     fitting = relationship('Fitting', back_populates='predictions')
 
 
+class FeatureMetaData(Crud, Base):
+    __tablename__ = 'feature_metadata'
+    id = Column(Integer, primary_key=True)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    s3_url = Column(String)
+
+
+class Feature(Crud, Base):
+    id = Column(Integer, primary_key=True)
+    feature_metadata_id = Column(Integer, ForeignKey('feature_metadata.id'), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+    starts_on = Column(DateTime)
+    ends_before = Column(DateTime)
+    entity_name = Column(String, nullable=False)
+    key = Column(String, nullable=False)
+    version = Column(String, nullable=False)
+    feature_name = Column(String, nullable=False)
+    feature_data = Column(JSON)
+
+
 Base.metadata.create_all(engine)
