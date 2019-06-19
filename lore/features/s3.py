@@ -17,6 +17,11 @@ class S3FeatureExporter(BaseFeatureExporter):
     def serialization(self):
         pass
 
+    @property
+    def _data(self):
+        df = self.get_data()
+        return df
+
     def publish(self, compression='gzip'):
         temp_file, temp_path = tempfile.mkstemp(dir=lore.env.DATA_DIR)
         data = self._data
