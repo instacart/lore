@@ -19,8 +19,7 @@ class S3FeatureExporter(BaseFeatureExporter):
 
     def publish(self, compression='gzip'):
         temp_file, temp_path = tempfile.mkstemp(dir=lore.env.DATA_DIR)
-        data = self.get_data()
-        self._data = data
+        data = self._data
 
         if self.serialization() == 'csv':
             data.to_csv(temp_path, index=False, compression=compression)
