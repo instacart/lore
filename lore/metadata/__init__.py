@@ -280,9 +280,12 @@ class FeatureMetaData(Crud, Base):
     created_at = Column(DateTime, default=datetime.datetime.now)
     entity_name = Column(String, nullable=False)
     feature_name = Column(String, nullable=False)
+    feature_dtypes = Column(JSON)
     version = Column(String, nullable=False)
     timestamp = Column(DateTime)
     s3_url = Column(String)
+
+    feature_data = relationship('Feature', back_populates='feature_metadata')
 
 
 class Feature(Crud, Base):
@@ -290,9 +293,9 @@ class Feature(Crud, Base):
     feature_metadata_id = Column(Integer, ForeignKey('feature_metadata.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.now)
     key = Column(String, nullable=False)
-    feature_data = Column(JSON)
+    feature_data = Column(String)
 
-    feature_metadata = relationship('FeatureMetaData')
+    feature_metadata = relationship('FeatureMetaData', back_populates='feature_data')
 
 
 Base.metadata.create_all(engine)
