@@ -10,7 +10,6 @@ require(
     lore.dependencies.INFLECTION
 )
 
-from lore.util import convert_df_columns_to_json
 import pandas
 import inflection
 
@@ -50,14 +49,6 @@ class BaseFeatureExporter(object):
         return self.get_data()
 
     @property
-    def _data(self):
-        df = self._raw_data
-        df['key'] = self._generate_row_keys(df)
-        df['created_at'] = datetime.datetime.utcnow()
-        df['feature_data'] = convert_df_columns_to_json(df, self._values)
-        return df
-
-    @property
     def version(self, version=str(datetime.date.today())):
         """
         Feature version : Override this method if you want to manage versions yourself
@@ -70,12 +61,18 @@ class BaseFeatureExporter(object):
 
     @property
     def name(self):
-        return inflection.underscore(self.__class__.__name__)
+        return inflection.underscore(self._value)
 
     @property
     def _values(self):
         value_cols = set(self._raw_data.columns.values.tolist()) - set(self.key)
+        if len(value_cols) > 1:
+            raise ValueError('Only one feature column allowed')
         return list(value_cols)
+
+    @property
+    def _value(self):
+        return self._values[0]
 
     def _features_as_kv(self):
         """
@@ -142,4 +139,18 @@ class BaseFeatureExporter(object):
         data = self._features_as_kv()
         for key in data.keys():
             cache.batch_set(data[key])
+
+
+class BaseFeatureImporter(object):
+    def __init__(self, entity_name, feature_name, version, start_date, end_date):
+        self.entity_name = entity_name
+        self.feature_name = feature_name
+        self.version = version
+        self.start_date = start_date
+        self.end_date = end_date
+
+    @property
+    def feature_data(self):
+        raise NotImplementedError
+
 
