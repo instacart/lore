@@ -54,10 +54,6 @@ class BaseFeatureExporter(object):
         df = self._raw_data
         df['key'] = self._generate_row_keys(df)
         df['created_at'] = datetime.datetime.utcnow()
-        df['timestamp'] = self.timestamp
-        df['entity_name'] = self.entity_name
-        df['version'] = self.version
-        df['feature_name'] = self.name
         df['feature_data'] = convert_df_columns_to_json(df, self._values)
         return df
 

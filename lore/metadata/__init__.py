@@ -281,6 +281,7 @@ class FeatureMetaData(Crud, Base):
     entity_name = Column(String, nullable=False)
     feature_name = Column(String, nullable=False)
     version = Column(String, nullable=False)
+    timestamp = Column(DateTime)
     s3_url = Column(String)
 
 
@@ -288,11 +289,7 @@ class Feature(Crud, Base):
     id = Column(Integer, primary_key=True)
     feature_metadata_id = Column(Integer, ForeignKey('feature_metadata.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.now)
-    timestamp = Column(DateTime)
-    entity_name = Column(String, nullable=False)
     key = Column(String, nullable=False)
-    version = Column(String, nullable=False)
-    feature_name = Column(String, nullable=False)
     feature_data = Column(JSON)
 
     feature_metadata = relationship('FeatureMetaData')

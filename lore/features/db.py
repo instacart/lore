@@ -22,6 +22,7 @@ class DBFeatureExporter(BaseFeatureExporter):
                                                                 entity_name=self.entity_name,
                                                                 feature_name=self.name,
                                                                 version=self.version,
+                                                                timestamp=self.timestamp,
                                                                 s3_url=None)
         df['feature_metadata_id'] = feature_metadata.id
         lore.io.metadata.insert('features', df)
