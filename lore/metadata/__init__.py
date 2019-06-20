@@ -4,7 +4,8 @@ import subprocess
 import logging
 import os
 
-from sqlalchemy import Column, Float, Integer, String, DateTime, JSON, func, ForeignKey
+from sqlalchemy import Column, Float, Integer, String, DateTime, \
+    JSON, func, ForeignKey, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 from sqlalchemy import TypeDecorator, types, desc
@@ -276,19 +277,24 @@ class Prediction(Crud, Base):
 
 class FeatureMetaData(Crud, Base):
     __tablename__ = 'feature_metadata'
+    __table_args__ = (
+        UniqueConstraint('entity_name', 'feature_name', 'ts', name='unique_entity_feature_ts'), )
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime, default=datetime.datetime.now)
     entity_name = Column(String, nullable=False)
     feature_name = Column(String, nullable=False)
     feature_dtypes = Column(JSON)
     version = Column(String, nullable=False)
-    timestamp = Column(DateTime)
+    ts = Column(DateTime)
     s3_url = Column(String)
 
     feature_data = relationship('Feature', back_populates='feature_metadata')
 
 
 class Feature(Crud, Base):
+    __table_args__ = (
+        UniqueConstraint('feature_metadata_id', 'key', name='unique_feature_metadata_key'), )
+
     id = Column(Integer, primary_key=True)
     feature_metadata_id = Column(Integer, ForeignKey('feature_metadata.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.now)
