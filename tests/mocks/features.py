@@ -1,11 +1,12 @@
 import logging
-from lore.features.base import Base
-from lore.features.s3 import S3
+from lore.features.base import BaseFeatureExporter
+from lore.features.s3 import S3FeatureExporter
 import pandas as pd
 import inflection
 logger = logging.getLogger(__name__)
 
-class UserWarehouseSearchesFeature(S3):
+
+class UserWarehouseSearchesFeature(S3FeatureExporter):
     def __init__(self):
         super(UserWarehouseSearchesFeature, self).__init__()
 
