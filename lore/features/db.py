@@ -47,7 +47,7 @@ class DBFeatureExporter(BaseFeatureExporter):
                                                                 entity_name=self.entity_name,
                                                                 feature_name=self.name,
                                                                 version=self.version,
-                                                                ts=self.timestamp,
+                                                                snapshot_at=self.timestamp,
                                                                 feature_dtypes=self.dtypes,
                                                                 s3_url=None)
         df['feature_metadata_id'] = feature_metadata.id
@@ -63,7 +63,7 @@ class DBFeatureImporter(BaseFeatureImporter):
                                feature_name=self.feature_name,
                                version=self.version,
                                s3_url=None)
-                    .filter(FeatureMetaData.timestamp.between(self.start_date, self.end_date)))
+                    .filter(FeatureMetaData.snapshot_at.between(self.start_date, self.end_date)))
         if metadata.count() == 0:
             return pandas.DataFrame()
 

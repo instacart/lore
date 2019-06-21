@@ -278,14 +278,14 @@ class Prediction(Crud, Base):
 class FeatureMetaData(Crud, Base):
     __tablename__ = 'feature_metadata'
     __table_args__ = (
-        UniqueConstraint('entity_name', 'feature_name', 'ts', name='unique_entity_feature_ts'), )
+        UniqueConstraint('entity_name', 'feature_name', 'snapshot_at', name='unique_entity_feature_ts'), )
     id = Column(Integer, primary_key=True)
     created_at = Column(DateTime, default=datetime.datetime.now)
     entity_name = Column(String, nullable=False)
     feature_name = Column(String, nullable=False)
     feature_dtypes = Column(JSON)
     version = Column(String, nullable=False)
-    ts = Column(DateTime)
+    snapshot_at = Column(DateTime)
     s3_url = Column(String)
 
     feature_data = relationship('Feature', back_populates='feature_metadata')
