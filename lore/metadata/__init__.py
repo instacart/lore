@@ -5,7 +5,8 @@ import logging
 import os
 
 from sqlalchemy import Column, Float, Integer, String, DateTime, \
-    JSON, func, ForeignKey, UniqueConstraint
+    JSON, func, ForeignKey, Index, UniqueConstraint
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 from sqlalchemy import TypeDecorator, types, desc
@@ -41,6 +42,7 @@ if adapter == 'sqlite':
             except (ValueError, TypeError):
                 return None
     JSON = StringJSON
+    JSONB = StringJSON
 
     # Commenting sqlite queries with the SQLAlchemy declarative_base API
     # is broken: https://github.com/sqlalchemy/sqlalchemy/issues/4396
@@ -293,12 +295,12 @@ class FeatureMetaData(Crud, Base):
 
 class Feature(Crud, Base):
     __table_args__ = (
-        UniqueConstraint('feature_metadata_id', 'key', name='unique_feature_metadata_key'), )
+        Index('feature_metadata_id', 'key', unique=True),)
 
     id = Column(Integer, primary_key=True)
     feature_metadata_id = Column(Integer, ForeignKey('feature_metadata.id'), nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.now)
-    key = Column(String, nullable=False)
+    key = Column(JSONB, nullable=False)
     feature_data = Column(String)
 
     feature_metadata = relationship('FeatureMetaData', back_populates='feature_data')
