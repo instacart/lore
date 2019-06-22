@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 
 import lore
 from lore.env import require
+from lore.util import convert_df_columns_to_json
 
 require(
     lore.dependencies.PANDAS +
@@ -95,6 +96,18 @@ class BaseFeatureExporter(object):
         return ('#').join(self.key)
 
     def _generate_row_keys(self, df):
+        """
+        Method to generate rows keys for storage in the DB
+        :param df: DataFrame to generate rows keys forecast
+
+        This method will use the key definition initially provided
+        and convert those columns into a JSON column
+        :return:
+        """
+        keys = self.key
+        return convert_df_columns_to_json(df, keys)
+
+    def _generate_row_keys_for_serving(self, df):
         """
         Method for generating key features at serving time or prediction time
         :param data: Pass in the data that is necessary for generating the keys
