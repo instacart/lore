@@ -357,12 +357,25 @@ class Connection(object):
             logger.info(result.head())
             return result
 
-    def dataframe(self, sql=None, extract=None, filename=None, **kwargs):
+    def dataframe(
+            self,
+            sql=None,
+            extract=None,
+            filename=None,
+            selectable=None,
+            **kwargs
+    ):
         cache = kwargs.pop('cache', False)
         chunksize = kwargs.pop('chunksize', None)
         if chunksize and cache:
             raise ValueError('Chunking is incompatible with caching. Choose to pass either "cache" or "chunksize".')
-        sql = self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs)
+        sql = self.__prepare(
+            sql=sql,
+            extract=extract,
+            filename=filename,
+            selectable=selectable,
+            **kwargs
+        )
         dataframe = self._dataframe(sql, kwargs, cache=cache, chunksize=chunksize)
         if chunksize is None:
             buffer = io.StringIO()
@@ -375,7 +388,12 @@ class Connection(object):
     def _dataframe(self, sql, bindings, chunksize=None):
         with timer("dataframe:"):
             try:
-                return pandas.read_sql_query(sql=sql, con=self._connection, params=bindings, chunksize=chunksize)
+                return pandas.read_sql(
+                    sql=sql,
+                    con=self._connection,
+                    params=bindings,
+                    chunksize=chunksize
+                )
             except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, SnowflakeProgrammingError) as e:
                 if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                     logger.warning('Reconnect and retry due to invalid connection')
@@ -402,7 +420,16 @@ class Connection(object):
     def quote_identifier(self, identifier):
         return self._engine.dialect.identifier_preparer.quote(identifier)
 
-    def __prepare(self, sql=None, extract=None, filename=None, **kwargs):
+    def __prepare(
+            self,
+            sql=None,
+            extract=None,
+            filename=None,
+            selectable=None,
+            **kwargs
+    ):
+        if selectable is not None:
+            return selectable
         if extract is None:
             extract = filename
         if sql is None and extract is not None:
