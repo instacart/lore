@@ -47,10 +47,14 @@ class Base(object):
         stack = inspect.stack()
         caller = kwargs.pop('caller', stack[-2])
         instance = kwargs.pop('instance', self)
+        query_string = (
+            '__'.join(map(str, args)).encode('utf-8') +
+            str(kwargs).encode('utf-8')
+        )
 
         return '.'.join((
             instance.__module__,
             instance.__class__.__name__,
             caller.__code__.co_name,
-            hashlib.sha1(str(args).encode('utf-8') + str(kwargs).encode('utf-8')).hexdigest()
+            hashlib.sha1(query_string).hexdigest()
         ))
