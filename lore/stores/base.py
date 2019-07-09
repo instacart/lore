@@ -49,7 +49,7 @@ class Base(object):
         stack = inspect.stack()
         caller = kwargs.pop('caller', stack[-2])
         instance = kwargs.pop('instance', self)
-        if isinstance(args[0], sqlalchemy.sql.Selectable):
+        if  len(args) > 0 and isinstance(args[0], sqlalchemy.sql.Selectable):
             query_string = (
                 str(args[0]).encode('utf-8') +
                 str(args[0].compile().params).encode('utf-8')
