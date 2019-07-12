@@ -39,7 +39,7 @@ if redis_config:
     require(lore.dependencies.REDIS)
     import redis
 
-    for section in config.sections():
+    for section in redis_config.sections():
         vars()[section.lower()] = redis.StrictRedis(host=redis_config.get(section, 'url'),
                                                     port=redis_config.get(section, 'port'))
 
