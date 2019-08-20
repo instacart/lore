@@ -221,7 +221,7 @@ def parametrized(decorator):
 
 
 @parametrized
-def timed(func, level):
+def timed(func, level=logging.INFO):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         with timer('.'.join([func.__module__, func.__name__]), level=level):
