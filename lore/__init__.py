@@ -48,6 +48,9 @@ no_env_commands = ['--version', 'install', 'init', 'server']
 if len(sys.argv) > 1 and os.path.basename(sys.argv[0]) in ['lore', 'lore.exe'] and sys.argv[1] in no_env_commands:
     lore_no_env = True
 
+if '--noenv' in sys.argv
+    lore_no_env = True
+    
 if not lore_no_env:
     # everyone else gets validated and launched on import
     env.validate()
