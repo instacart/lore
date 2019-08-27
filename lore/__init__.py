@@ -17,7 +17,7 @@ __author__ = 'Montana Low and Jeremy Stanley'
 __copyright__ = 'Copyright © 2018, Instacart'
 __credits__ = ['Montana Low', 'Jeremy Stanley', 'Emmanuel Turlay', 'Shrikar Archak', 'Ganesh Krishnan']
 __license__ = 'MIT'
-__version__ = '0.7.0rc3'
+__version__ = '0.7.0'
 __maintainer__ = 'Montana Low'
 __email__ = 'montana@instacart.com'
 __status__ = 'Development Status :: 4 - Beta'
@@ -48,7 +48,7 @@ no_env_commands = ['--version', 'install', 'init', 'server']
 if len(sys.argv) > 1 and os.path.basename(sys.argv[0]) in ['lore', 'lore.exe'] and sys.argv[1] in no_env_commands:
     lore_no_env = True
 
-if '--noenv' in sys.argv
+if '--no-env' in sys.argv:
     lore_no_env = True
     
 if not lore_no_env:
