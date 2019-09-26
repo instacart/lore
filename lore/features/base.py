@@ -132,7 +132,6 @@ class BaseFeatureExporter(object):
                 Keys         : {}
                 Rows         : {}
             """.format(self.version, self.name, self.key, len(self._data))
-            # """.format(self.version, self.name, self.key, self.values, len([1]))
         )
 
     def metadata(self):
