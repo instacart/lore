@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 
 import lore
 from lore.env import require
+from lore.util import convert_df_columns_to_json
 
 require(
     lore.dependencies.PANDAS +
@@ -14,18 +15,23 @@ import pandas
 import inflection
 
 
-class Base(object):
+class BaseFeatureExporter(object):
     __metaclass__ = ABCMeta
 
-    def __init__(self):
-        self._data = pandas.DataFrame()
+    def __init__(self, collection_ts=datetime.datetime.now()):
+        self.collection_ts = collection_ts
 
-    @abstractmethod
+    @property
     def key(self):
         """
         :return: Composite or a single key for index
         """
-        pass
+        raise NotImplementedError
+
+    @property
+    def timestamp(self):
+        return datetime.datetime.combine(self.collection_ts.date(),
+                                         datetime.datetime.min.time())
 
     @abstractmethod
     def get_data(self):
@@ -40,6 +46,10 @@ class Base(object):
         pass
 
     @property
+    def _raw_data(self):
+        return self.get_data()
+
+    @property
     def version(self, version=str(datetime.date.today())):
         """
         Feature version : Override this method if you want to manage versions yourself
@@ -48,13 +58,22 @@ class Base(object):
         :param version:
         :return:
         """
-        return version
+        return 'v1'
 
+    @property
     def name(self):
-        return inflection.underscore(self.__class__.__name)
+        return inflection.underscore(self._value)
 
-    def values(self):
-        return self._data.columns.values.tolist()
+    @property
+    def _values(self):
+        value_cols = set(self._raw_data.columns.values.tolist()) - set(self.key)
+        if len(value_cols) > 1:
+            raise ValueError('Only one feature column allowed')
+        return list(value_cols)
+
+    @property
+    def _value(self):
+        return self._values[0]
 
     def _features_as_kv(self):
         """
@@ -72,10 +91,23 @@ class Base(object):
             result[column] = dict(zip(self._data.cache_key.values, self._data[column].values))
         return result
 
+    @property
     def cache_key_prefix(self):
-        return ('#').join(self.key())
+        return ('#').join(self.key)
 
-    def generate_row_keys(self):
+    def _generate_row_keys(self, df):
+        """
+        Method to generate rows keys for storage in the DB
+        :param df: DataFrame to generate rows keys forecast
+
+        This method will use the key definition initially provided
+        and convert those columns into a JSON column
+        :return:
+        """
+        keys = self.key
+        return convert_df_columns_to_json(df, keys)
+
+    def _generate_row_keys_for_serving(self, df):
         """
         Method for generating key features at serving time or prediction time
         :param data: Pass in the data that is necessary for generating the keys
@@ -87,16 +119,10 @@ class Base(object):
         :return:
         """
         keys = self.key
-        columns = self.values
-        if not self._data:
-            self._data = self.get_data()
-
-        for column in columns:
-            key_prefix = self.cache_key_prefix() + "#" + column
-            self._data['cache_key'] = self._data[keys].apply(lambda xdf: key_prefix + "=" + '#'.join(xdf.astype(str).values),
-                                                 axis=1)
-        return list(self._data['cache_key'].values)
-
+        key_prefix = self.cache_key_prefix
+        cache_keys = df[keys].apply(lambda xdf: key_prefix + "=" + '#'.join(xdf.astype(str).values),
+                                    axis=1)
+        return list(cache_keys)
 
     def __repr__(self):
         return (
@@ -104,21 +130,17 @@ class Base(object):
                 Version      : {}
                 Name         : {}
                 Keys         : {}
-                Values       : {}
                 Rows         : {}
-            """.format(self.version, self.name(), self.key(), self.values(), len(self._data))
-            # """.format(self.version, self.name, self.key, self.values, len([1]))
+            """.format(self.version, self.name, self.key, len(self._data))
         )
 
     def metadata(self):
         return {
             "version": self.version,
-            "name": self.name(),
-            "keys": self.key(),
-            "values": self.values(),
+            "name": self.name,
+            "keys": self.key,
             "num_rows": len(self._data)
         }
-
 
     def distribute(self, cache):
         """
@@ -129,4 +151,18 @@ class Base(object):
         data = self._features_as_kv()
         for key in data.keys():
             cache.batch_set(data[key])
+
+
+class BaseFeatureImporter(object):
+    def __init__(self, entity_name, feature_name, version, start_date, end_date):
+        self.entity_name = entity_name
+        self.feature_name = feature_name
+        self.version = version
+        self.start_date = start_date
+        self.end_date = end_date
+
+    @property
+    def feature_data(self):
+        raise NotImplementedError
+
 
