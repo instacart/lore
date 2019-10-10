@@ -93,6 +93,7 @@ def download(remote_url, local_path=None, cache=True, extract=False):
 
     with timer('DOWNLOAD: %s' % remote_url):
         temp_file, temp_path = tempfile.mkstemp(dir=lore.env.WORK_DIR)
+        os.close(temp_file)
         try:
             if protocol == 'http':
                 lore.env.retrieve_url(remote_url, temp_path)
