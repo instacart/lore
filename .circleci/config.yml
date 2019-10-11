@@ -1,4 +1,4 @@
-version: 2
+version: 2.0
 
 notify:
   webhooks:
@@ -7,74 +7,133 @@ notify:
     only:
       - /.*/
 
-general:
-  branches:
-    ignore:
-      - /.*\/ci_skip.*/ # end your branch name in /ci_skip and it won't be built by CircleCI
+workflows:
+  version: 2
+  build:
+    jobs:
+      - "python-2.7.15"
+      - "python-3.6.5"
+
+shared: &shared
+  working_directory: ~/instacart/lore
+  shell: /bin/bash --login
+
+  environment:
+    PYENV_ROOT: /home/circleci/.pyenv
+    CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
+    CIRCLE_TEST_REPORTS: /tmp/circleci-test-results
+
+  filters:
+    branches:
+      ignore:
+        - /.*\/ci_skip.*/ # end your branch name in /ci_skip and it won't be built by CircleCI
 
 jobs:
-  build:
-    working_directory: ~/instacart/lore
-    parallelism: 1
-    shell: /bin/bash --login
-    environment:
-      PYENV_ROOT: /opt/circleci/.pyenv
-      CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
-      CIRCLE_TEST_REPORTS: /tmp/circleci-test-results
+  "python-2.7.15":
+    <<: *shared
     docker:
-    - image: circleci/build-image:ubuntu-14.04-XXL-upstart-1189-5614f37
-      command: /sbin/init
+    - image: circleci/python:2.7.15-stretch
+      environment:
+        - LORE_PYTHON_VERSION=2.7.15
+    - image: circleci/postgres:10-ram
+      environment:
+        - POSTGRES_USER=circleci
+        - POSTGRES_DB=lore_test
     steps:
-    - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
+      - run: sudo chown -R circleci:circleci /usr/local/bin
+      - run: sudo chown -R circleci:circleci /usr/local/lib/python*
 
-    - restore_cache:
-        keys:
-          - source-v1-{{ .Branch }}-{{ .Revision }}
-          - source-v1-{{ .Branch }}-
-          - source-v1-
-    - checkout
-    - save_cache:
-        key: source-v1-{{ .Branch }}-{{ .Revision }}
-        paths:
-        - ".git"
+      - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
 
-    - restore_cache:
-        keys:
-          - pyenv-v1-{{ .Branch }}-{{ .Revision }}
-          - pyenv-v1-{{ .Branch }}-
-          - pyenv-v1-
-    - run:
-        working_directory: /opt/circleci/.pyenv
-        command: git pull
-    - run: pyenv install -s 2.7.15
-    - run: pyenv global 2.7.15
-    - run: pip install --upgrade pip
-    - run: pyenv install -s 3.6.5
-    - run: pyenv global 3.6.5
-    - run: pip install --upgrade pip
-    - run: pip install -e .
-    - save_cache:
-        key: pyenv-v1-{{ .Branch }}-{{ .Revision }}
-        paths:
-        - /opt/circleci/.pyenv
-        - /opt/circleci/python
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
 
-    - run: LORE_PYTHON_VERSION=2.7.15 lore test -s tests.unit.__init__
-    - run: git checkout -- requirements.txt
-    - run: LORE_PYTHON_VERSION=3.6.5 lore test -s tests.unit.__init__
-    - run: git checkout -- requirements.txt
-    - save_cache:
-        key: pyenv-v1-{{ .Branch }}-{{ .Revision }}
-        paths:
-        - /opt/circleci/.pyenv
-        - /opt/circleci/python
+      - checkout
 
-    - run: createdb lore_test
-    - run: LORE_PYTHON_VERSION=2.7.15 lore test
-    - run: LORE_PYTHON_VERSION=3.6.5 lore test
-    - store_test_results:
-        path: /tmp/circleci-test-results
-    - store_artifacts:
-        path: /tmp/circleci-artifacts
-    - store_artifacts:
-        path: /tmp/circleci-test-results
+      - save_cache:
+          key: source-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+          - ".git"
+
+      - run: pip install --upgrade pip
+      - run: pip install -e .
+
+      - restore_cache:
+          keys:
+            - pyenv-2-v1-{{ .Branch }}-{{ .Revision }}
+            - pyenv-2-v1-{{ .Branch }}-
+            - pyenv-2-v1-
+
+      - run: lore test -s tests.unit.__init__
+
+      - save_cache:
+          key: pyenv-2-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - /home/circleci/.pyenv
+            - /home/circleci/python
+
+      - run: lore test
+
+      - store_test_results:
+          path: /tmp/circleci-test-results
+      - store_artifacts:
+          path: /tmp/circleci-artifacts
+      - store_artifacts:
+          path: /tmp/circleci-test-results
+  "python-3.6.5":
+    <<: *shared
+    docker:
+    - image: circleci/python:3.6.5-stretch
+      environment:
+        - LORE_PYTHON_VERSION=3.6.5
+    - image: circleci/postgres:10-ram
+      environment:
+        - POSTGRES_USER=circleci
+        - POSTGRES_DB=lore_test
+    steps:
+      - run: sudo chown -R circleci:circleci /usr/local/bin
+      - run: sudo chown -R circleci:circleci /usr/local/lib/python*
+
+      - run: mkdir -p $CIRCLE_ARTIFACTS $CIRCLE_TEST_REPORTS
+
+      - restore_cache:
+          keys:
+            - source-v1-{{ .Branch }}-{{ .Revision }}
+            - source-v1-{{ .Branch }}-
+            - source-v1-
+
+      - checkout
+
+      - save_cache:
+          key: source-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+          - ".git"
+
+      - run: pip install --upgrade pip
+      - run: pip install -e .
+
+      - restore_cache:
+          keys:
+            - pyenv-3-v1-{{ .Branch }}-{{ .Revision }}
+            - pyenv-3-v1-{{ .Branch }}-
+            - pyenv-3-v1-
+
+      - run: lore test -s tests.unit.__init__
+
+      - save_cache:
+          key: pyenv-3-v1-{{ .Branch }}-{{ .Revision }}
+          paths:
+            - /home/circleci/.pyenv
+            - /home/circleci/python
+
+      - run: lore test
+
+      - store_test_results:
+          path: /tmp/circleci-test-results
+      - store_artifacts:
+          path: /tmp/circleci-artifacts
+      - store_artifacts:
+          path: /tmp/circleci-test-results

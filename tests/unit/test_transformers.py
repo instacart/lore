@@ -147,8 +147,8 @@ class TestGeoIP(unittest.TestCase):
     
         data = pandas.DataFrame({'test': ['124.0.0.1', '124.0.0.2']})
         transformed = transformer.transform(data)
-        self.assertEqual(transformed.iloc[0], 126.97409999999999)
-        self.assertEqual(transformed.iloc[1], 126.97409999999999)
+        self.assertEqual(transformed.iloc[0], 126.9741)
+        self.assertEqual(transformed.iloc[1], 126.9741)
 
     def test_transform_accuracy(self):
         transformer = lore.transformers.GeoIP('test', 'accuracy')
