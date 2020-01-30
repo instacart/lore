@@ -357,14 +357,14 @@ class Connection(object):
             logger.info(result.head())
             return result
 
-    def dataframe(self, sql=None, extract=None, filename=None, **kwargs):
+    def dataframe(self, sql=None, extract=None, filename=None, log_verbose=False, **kwargs):
         cache = kwargs.pop('cache', False)
         chunksize = kwargs.pop('chunksize', None)
         if chunksize and cache:
             raise ValueError('Chunking is incompatible with caching. Choose to pass either "cache" or "chunksize".')
         sql = self.__prepare(sql=sql, extract=extract, filename=filename, **kwargs)
         dataframe = self._dataframe(sql, kwargs, cache=cache, chunksize=chunksize)
-        if chunksize is None:
+        if log_verbose is True and chunksize is None:
             buffer = io.StringIO()
             dataframe.info(buf=buffer, memory_usage='deep')
             logger.info(buffer.getvalue())
