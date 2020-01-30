@@ -85,7 +85,7 @@ class Connection(object):
         parsed = lore.env.parse_url(url)
         self.adapter = parsed.scheme
 
-        self.use_psycopg2 = False
+        self._use_psycopg2 = False
         if self.adapter == 'postgres' and allow_raw_adapter_queries:
             self._use_psycopg2 = True
 
@@ -279,16 +279,17 @@ class Connection(object):
     def _select(self, sql, bindings):
         if self._use_psycopg2:
             try:
-                with self._raw_conn_pool.connection:
-                    with self._raw_conn_pool.connection.cursor() as cursor:
+                conn = self._connection.engine.raw_connection().connection
+                with conn:
+                    with conn.cursor() as cursor:
                         cursor.execute(sql, bindings)
                         return cursor.fetchall()
             except Psycopg2OperationalError as e:
                 logger.warning('Reconnect and retry due to invalid connection')
                 self.close()
-                self._raw_conn_pool = self._connection.engine.raw_connection()
-                with self._raw_conn_pool.connection:
-                    with self._raw_conn_pool.connection.cursor() as cursor:
+                conn = self._connection.engine.raw_connection().connection
+                with conn:
+                    with conn.cursor() as cursor:
                         cursor.execute(sql, bindings)
                         return cursor.fetchall()
         else:
