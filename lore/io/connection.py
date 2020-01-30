@@ -331,7 +331,7 @@ class Connection(object):
             return result
 
     @query_cached
-    def load_dataframe(self, key, columns):
+    def load_dataframe(self, key, columns, log_verbose=False,):
         with timer('load_dataframe'):
             frames = []
             for entry in lore.io.bucket.objects.filter(
@@ -351,10 +351,11 @@ class Connection(object):
 
             result = pandas.concat(frames)
             result.columns = columns
-            buffer = io.StringIO()
-            result.info(buf=buffer, memory_usage='deep')
-            logger.info(buffer.getvalue())
-            logger.info(result.head())
+            if log_verbose is True:
+                buffer = io.StringIO()
+                result.info(buf=buffer, memory_usage='deep')
+                logger.info(buffer.getvalue())
+                logger.info(result.head())
             return result
 
     def dataframe(self, sql=None, extract=None, filename=None, log_verbose=False, **kwargs):
