@@ -78,12 +78,16 @@ class Connection(object):
     UNLOAD_PREFIX = os.path.join(lore.env.NAME, 'unloads')
     IAM_ROLE = os.environ.get('IAM_ROLE', None)
 
-    def __init__(self, url, name='connection', watermark=True, **kwargs):
+    def __init__(self, url, name='connection', watermark=True, allow_raw_adapter_queries=True, **kwargs):
         if not sqlalchemy:
             raise lore.env.ModuleNotFoundError('No module named sqlalchemy. Please add it to requirements.txt.')
 
         parsed = lore.env.parse_url(url)
         self.adapter = parsed.scheme
+
+        self.use_psycopg2 = False
+        if self.adapter == 'postgres' and allow_raw_adapter_queries:
+            self._use_psycopg2 = True
 
         if self.adapter == 'postgres':
             require(lore.dependencies.POSTGRES)
@@ -107,6 +111,7 @@ class Connection(object):
         self.name = name
         self._transactions = []
         self.__thread_local = threading.local()
+        self._raw_conn_pool = self._connection.engine.raw_connection()
 
         @event.listens_for(self._engine, "before_cursor_execute", retval=True)
         def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
@@ -272,7 +277,22 @@ class Connection(object):
 
     @query_cached
     def _select(self, sql, bindings):
-        return self.__execute(sql, bindings).fetchall()
+        if self._use_psycopg2:
+            try:
+                with self._raw_conn_pool.connection:
+                    with self._raw_conn_pool.connection.cursor() as cursor:
+                        cursor.execute(sql, bindings)
+                        return cursor.fetchall()
+            except Psycopg2OperationalError as e:
+                logger.warning('Reconnect and retry due to invalid connection')
+                self.close()
+                self._raw_conn_pool = self._connection.engine.raw_connection()
+                with self._raw_conn_pool.connection:
+                    with self._raw_conn_pool.connection.cursor() as cursor:
+                        cursor.execute(sql, bindings)
+                        return cursor.fetchall()
+        else:
+            return self.__execute(sql, bindings).fetchall()
 
     def unload(self, sql=None, extract=None, filename=None, **kwargs):
         cache = kwargs.pop('cache', False)
