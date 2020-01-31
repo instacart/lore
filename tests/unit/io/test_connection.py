@@ -163,7 +163,7 @@ class TestConnection(unittest.TestCase):
         lore.io.main.close()
         reopened = lore.io.main.select(sql='select 1')
         self.assertEquals(reopened, [(1,)])
-        with self.assertRaises(sqlalchemy.exc.ProgrammingError):
+        with self.assertRaises(psycopg2.ProgrammingError):
             lore.io.main.select(sql='select count(*) from tests_close')
 
     def test_reconnect_and_retry(self):
