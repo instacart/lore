@@ -111,7 +111,6 @@ class Connection(object):
         self.name = name
         self._transactions = []
         self.__thread_local = threading.local()
-        self._raw_conn_pool = self._connection.engine.raw_connection()
 
         @event.listens_for(self._engine, "before_cursor_execute", retval=True)
         def comment_sql_calls(conn, cursor, statement, parameters, context, executemany):
@@ -279,16 +278,14 @@ class Connection(object):
     def _select(self, sql, bindings):
         if self._use_psycopg2:
             try:
-                conn = self._connection.engine.raw_connection().connection
-                with conn:
+                with self._connection.engine.raw_connection().connection as conn:
                     with conn.cursor() as cursor:
                         cursor.execute(sql, bindings)
                         return cursor.fetchall()
             except Psycopg2OperationalError as e:
                 logger.warning('Reconnect and retry due to invalid connection')
                 self.close()
-                conn = self._connection.engine.raw_connection().connection
-                with conn:
+                with self._connection.engine.raw_connection().connection as conn:
                     with conn.cursor() as cursor:
                         cursor.execute(sql, bindings)
                         return cursor.fetchall()
