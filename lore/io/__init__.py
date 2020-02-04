@@ -5,6 +5,7 @@ import re
 import shutil
 import tarfile
 import tempfile
+from urllib.parse import urlparse
 
 
 import lore
@@ -70,12 +71,20 @@ if lore.env.AWS_CONFIG:
 def download(remote_url, local_path=None, cache=True, extract=False):
     if re.match(r'^https?://', remote_url):
         protocol = 'http'
+    elif re.match(r'^s3?://', remote_url):
+        require(lore.dependencies.S3)
+        import boto3
+        from botocore.exceptions import ClientError
+        protocol = 's3'
+        url_parts = urlparse(remote_url)
+        remote_url = url_parts.path[1:]
+        _bucket = boto3.resource('s3').Bucket(url_parts.netloc)
     else:
         if s3 is None:
             raise NotImplementedError("Cannot download from s3 without config/aws.cfg")
         protocol = 's3'
         remote_url = prefix_remote_root(remote_url)
-
+        _bucket = None
     if cache:
         if local_path is None:
             if protocol == 'http':
@@ -98,7 +107,7 @@ def download(remote_url, local_path=None, cache=True, extract=False):
             if protocol == 'http':
                 lore.env.retrieve_url(remote_url, temp_path)
             else:
-                bucket.download_file(remote_url, temp_path)
+                _bucket.download_file(remote_url, temp_path)
         except ClientError as e:
             logger.error("Error downloading file: %s" % e)
             raise
