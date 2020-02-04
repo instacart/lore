@@ -5,8 +5,10 @@ import re
 import shutil
 import tarfile
 import tempfile
-from urllib.parse import urlparse
-
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 import lore
 from lore.env import require, configparser
