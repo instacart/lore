@@ -278,7 +278,7 @@ class NameFamilial(Base):
 class GeoIP(Base):
     reader = None
 
-    def __init__(self, column, operator):
+    def __init__(self, column, operator, geoip2 = 's3://instacart-buildpacks/downloads/geoip2/latest.tar.gz'):
         import lore  # This is crazy, why is this statement necessary?
         require(lore.dependencies.GEOIP)
         import geoip2.database
@@ -287,7 +287,7 @@ class GeoIP(Base):
             import lore.io
             import glob
             file = lore.io.download(
-                's3://instacart-buildpacks/downloads/geoip2/latest.tar.gz',
+                geoip2,
                 cache=True,
                 extract=True
             )
