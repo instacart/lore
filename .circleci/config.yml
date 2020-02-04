@@ -47,9 +47,9 @@ jobs:
 
       - restore_cache:
           keys:
-            - source-v1-{{ .Branch }}-{{ .Revision }}
-            - source-v1-{{ .Branch }}-
-            - source-v1-
+            - source-v2-{{ .Branch }}-{{ .Revision }}
+            - source-v2-{{ .Branch }}-
+            - source-v2-
 
       - checkout
 
@@ -63,14 +63,14 @@ jobs:
 
       - restore_cache:
           keys:
-            - pyenv-2-v1-{{ .Branch }}-{{ .Revision }}
-            - pyenv-2-v1-{{ .Branch }}-
-            - pyenv-2-v1-
+            - pyenv-2-v2-{{ .Branch }}-{{ .Revision }}
+            - pyenv-2-v2-{{ .Branch }}-
+            - pyenv-2-v2-
 
       - run: lore test -s tests.unit.__init__
 
       - save_cache:
-          key: pyenv-2-v1-{{ .Branch }}-{{ .Revision }}
+          key: pyenv-2-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /home/circleci/.pyenv
             - /home/circleci/python
@@ -101,9 +101,9 @@ jobs:
 
       - restore_cache:
           keys:
-            - source-v1-{{ .Branch }}-{{ .Revision }}
-            - source-v1-{{ .Branch }}-
-            - source-v1-
+            - source-v2-{{ .Branch }}-{{ .Revision }}
+            - source-v2-{{ .Branch }}-
+            - source-v2-
 
       - checkout
 
@@ -117,14 +117,14 @@ jobs:
 
       - restore_cache:
           keys:
-            - pyenv-3-v1-{{ .Branch }}-{{ .Revision }}
-            - pyenv-3-v1-{{ .Branch }}-
-            - pyenv-3-v1-
+            - pyenv-3-v2-{{ .Branch }}-{{ .Revision }}
+            - pyenv-3-v2-{{ .Branch }}-
+            - pyenv-3-v2-
 
       - run: lore test -s tests.unit.__init__
 
       - save_cache:
-          key: pyenv-3-v1-{{ .Branch }}-{{ .Revision }}
+          key: pyenv-3-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /home/circleci/.pyenv
             - /home/circleci/python
