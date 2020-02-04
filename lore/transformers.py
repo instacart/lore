@@ -278,7 +278,7 @@ class NameFamilial(Base):
 class GeoIP(Base):
     reader = None
 
-    def __init__(self, column, operator):
+    def __init__(self, column, operator, geoip2_loc = 's3://instacart-buildpacks/downloads/geoip2/latest.tar.gz'):
         import lore  # This is crazy, why is this statement necessary?
         require(lore.dependencies.GEOIP)
         import geoip2.database
@@ -287,13 +287,15 @@ class GeoIP(Base):
             import lore.io
             import glob
             file = lore.io.download(
-                'http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz',
+                geoip2_loc,
                 cache=True,
                 extract=True
             )
-
-            path = [file for file in glob.glob(file.split('.')[0] + '*') if os.path.isdir(file)][0]
-            GeoIP.reader = geoip2.database.Reader(os.path.join(path, 'GeoLite2-City.mmdb'))
+            path = [file for file in glob.glob(os.path.join(*file.split('/')[0:-1]) + '/*') if os.path.isdir(file)][0]
+            try:
+                GeoIP.reader = geoip2.database.Reader(os.path.join(path, 'GeoLite2-City.mmdb'))
+            except FileNotFoundError:
+                GeoIP.reader = geoip2.database.Reader(os.path.join(path, 'GeoIP2-City.mmdb'))
 
         super(GeoIP, self).__init__(column)
         self.operator = operator

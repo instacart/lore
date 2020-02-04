@@ -136,23 +136,23 @@ class TestStringLower(unittest.TestCase):
 class TestGeoIP(unittest.TestCase):
     def test_transform_latitude(self):
         transformer = lore.transformers.GeoIP('test', 'latitude')
-        
+
         data = pandas.DataFrame({'test': ['124.0.0.1', '124.0.0.2']})
         transformed = transformer.transform(data)
-        self.assertEqual(transformed.iloc[0], 37.5112)
-        self.assertEqual(transformed.iloc[1], 37.5112)
+        self.assertAlmostEqual(transformed.iloc[0], 37.5112)
+        self.assertAlmostEqual(transformed.iloc[1], 37.5112)
 
     def test_transform_longitude(self):
         transformer = lore.transformers.GeoIP('test', 'longitude')
-    
+
         data = pandas.DataFrame({'test': ['124.0.0.1', '124.0.0.2']})
         transformed = transformer.transform(data)
-        self.assertEqual(transformed.iloc[0], 126.9741)
-        self.assertEqual(transformed.iloc[1], 126.9741)
+        self.assertAlmostEqual(transformed.iloc[0], 126.9741)
+        self.assertAlmostEqual(transformed.iloc[1], 126.9741)
 
     def test_transform_accuracy(self):
         transformer = lore.transformers.GeoIP('test', 'accuracy')
-    
+
         data = pandas.DataFrame({'test': ['124.0.0.1', '124.0.0.2']})
         transformed = transformer.transform(data)
         self.assertEqual(transformed.iloc[0], 200)
@@ -164,7 +164,7 @@ class TestGeoIP(unittest.TestCase):
         transformed = transformer.transform(data)
         self.assertTrue(math.isnan(transformed.iloc[0]))
 
-    
+
 class TestDistance(unittest.TestCase):
     def test_distance(self):
         data = pandas.DataFrame({
