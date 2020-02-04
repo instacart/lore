@@ -438,7 +438,7 @@ class Connection(object):
 
         return sql
 
-    def __connection_execute(self,  sql, bindings):
+    def _connection_execute(self,  sql, bindings):
         if self._use_psycopg2:
             with self._connection.engine.raw_connection().connection as conn:
                 with conn.cursor() as cursor:
@@ -446,7 +446,7 @@ class Connection(object):
                     try:
                         return ResultWrapper(cursor.fetchall())
                     except psycopg2.ProgrammingError as e:
-                        if 'no results to fetch' in str(y):
+                        if 'no results to fetch' in str(e):
                             return None
                         raise e
         else:
@@ -454,12 +454,12 @@ class Connection(object):
 
     def __execute(self, sql, bindings):
         try:
-            return self.__connection_execute(sql, bindings)
+            return self._connection_execute(sql, bindings)
         except (sqlalchemy.exc.DBAPIError, Psycopg2OperationalError, SnowflakeProgrammingError) as e:
             if not self._transactions and (isinstance(e, Psycopg2OperationalError) or e.connection_invalidated):
                 logger.warning('Reconnect and retry due to invalid connection')
                 self.close()
-                return self.__connection_execute(sql, bindings)
+                return self._connection_execute(sql, bindings)
             elif not self._transactions and (isinstance(e, SnowflakeProgrammingError) or e.connection_invalidated):
                 if hasattr(e, 'msg') and e.msg and "authenticate" in e.msg.lower():
                     logger.warning('Reconnect and retry due to unauthenticated connection')
