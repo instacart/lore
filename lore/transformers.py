@@ -291,9 +291,11 @@ class GeoIP(Base):
                 cache=True,
                 extract=True
             )
-
-            path = [file for file in glob.glob(file.split('.')[0] + '*') if os.path.isdir(file)][0]
-            GeoIP.reader = geoip2.database.Reader(os.path.join(path, 'GeoLite2-City.mmdb'))
+            path = [file for file in glob.glob(os.path.join(*file.split('/')[0:-1]) + '/*') if os.path.isdir(file)][0]
+            try:
+                GeoIP.reader = geoip2.database.Reader(os.path.join(path, 'GeoLite2-City.mmdb'))
+            except FileNotFoundError:
+                GeoIP.reader = geoip2.database.Reader(os.path.join(path, 'GeoIP2-City.mmdb'))
 
         super(GeoIP, self).__init__(column)
         self.operator = operator
