@@ -287,7 +287,7 @@ class GeoIP(Base):
             import lore.io
             import glob
             file = lore.io.download(
-                'http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz',
+                's3://instacart-buildpacks/downloads/geoip2/latest.tar.gz',
                 cache=True,
                 extract=True
             )
