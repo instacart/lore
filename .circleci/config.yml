@@ -11,7 +11,7 @@ workflows:
   version: 2
   build:
     jobs:
-      - "python-2.7.15"
+      - "python-3.7"
       - "python-3.6.5"
 
 shared: &shared
@@ -29,12 +29,12 @@ shared: &shared
         - /.*\/ci_skip.*/ # end your branch name in /ci_skip and it won't be built by CircleCI
 
 jobs:
-  "python-2.7.15":
+  "python-3.7":
     <<: *shared
     docker:
-    - image: circleci/python:2.7.15-stretch
+    - image: circleci/python:3.7.6-stretch
       environment:
-        - LORE_PYTHON_VERSION=2.7.15
+        - LORE_PYTHON_VERSION=3.7.6
     - image: circleci/postgres:10-ram
       environment:
         - POSTGRES_USER=circleci
@@ -63,14 +63,14 @@ jobs:
 
       - restore_cache:
           keys:
-            - pyenv-2-v2-{{ .Branch }}-{{ .Revision }}
-            - pyenv-2-v2-{{ .Branch }}-
-            - pyenv-2-v2-
+            - pyenv-3-7-v2-{{ .Branch }}-{{ .Revision }}
+            - pyenv-3-7-v2-{{ .Branch }}-
+            - pyenv-3-7-v2-
 
       - run: lore test -s tests.unit.__init__
 
       - save_cache:
-          key: pyenv-2-v2-{{ .Branch }}-{{ .Revision }}
+          key: pyenv-3-7-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /home/circleci/.pyenv
             - /home/circleci/python
@@ -117,14 +117,14 @@ jobs:
 
       - restore_cache:
           keys:
-            - pyenv-3-v2-{{ .Branch }}-{{ .Revision }}
-            - pyenv-3-v2-{{ .Branch }}-
-            - pyenv-3-v2-
+            - pyenv-3-6-v2-{{ .Branch }}-{{ .Revision }}
+            - pyenv-3-6-v2-{{ .Branch }}-
+            - pyenv-3-6-v2-
 
       - run: lore test -s tests.unit.__init__
 
       - save_cache:
-          key: pyenv-3-v2-{{ .Branch }}-{{ .Revision }}
+          key: pyenv-3-6-v2-{{ .Branch }}-{{ .Revision }}
           paths:
             - /home/circleci/.pyenv
             - /home/circleci/python
