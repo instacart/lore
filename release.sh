@@ -1,4 +1,3 @@
-  
 #!/bin/bash
 
 TAG=v`cat lore/__init__.py | grep  '__version__ ='  | awk '{ print $3}'`
