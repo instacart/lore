@@ -29,7 +29,7 @@ setup(
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
         'Environment :: Console',
     ],
-    python_requires='!=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
+    python_requires='>=3.0, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
     keywords='machine learning framework tensorflow airflow',
     url='http://github.com/instacart/lore',
     author=lore.__author__,
