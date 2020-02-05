@@ -26,7 +26,7 @@ GEOIP = ['geoip2']
 H5PY = ['h5py>=2.7, <2.8.99',]
 KERAS = [
     'Keras>=2.0.9, <2.1.99',
-    'tensorflow>=1.3, <1.5.99',
+    'tensorflow>=1.3, <2.0.0',
     'dill>=0.2, <0.2.99',
     'bleach==1.5.0',
     'html5lib==0.9999999',
