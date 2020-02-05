@@ -268,14 +268,14 @@ Dev Ops
 -------
 There are `many ways to manage python dependencies in development and production <http://docs.python-guide.org/en/latest/starting/installation/>`_, and each has it's own pitfalls. Lore codifies a solution that “just works” with lore install, which exactly replicates what will be run in production.
 
-**Python 2 & 3 compatibility**
+**Python compatibility**
 
-- pip install lore works regardless of whether your base system python is 2 or 3. Lore projects will always use the version of python specified in their runtime.txt
+- Lore projects will always use the version of python specified in their runtime.txt
 - Lore projects use the system service manager (upstart on ubuntu) instead of supervisord which requires python 2.
 
 **Heroku_ buildpack compatibility CircleCI_, Domino_)**
 
-- Lore supports runtime.txt to install and use a consistent version of python 2 or 3 in both development and production.
+- Lore supports runtime.txt to install and use a consistent version of python in both development and production.
 - lore install automatically manages freezing requirements.txt, using a virtualenv, so pip dependencies are exactly the same in development and production. This includes workarounds to support correctly (not) freezing github packages in requirements.txt
 
 **Environment Specific Configuration**
