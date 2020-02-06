@@ -71,6 +71,7 @@ if lore.env.AWS_CONFIG:
 
 
 def download(remote_url, local_path=None, cache=True, extract=False):
+    _bucket = bucket
     if re.match(r'^https?://', remote_url):
         protocol = 'http'
     elif re.match(r'^s3?://', remote_url):
@@ -82,11 +83,10 @@ def download(remote_url, local_path=None, cache=True, extract=False):
         remote_url = url_parts.path[1:]
         _bucket = boto3.resource('s3').Bucket(url_parts.netloc)
     else:
-        if s3 is None:
+        if s3 is None or bucket is None:
             raise NotImplementedError("Cannot download from s3 without config/aws.cfg")
         protocol = 's3'
         remote_url = prefix_remote_root(remote_url)
-        _bucket = None
     if cache:
         if local_path is None:
             if protocol == 'http':
