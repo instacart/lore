@@ -519,6 +519,12 @@ if NAME != TEST and os.environ.get('LORE_STDOUT_LOGGING', 'false').lower() in [T
 else:
     STDOUT_LOGGING = False
 
+JSON_LOGGING = False
+if NAME != TEST and os.environ.get('LORE_JSON_LOGGING', 'false').lower() in [True, 'true', '1', 't', 'y', 'yes']:
+    JSON_LOGGING = True
+else:
+    JSON_LOGGING = False
+
 # -- Package cache -----------------------------------------------------------
 INSTALLED_PACKAGES = None
 REQUIRED_VERSION = None

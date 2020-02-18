@@ -8,6 +8,8 @@ import logging
 import logging.handlers
 import os
 import re
+import json
+import tzlocal
 import shutil
 import sys
 import time
@@ -37,6 +39,66 @@ class SecretFilter(logging.Filter):
         record.msg = re.sub(SecretFilter.URL_MATCH, r'://XXX:XXX\3', record.msg)
         return True
 
+class JSONFormatter(logging.Formatter):
+    internal_fields = set([
+        'relativeCreated', 'msecs', 'args', 'name',
+        'thread', 'created', 'process', 'threadName',
+        'module', 'filename', 'levelno', 'processName',
+        'pathname', 'lineno', 'exc_text', 'exc_info',
+        'funcName', 'levelname', 'msg'
+    ])
+
+    filtered_fields = set(["email", "username", "password", "card_number",  "lat", "lon"])
+
+    def format_and_clean(self, obj, level=0):
+        if level > 10:
+            return "too deeply nested"
+
+        if isinstance(obj, dict):
+            return dict(map(lambda pair: (pair[0], "[FILTERED]" if pair[0] in self.filtered_fields else self.format_and_clean(pair[1], level + 1)), obj.items()))
+
+        if isinstance(obj, list):
+            return list(map(lambda obj: self.format_and_clean(obj, level + 1), obj))
+
+        if isinstance(obj, float) or isinstance(obj, int) or isinstance(obj, str):
+            return obj
+
+        return str(obj)
+
+
+    def format(self, record):
+        context = self.format_and_clean(self.extra_context(record))
+        context["time"] = datetime.fromtimestamp(record.created, tzlocal.get_localzone()).isoformat()
+        context["message"] = record.msg
+        context["level"] = record.levelname
+
+        context["line_number"] = record.lineno
+        context["file_path"] = record.pathname
+        context["file_name"] = record.filename
+        context["func_name"] = record.funcName
+
+        context["process_name"] = record.processName
+        context["pid"] = record.process
+        context["thread_name"] = record.threadName
+        context["tid"] = record.thread
+
+        context["logger"] = {
+          "logger_name": record.name,
+          "thread_name": "{}#{}".format(record.processName, record.threadName)
+        }
+
+        if record.exc_info is not None:
+            ex_type, msg, tb = record.exc_info
+            context["error"] = {
+                "stack": ''.join(traceback.format_tb(tb)),
+                "kind": ex_type.__name__ if ex_type is not None else None,
+                "message": str(msg)
+            }
+
+        return json.dumps(context)
+
+    def extra_context(self, record):
+        return dict(map(lambda x: (x, record.__dict__[x]), filter(lambda x: x not in JSONFormatter.internal_fields, record.__dict__.keys())))
 
 class ConsoleFormatter(logging.Formatter):
     colors = {
@@ -87,7 +149,7 @@ def add_log_file_handler(path):
 
 def add_log_stream_handler(stream=sys.stdout):
     handler = logging.StreamHandler(stream)
-    handler.setFormatter(ConsoleFormatter())
+    handler.setFormatter(JSONFormatter() if (env.JSON_LOGGING and not is_interactive()) else ConsoleFormatter())
     handler.addFilter(SecretFilter())
     logger.addHandler(handler)
 
@@ -144,6 +206,16 @@ if env.NAME != env.DEVELOPMENT and env.NAME != env.TEST:
 
 if env.STDOUT_LOGGING:
     add_log_stream_handler()
+
+def is_interactive():
+    is_tty = sys.stdout.isatty() and sys.stderr.isatty()
+    is_ipython = False
+    try:
+        x = get_ipython().__class__.__name__
+        is_ipython = True
+    except NameError:
+        pass
+    return is_tty or is_ipython
 
 
 def strip_one_off_handlers():
