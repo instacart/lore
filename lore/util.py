@@ -9,7 +9,6 @@ import logging.handlers
 import os
 import re
 import json
-import tzlocal
 import shutil
 import sys
 import time
@@ -65,10 +64,9 @@ class JSONFormatter(logging.Formatter):
 
         return str(obj)
 
-
     def format(self, record):
         context = self.format_and_clean(self.extra_context(record))
-        context["time"] = datetime.fromtimestamp(record.created, tzlocal.get_localzone()).isoformat()
+        context["time"] = datetime.fromtimestamp(record.created).isoformat()
         context["message"] = record.msg
         context["level"] = record.levelname
 
