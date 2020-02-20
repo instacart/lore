@@ -38,7 +38,6 @@ jobs:
     - image: circleci/postgres:10-ram
       environment:
         - POSTGRES_USER=circleci
-        - POSTGRES_PASSWORD=circleci
         - POSTGRES_DB=lore_test
     steps:
       - run: sudo chown -R circleci:circleci /usr/local/bin
@@ -93,7 +92,6 @@ jobs:
     - image: circleci/postgres:10-ram
       environment:
         - POSTGRES_USER=circleci
-        - POSTGRES_PASSWORD=circleci
         - POSTGRES_DB=lore_test
     steps:
       - run: sudo chown -R circleci:circleci /usr/local/bin
