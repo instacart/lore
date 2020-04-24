@@ -14,6 +14,7 @@ import lore
 from lore.env import require, configparser
 from lore.util import timer
 from lore.io.connection import Connection
+from lore.io.multi_connection_proxy import MultiConnectionProxy
 
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,11 @@ if config:
         if options.get('url') == '$DATABASE_URL':
             logger.error('$DATABASE_URL is not set, but is used in config/database.cfg. Skipping connection.')
         else:
-            vars()[section.lower()] = Connection(name=section.lower(), **options)
+            if 'urls' in options:
+                vars()[section.lower()] = MultiConnectionProxy(name=section.lower(), **options)
+            else:
+                vars()[section.lower()] = Connection(name=section.lower(), **options)
+
 
 if 'metadata' not in vars():
     vars()['metadata'] = Connection('sqlite:///%s/metadata.sqlite' % lore.env.DATA_DIR)
