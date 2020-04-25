@@ -44,7 +44,6 @@ class MultiConnectionProxy(object):
     # proxying - forward getattr to self._active_connection if not defined in MultiConnectionProxy
 
     def __getattr__(self, attr):
-        value = getattr(self._active_connection, attr)
         if not self._sticky:
             self.shuffle_connections()
-        return value
+        return getattr(self._active_connection, attr)
