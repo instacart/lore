@@ -105,6 +105,7 @@ class Connection(object):
         self._engine = sqlalchemy.create_engine(url, **kwargs).execution_options(autocommit=True)
         self._metadata = None
         self.name = name
+        self.url = url
         self._transactions = []
         self.__thread_local = threading.local()
 

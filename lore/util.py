@@ -16,6 +16,7 @@ import traceback
 from contextlib import contextmanager
 from datetime import datetime
 from lore import ansi, env
+from urllib.parse import urlparse
 
 
 class SecretFilter(logging.Filter):
@@ -479,3 +480,12 @@ def suppress_stdout():
             yield
         finally:
             sys.stdout = old_stdout
+
+
+# only return '<hostname>:<port>/<path>' of given url - drop username, password, etc.
+def scrub_url(db_url):
+    parsed = urlparse(db_url)
+    host = getattr(parsed, 'hostname', None) or '_'
+    port = getattr(parsed, 'port', None) or '_'
+    path = getattr(parsed, 'path', None) or '_'
+    return "{}:{}{}".format(host, port, path)
