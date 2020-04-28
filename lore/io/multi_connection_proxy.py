@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 
 class MultiConnectionProxy(object):
 
+    SQL_RUNNING_METHODS = ['dataframe', 'unload', 'select', 'execute', 'temp_table']
+
     def __init__(self, urls, name='connection', watermark=True, **kwargs):
         sticky = kwargs.pop('sticky_connection', None)
         sticky = False if sticky is None else (sticky.lower() == 'true')
@@ -44,6 +46,6 @@ class MultiConnectionProxy(object):
     # proxying - forward getattr to self._active_connection if not defined in MultiConnectionProxy
 
     def __getattr__(self, attr):
-        if not self._sticky:
+        if not self._sticky and attr in self.SQL_RUNNING_METHODS:
             self.shuffle_connections()
         return getattr(self._active_connection, attr)
