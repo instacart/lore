@@ -187,12 +187,13 @@ class Connection(object):
                 try:
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv.gz')
                     tmp.close()
-                    batch.to_csv(tmp.name, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE, compression='gzip')
+                    batch.to_csv(tmp.name, index=False, header=False, sep='|', na_rep='\\N',
+                                 quotechar='"', quoting=csv.QUOTE_ALL, compression='gzip')
                     self._connection.connection.cursor().execute('PUT file://%(path)s @~/staged;' % {'path': tmp.name})
                     self._connection.connection.cursor().execute(
                         'COPY INTO %(table)s '
                         'FROM @~/staged '
-                        'FILE_FORMAT = (TYPE = CSV FIELD_DELIMITER = \'|\' SKIP_HEADER = 0 COMPRESSION = GZIP) '
+                        'FILE_FORMAT = (TYPE = CSV FIELD_DELIMITER = \'|\' SKIP_HEADER = 0 COMPRESSION = GZIP FIELD_OPTIONALLY_ENCLOSED_BY = \'"\') '
                         'PURGE = TRUE' % {
                             'table': table
                         }
