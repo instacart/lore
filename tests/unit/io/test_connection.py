@@ -12,7 +12,7 @@ import sqlalchemy
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
 import pandas
-
+import psycopg2
 import lore
 
 
@@ -137,7 +137,7 @@ class TestConnection(unittest.TestCase):
                 lore.io.main.execute(sql='insert into tests_autocommit values (1), (2), (3)')
                 posts.append(lore.io.main.select(sql='select count(*) from tests_autocommit')[0][0])
                 time.sleep(delay)
-            except sqlalchemy.exc.IntegrityError as ex:
+            except psycopg2.IntegrityError as ex:
                 thrown.append(True)
 
         slow = Thread(target=insert, args=(1,))
@@ -163,21 +163,21 @@ class TestConnection(unittest.TestCase):
         lore.io.main.close()
         reopened = lore.io.main.select(sql='select 1')
         self.assertEquals(reopened, [(1,)])
-        with self.assertRaises(sqlalchemy.exc.ProgrammingError):
+        with self.assertRaises(psycopg2.ProgrammingError):
             lore.io.main.select(sql='select count(*) from tests_close')
 
     def test_reconnect_and_retry(self):
-        original_execute = lore.io.main._connection.execute
+        original_execute = lore.io.main._connection_execute
 
         def raise_dbapi_error_on_first_call(sql, bindings):
-            lore.io.main._connection.execute = original_execute
+            lore.io.main._connection_execute = original_execute
             e = lore.io.connection.Psycopg2OperationalError('server closed the connection unexpectedly. This probably means the server terminated abnormally before or while processing the request.')
             raise sqlalchemy.exc.DBAPIError('select 1', [], e, True)
 
         exceptions = lore.env.STDOUT_EXCEPTIONS
         lore.env.STDOUT_EXCEPTIONS = False
         connection = lore.io.main._connection
-        lore.io.main._connection.execute = raise_dbapi_error_on_first_call
+        lore.io.main._connection_execute = raise_dbapi_error_on_first_call
 
         result = lore.io.main.select(sql='select 1')
         lore.env.STDOUT_EXCEPTIONS = exceptions
@@ -192,17 +192,17 @@ class TestConnection(unittest.TestCase):
         self.assertEqual(len(temps), 3)
 
     def test_reconnect_and_retry_on_expired_connection(self):
-        original_execute = lore.io.main._connection.execute
+        original_execute = lore.io.main._connection_execute
 
         def raise_snowflake_programming_error_on_first_call(sql, bindings):
-            lore.io.main._connection.execute = original_execute
+            lore.io.main._connection_execute = original_execute
             e = lore.io.connection.SnowflakeProgrammingError('Authentication token has expired.  The user must authenticate again')
             raise sqlalchemy.exc.DBAPIError('select 1', [], e, True)
 
         exceptions = lore.env.STDOUT_EXCEPTIONS
         lore.env.STDOUT_EXCEPTIONS = False
         connection = lore.io.main._connection
-        lore.io.main._connection.execute = raise_snowflake_programming_error_on_first_call
+        lore.io.main._connection_execute = raise_snowflake_programming_error_on_first_call
 
         result = lore.io.main.select(sql='select 1')
         lore.env.STDOUT_EXCEPTIONS = exceptions
