@@ -11,6 +11,8 @@ import re
 import sys
 import tempfile
 import threading
+import string
+import random
 
 from datetime import datetime
 
@@ -188,15 +190,21 @@ class Connection(object):
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv.gz')
                     tmp.close()
                     batch.to_csv(tmp.name, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE, compression='gzip')
-                    self._connection.connection.cursor().execute('PUT file://%(path)s @~/staged;' % {'path': tmp.name})
+                    letters = string.ascii_letters
+                    suffix = ''.join(random.choice(letters) for i in range(20))
+                    stage_name = 'staged_' + suffix
+                    self.execute('REMOVE @~/%(stage_name)s' % {'stage_name': stage_name})
+                    self._connection.connection.cursor().execute('PUT file://%(path)s @~/%(stage_name)s;' % {'path': tmp.name, 'stage_name': stage_name})
                     self._connection.connection.cursor().execute(
                         'COPY INTO %(table)s '
-                        'FROM @~/staged '
+                        'FROM @~/%(stage_name)s '
                         'FILE_FORMAT = (TYPE = CSV FIELD_DELIMITER = \'|\' SKIP_HEADER = 0 COMPRESSION = GZIP) '
                         'PURGE = TRUE' % {
-                            'table': table
+                            'table': table,
+                            'stage_name': stage_name
                         }
                     )
+                    self.execute('REMOVE @~/%(stage_name)s' % {'stage_name': stage_name})
                 finally:
                     os.remove(tmp.name)
 
