@@ -11,8 +11,7 @@ import re
 import sys
 import tempfile
 import threading
-import string
-import random
+import uuid
 
 from datetime import datetime
 
@@ -190,8 +189,7 @@ class Connection(object):
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.csv.gz')
                     tmp.close()
                     batch.to_csv(tmp.name, index=False, header=False, sep='|', na_rep='\\N', quoting=csv.QUOTE_NONE, compression='gzip')
-                    letters = string.ascii_letters
-                    suffix = ''.join(random.choice(letters) for i in range(20))
+                    suffix = str(uuid.uuid4())
                     stage_name = 'staged_' + suffix
                     self.execute('REMOVE @~/%(stage_name)s' % {'stage_name': stage_name})
                     self._connection.connection.cursor().execute('PUT file://%(path)s @~/%(stage_name)s;' % {'path': tmp.name, 'stage_name': stage_name})
