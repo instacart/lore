@@ -111,6 +111,7 @@ class PrintInterceptor(object):
         self.errors = stream.errors
         self.encoding = stream.encoding
         self.level = level
+        self.isatty = stream.isatty
 
     def write(self, value):
         self.stream.write(value)
