@@ -5,7 +5,7 @@ INFLECTION = ['inflection>=0.3, <0.3.99']
 JINJA = ['Jinja2>=2.9.0, <2.10.0']
 JUPYTER = [
     'jupyter>=1.0, <1.0.99',
-    'jupyter-core>=4.4.0, <4.4.99',
+    'jupyter-core>=4.6.1, <4.6.99',
 ]
 NUMPY = ['numpy>=1.14, <1.14.99']
 PANDAS = ['pandas>=0.20, <0.23.99, !=0.22.0']
