@@ -65,9 +65,22 @@ class JSONFormatter(logging.Formatter):
         return str(obj)
 
     def format(self, record):
+        context = {}
+        if isinstance(record.msg, dict):
+            context = self.format_and_clean(record.msg)
+            if "message" in context:
+                record.msg = context["message"]
+            else:
+                record.msg = json.dumps(context)
+
+        formatted_message = record.msg
+        if len(record.args) > 0:
+            formatted_message = formatted_message % record.args
+
+        context.update(self.format_and_clean(self.extra_context(record)))
         context = self.format_and_clean(self.extra_context(record))
         context["time"] = datetime.fromtimestamp(record.created).isoformat()
-        context["message"] = record.msg
+        context["message"] = formatted_message
         context["level"] = record.levelname
 
         context["line_number"] = record.lineno
@@ -127,6 +140,16 @@ class ConsoleFormatter(logging.Formatter):
 
 
 logger = logging.getLogger()
+
+def is_interactive():
+    is_tty = sys.stdout.isatty() and sys.stderr.isatty()
+    is_ipython = False
+    try:
+        x = get_ipython().__class__.__name__
+        is_ipython = True
+    except NameError:
+        pass
+    return is_tty or is_ipython
 
 
 def get_relevant_args(method, kwargs):
@@ -204,16 +227,6 @@ if env.NAME != env.DEVELOPMENT and env.NAME != env.TEST:
 
 if env.STDOUT_LOGGING:
     add_log_stream_handler()
-
-def is_interactive():
-    is_tty = sys.stdout.isatty() and sys.stderr.isatty()
-    is_ipython = False
-    try:
-        x = get_ipython().__class__.__name__
-        is_ipython = True
-    except NameError:
-        pass
-    return is_tty or is_ipython
 
 
 def strip_one_off_handlers():
