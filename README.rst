@@ -314,7 +314,7 @@ Lore Library
 
 **Caching**
 
-- Lore provides mulitple configurable cache types, RAM, Disk, coming soon: MemCached & Redis
+- Lore provides multiple configurable cache types, RAM, Disk, coming soon: MemCached & Redis
 - Disk cache is tested with pandas to avoid pitfalls encountered serializing w/ csv, h5py, pickle
 
 **Encoders**
