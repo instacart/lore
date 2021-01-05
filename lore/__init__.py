@@ -39,28 +39,29 @@ def banner():
     )
 
 
-lore_no_env = False
-if hasattr(sys, 'lore_no_env'):
-    lore_no_env = sys.lore_no_env
+def env_check():
+    lore_no_env = False
+    if hasattr(sys, 'lore_no_env'):
+        lore_no_env = sys.lore_no_env
 
 
-no_env_commands = ['--version', 'install', 'init', 'server']
-if len(sys.argv) > 1 and os.path.basename(sys.argv[0]) in ['lore', 'lore.exe'] and sys.argv[1] in no_env_commands:
-    lore_no_env = True
+    no_env_commands = ['--version', 'install', 'init', 'server']
+    if len(sys.argv) > 1 and os.path.basename(sys.argv[0]) in ['lore', 'lore.exe'] and sys.argv[1] in no_env_commands:
+        lore_no_env = True
 
-if '--no-env' in sys.argv:
-    lore_no_env = True
-    
-if not lore_no_env:
-    # everyone else gets validated and launched on import
-    env.validate()
-    env.launch()
-
-if env.launched():
-    print(banner())
-    logger.info(banner())
-    logger.debug('python environment: %s' % env.PREFIX)
+    if '--no-env' in sys.argv:
+        lore_no_env = True
 
     if not lore_no_env:
-        with timer('check requirements', logging.DEBUG):
-            env.check_requirements()
+        # everyone else gets validated and launched on import
+        env.validate()
+        env.launch()
+
+    if env.launched():
+        print(banner())
+        logger.info(banner())
+        logger.debug('python environment: %s' % env.PREFIX)
+
+        if not lore_no_env:
+            with timer('check requirements', logging.DEBUG):
+                env.check_requirements()
