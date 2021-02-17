@@ -299,15 +299,16 @@ if env.launched():
     # Rollbar
     try:
         with timer('rollbar init', logging.DEBUG):
-            import rollbar
-            rollbar.init(
-                os.environ.get("ROLLBAR_ACCESS_TOKEN", None),
-                allow_logging_basic_config=False,
-                environment=env.NAME,
-                enabled=(env.NAME != env.DEVELOPMENT),
-                handler='blocking',
-                locals={"enabled": True}
-            )
+            if not getattr(sys, 'lore_disable_rollbar', False):
+                import rollbar
+                rollbar.init(
+                    os.environ.get("ROLLBAR_ACCESS_TOKEN", None),
+                    allow_logging_basic_config=False,
+                    environment=env.NAME,
+                    enabled=(env.NAME != env.DEVELOPMENT),
+                    handler='blocking',
+                    locals={"enabled": True}
+                )
 
             def report_exception(exc_type=None, value=None, tb=None):
                 if exc_type is None:
@@ -316,13 +317,15 @@ if env.launched():
                 if env.STDOUT_EXCEPTIONS:
                     print(message)
                 logger.exception(message)
-                try:
-                    rollbar.report_exc_info(
-                        exc_info=(exc_type, value, tb),
-                        extra_data={"app": env.APP}
-                    )
-                except Exception as e:
-                    logger.exception('reporting to rollbar: %s' % e)
+
+                if not getattr(sys, 'lore_disable_rollbar', False):
+                    try:
+                        rollbar.report_exc_info(
+                            exc_info=(exc_type, value, tb),
+                            extra_data={"app": env.APP}
+                        )
+                    except Exception as e:
+                        logger.exception('reporting to rollbar: %s' % e)
 
             sys.excepthook = report_exception
 
