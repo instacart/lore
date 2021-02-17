@@ -1,3 +1,4 @@
+SETUP = ['setuptools==48.0.0']
 DATEUTIL = ['python-dateutil>=2.1, <2.7.0']
 FLASK = ['flask>=0.11.0, <0.12.99']
 FUTURE = ['future>=0.15, <0.16.99']
@@ -57,7 +58,8 @@ ALL = list(set(
     H5PY +
     KERAS +
     XGBOOST +
-    SKLEARN
+    SKLEARN +
+    SETUP
 ))
 
 TEST = ALL + [
