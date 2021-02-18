@@ -59,7 +59,7 @@ jobs:
           paths:
           - ".git"
 
-      - run: pip install --upgrade pip
+      - run: pip install --upgrade pip && pip install 'setuptools==48.0.0'
       - run: pip install -e .
 
       - restore_cache:
@@ -114,7 +114,7 @@ jobs:
           paths:
           - ".git"
 
-      - run: pip install --upgrade pip
+      - run: pip install --upgrade pip && pip install 'setuptools==48.0.0'
       - run: pip install -e .
 
       - restore_cache:
