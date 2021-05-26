@@ -135,7 +135,7 @@ logger.setLevel(log_levels.get(env.NAME, logging.INFO))
 
 _sql_alchemy_logger = logging.getLogger('sqlalchemy')
 if _sql_alchemy_logger is not None:
-  _sql_alchemy_logger.setLevel(os.environ.get('LORE_SQLALCHEMY_LOGGING_LEVEL', 'INFO'))
+    _sql_alchemy_logger.setLevel(os.getenv('LORE_SQLALCHEMY_LOGGING_LEVEL', 'INFO'))
 
 if env.NAME != env.DEVELOPMENT and env.NAME != env.TEST:
     address = None
