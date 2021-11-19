@@ -15,7 +15,7 @@ SHAP = ['shap>=0.12.0, <0.12.99']
 SQL = ['sqlalchemy>=1.2.0b3, <1.2.99', 'sqlalchemy-migrate>=0.11, <0.11.99']
 SNOWFLAKE = [
     'snowflake-connector-python>=2.0.2, <3.0.0',
-    'snowflake-sqlalchemy>=1.1.0, <1.2.0',
+    'snowflake-sqlalchemy>=1.1.0, <1.3.0',
 ]
 POSTGRES = ['psycopg2>=2.7, <2.7.99'] + SQL
 REDSHIFT = ['sqlalchemy-redshift>=0.7, <0.7.99'] + SQL
