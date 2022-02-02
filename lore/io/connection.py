@@ -17,7 +17,7 @@ from datetime import datetime
 
 import lore
 from lore.env import require
-from lore.util import timer
+from lore.util import timer, scrub_url
 from lore.stores import query_cached
 
 require(
@@ -102,7 +102,7 @@ class Connection(object):
             del kwargs['__name__']
         if 'echo' not in kwargs:
             kwargs['echo'] = False
-        logger.info("Creating engine: %s %s" % (url, kwargs))
+        logger.info("Creating engine: %s %s" % (scrub_url(url), kwargs))
         self._engine = sqlalchemy.create_engine(url, **kwargs).execution_options(autocommit=True)
         self._metadata = None
         self.name = name
