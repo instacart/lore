@@ -108,7 +108,7 @@ def require(packages):
     missing = []
     for package in packages:
         name = re.split(r'[!<>=]', package)[0].lower()
-        if name not in INSTALLED_PACKAGES:
+        if normalize_package_name(name) not in INSTALLED_PACKAGES:
             print(ansi.info() + ' %s is required.' % package)
             missing += [package]
 
@@ -370,7 +370,7 @@ def set_installed_packages():
         (stdout, stderr) = pip.communicate()
         pip.wait()
 
-        INSTALLED_PACKAGES = [r.decode().split('==')[0].lower() for r in stdout.split()]
+        INSTALLED_PACKAGES = [normalize_package_name(r.decode().split('==')[0].lower()) for r in stdout.split()]
         REQUIRED_VERSION = next((package for package in INSTALLED_PACKAGES if re.match(r'^lore[!<>=]', package)), None)
         if REQUIRED_VERSION:
             REQUIRED_VERSION = re.split(r'[!<>=]', REQUIRED_VERSION)[-1]
@@ -421,6 +421,10 @@ def set_python_version(python_version):
             BIN_FLASK = os.path.join(PREFIX, 'bin', 'flask')
             FLASK_APP = os.path.join(PREFIX, 'lib', python_minor, 'site-packages', 'lore', 'www', '__init__.py')
 
+
+def normalize_package_name(name):
+    # This is taken from PEP 503
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 # -- Check Local -------------------------------------------------------------
 # It's critical to check locale.getpreferredencoding() before changing os.environ, to see what python actually has configured.
