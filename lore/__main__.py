@@ -1292,4 +1292,5 @@ def pip_install(path, args):
 
 
 if __name__ == '__main__':
+    env_check()
     main()
