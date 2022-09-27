@@ -134,7 +134,6 @@ class Connection(object):
         @event.listens_for(self._engine, "after_cursor_execute")
         def time_sql_calls(conn, cursor, statement, parameters, context, executemany):
             total = datetime.now() - conn.info['query_start_time'].pop(-1)
-            logger.info("SQL: %s" % total)
 
         @event.listens_for(self._engine, "connect")
         def receive_connect(dbapi_connection, connection_record):
