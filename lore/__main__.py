@@ -21,7 +21,14 @@ import sys
 
 import lore
 from lore import ansi, env, util
+
+
 from lore.util import timer, which
+if platform.system() == "Windows":
+    subprocess.run([env.BIN_FLASK] + sys.argv[1:], shell=True)
+else:
+    os.execv(env.BIN_FLASK, args)
+
 
 
 logger = logging.getLogger(__name__)

@@ -24,11 +24,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import glob
 import locale
-import os
 import re
 import socket
 import subprocess
-import sys
 import platform
 from io import open
 
@@ -36,6 +34,14 @@ import pkg_resources
 
 from lore import ansi
 
+import os
+import sys
+import subprocess
+# Determine the path to flask.exe depending on OS
+if sys.platform == "win32":
+    BIN_FLASK = os.path.normpath(os.path.join(os.getcwd(), ".venv", "Scripts", "flask.exe"))
+else:
+    BIN_FLASK = os.path.join(os.getcwd(), ".venv", "bin", "flask")
 
 # -- Python 2/3 Compatability ------------------------------------------------
 
@@ -170,10 +176,8 @@ def validate():
         )
     )
 
-
 def launch():
-    """Ensure that python is running from the Lore virtualenv past this point.
-    """
+    """Ensure that python is running from the Lore virtualenv past this point."""
     if launched():
         check_version()
         os.chdir(ROOT)
@@ -188,8 +192,11 @@ def launch():
             import lore.__main__
             lore.__main__.install(None, None)
 
-    reboot('--env-launched')
-
+    # Windows-safe call
+    if platform.system() == "Windows":
+        subprocess.run([BIN_FLASK] + sys.argv[1:], shell=True)
+    else:
+        os.execv(BIN_FLASK, sys.argv)
 
 def reboot(*args):
     """Reboot python in the Lore virtualenv
@@ -285,7 +292,7 @@ def get_config(path):
     conf = open(path, 'rt').read()
     conf = os.path.expandvars(conf)
 
-    config = configparser.SafeConfigParser()
+    config = configparser.ConfigParser()
     if sys.version_info[0] == 2:
         from io import StringIO
         config.readfp(StringIO(unicode(conf)))
