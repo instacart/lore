@@ -338,34 +338,32 @@ if env.launched():
         sys.excepthook = report_exception
 
     # Librato
+import os
+import threading
+
+_librato = None
+_librato_aggregator = None
+_librato_timer = None
+_librato_start = None
+_librato_lock = threading.RLock()
+
+# Only connect to Librato if both env variables are present
+LIBRATO_USER = os.getenv('LIBRATO_USER')
+LIBRATO_TOKEN = os.getenv('LIBRATO_TOKEN')
+
+if LIBRATO_USER and LIBRATO_TOKEN:
     try:
         import librato
         from librato.aggregator import Aggregator
-
-        # client side aggregation
-        LIBRATO_MIN_AGGREGATION_PERIOD = 5
-        LIBRATO_MAX_AGGREGATION_PERIOD = 60
-
+        _librato = librato.connect(LIBRATO_USER, LIBRATO_TOKEN)
+        logger.info('Connected to Librato with user: %s' % LIBRATO_USER)
+    except Exception as e:
         _librato = None
-        if os.getenv('LIBRATO_USER'):
-            try:
-                _librato = librato.connect(os.getenv('LIBRATO_USER'), os.getenv('LIBRATO_TOKEN'))
-                _librato_aggregator = None
-                _librato_timer = None
-                _librato_start = None
-                _librato_lock = threading.RLock()
-                logger.info('connected to librato with user: %s' % os.getenv('LIBRATO_USER'))
-            except:
-                logger.exception('unable to start librato')
-                report_exception()
-                _librato = None
-        else:
-            logger.warning('librato variables not found')
+        logger.warning('Could not connect to Librato: %s' % str(e))
+else:
+    logger.warning('Librato environment variables not found')
 
-    except env.ModuleNotFoundError:
-        pass
-
-
+               
     def librato_record(name, value):
         global _librato, _librato_lock, _librato_aggregator, _librato_timer, _librato_start
 
